@@ -1373,18 +1373,21 @@ function renderCallings(el,role){
     });
     tdCb.appendChild(rowCb);tr.appendChild(tdCb);
 
-    tr.innerHTML+=`
-      <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
-      <td>${c.name}</td>
-      <td class="td-sub">${c.ward}</td>
-      <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
-      <td class="td-sub">${c.action}</td>
-      <td><span class="badge ${status.cls}">${status.label}</span></td>
-      <td class="progress-cell">
-        <div style="font-size:11px;color:#aaa;">${c.currentStep} / ${steps.length-1}</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </td>
-      <td class="td-sub">${c.currentStep<steps.length?steps[c.currentStep]:'—'}</td>`;
+    // Build remaining cells without innerHTML+= (which would destroy the checkbox td)
+    function addTd(html,cls){
+      const td=document.createElement('td');
+      if(cls)td.className=cls;
+      td.innerHTML=html;
+      tr.appendChild(td);
+    }
+    addTd(`${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}`,'td-calling');
+    addTd(c.name);
+    addTd(c.ward,'td-sub');
+    addTd(`<span class="badge ${lvl.cls}">${lvl.label}</span>`);
+    addTd(c.action,'td-sub');
+    addTd(`<span class="badge ${status.cls}">${status.label}</span>`);
+    addTd(`<div style="font-size:11px;color:#aaa;">${c.currentStep} / ${steps.length-1}</div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`,'progress-cell');
+    addTd(c.currentStep<steps.length?steps[c.currentStep]:'—','td-sub');
 
     tr.addEventListener('click',e=>{
       if(e.target.type==='checkbox')return;
