@@ -81,6 +81,27 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .callings-table tbody tr.selected-row{background:#f0f4ff;}
 .callings-table thead .select-all-cb{cursor:pointer;width:15px;height:15px;accent-color:#1c2537;}
 .callings-table tbody .row-cb{cursor:pointer;width:15px;height:15px;accent-color:#1c2537;}
+/* ── Mobile card view ── */
+.mobile-cards{display:none;}
+@media(max-width:767px){
+  .mobile-cards{display:block;}
+  .desktop-table{display:none;}
+  .m-card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:14px 15px;margin-bottom:9px;position:relative;transition:border-color 0.15s,box-shadow 0.15s;}
+  .m-card.m-selected{border-color:#1c2537;background:#f0f4ff;box-shadow:0 0 0 2px rgba(28,37,55,0.15);}
+  .m-card-calling{font-weight:700;font-size:15px;color:#1c2537;margin-bottom:2px;}
+  .m-card-member{font-size:12px;color:#555;font-weight:500;margin-bottom:2px;}
+  .m-card-meta{font-size:11px;color:#999;margin-bottom:8px;}
+  .m-card-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .m-card-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+  .m-card-progress{margin-top:8px;}
+  .m-card-next{font-size:11px;color:#aaa;margin-top:4px;}
+  .m-cb{width:18px;height:18px;accent-color:#1c2537;cursor:pointer;flex-shrink:0;}
+  .m-select-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+}
+@media(min-width:768px){
+  .mobile-cards{display:none!important;}
+  .desktop-table{display:block;}
+}
 .callings-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);}
 .callings-table thead tr{background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
 .callings-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;}
@@ -1235,13 +1256,37 @@ function renderDashboard(el,role){
 }
 
 function renderCallings(el,role){
-  el.innerHTML=`<div class="page-title">Callings Tracker</div><div class="page-sub">${scopeLabel(role)}</div>`;
-  const hdr=document.createElement('div');hdr.className='section-header';hdr.innerHTML='<span class="section-title">All Callings</span>';
-  if(!isReadOnly(role)){const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='+ New Calling';btn.addEventListener('click',()=>openCallingModal(role));hdr.appendChild(btn);}
-  el.appendChild(hdr);
+  el.innerHTML='';
   if(isReadOnly(role)){const ro=document.createElement('div');ro.className='read-only-notice';ro.innerHTML='<span>&#128065;</span><span>View only.</span>';el.appendChild(ro);}
+
+  // Header row: filter on left, New Calling on right
+  const hdr=document.createElement('div');hdr.className='section-header';hdr.style.marginBottom='12px';
+
   const lf=getLevelFilters(role);
-  if(lf.length>1){const fr=document.createElement('div');fr.className='filter-row';lf.forEach(f=>{const chip=document.createElement('button');chip.className='filter-chip'+(state.filterLevel===f?' active':'');chip.textContent=f;chip.addEventListener('click',()=>{state.filterLevel=f;render();});fr.appendChild(chip);});el.appendChild(fr);}
+  if(lf.length>1){
+    const isMobile=window.innerWidth<768;
+    if(isMobile){
+      // Mobile: compact dropdown
+      const mf=document.createElement('select');
+      mf.style.cssText='padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.15);font-size:13px;font-weight:500;background:#fff;color:#1c2537;width:auto;';
+      lf.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;if(f===state.filterLevel)o.selected=true;mf.appendChild(o);});
+      mf.addEventListener('change',()=>{state.filterLevel=mf.value;render();});
+      hdr.appendChild(mf);
+    } else {
+      // Desktop: pill buttons
+      const fr=document.createElement('div');fr.className='filter-row';fr.style.margin='0';
+      lf.forEach(f=>{const chip=document.createElement('button');chip.className='filter-chip'+(state.filterLevel===f?' active':'');chip.textContent=f;chip.addEventListener('click',()=>{state.filterLevel=f;render();});fr.appendChild(chip);});
+      hdr.appendChild(fr);
+    }
+  } else {
+    hdr.appendChild(document.createElement('div')); // spacer
+  }
+
+  if(!isReadOnly(role)){
+    const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='+ New Calling';
+    btn.addEventListener('click',()=>openCallingModal(role));hdr.appendChild(btn);
+  }
+  el.appendChild(hdr);
   let list=filterCallings(state.callings,role);
   // Only show active (non-completed) callings here
   list=list.filter(c=>c.currentStep<getSteps(c).length-1);
@@ -1284,8 +1329,8 @@ function renderCallings(el,role){
   const visibleIds=new Set(list.map(c=>c.id));
   for(const id of [...state.selectedCallingIds]){if(!visibleIds.has(id))state.selectedCallingIds.delete(id);}
 
-  // Bulk toolbar — only visible when something is selected
-  if(state.selectedCallingIds.size>0){
+  // Bulk toolbar — desktop only, only visible when something is selected
+  if(state.selectedCallingIds.size>0&&window.innerWidth>=768){
     const toolbar=document.createElement('div');toolbar.className='bulk-toolbar';
 
     const actionSel=document.createElement('select');actionSel.className='bulk-action-select';
@@ -1320,7 +1365,95 @@ function renderCallings(el,role){
     el.appendChild(toolbar);
   }
 
+  // ── Desktop table ───────────────────────────────────────────────────────
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';el.appendChild(tableWrap);
+
+  // ── Mobile cards ─────────────────────────────────────────────────────────
+  const mobileWrap=document.createElement('div');mobileWrap.className='mobile-cards';
+
+  // Mobile bulk action bar
+  if(state.selectedCallingIds.size>0){
+    const mbar=document.createElement('div');mbar.className='m-select-bar';
+    const msel=document.createElement('select');msel.className='bulk-action-select';
+    msel.innerHTML='<option value="">Actions</option><option value="archive">Archive</option><option value="delete">Delete</option>';
+    msel.addEventListener('change',()=>{
+      const val=msel.value;if(!val)return;
+      if(val==='archive'){
+        state.callings.forEach(c=>{if(state.selectedCallingIds.has(c.id)){const steps=getSteps(c);c.currentStep=steps.length-1;steps.forEach((_,i)=>{if(!c.stepDates[i])c.stepDates[i]=today();});}});
+        state.selectedCallingIds.clear();
+      } else if(val==='delete'){
+        if(confirm(`Delete ${state.selectedCallingIds.size} calling${state.selectedCallingIds.size>1?'s':''}?`)){
+          state.callings=state.callings.filter(c=>!state.selectedCallingIds.has(c.id));
+          state.selectedCallingIds.clear();
+        }
+      }
+      msel.value='';render();
+    });
+    mbar.appendChild(msel);
+    const mcnt=document.createElement('span');mcnt.style.cssText='font-size:12px;color:#888;font-weight:500;';mcnt.textContent=`${state.selectedCallingIds.size} selected`;
+    mbar.appendChild(mcnt);
+    mobileWrap.appendChild(mbar);
+  }
+
+  const isSelectMode=state.selectedCallingIds.size>0;
+  list.forEach(c=>{
+    const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level),pct=Math.round((c.currentStep/(steps.length-1))*100);
+    const isSelected=state.selectedCallingIds.has(c.id);
+    const card=document.createElement('div');card.className='m-card'+(isSelected?' m-selected':'');
+
+    card.innerHTML=`
+      <div class="m-card-row">
+        <div style="flex:1;min-width:0;">
+          <div class="m-card-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}</div>
+          <div class="m-card-member">${c.name}</div>
+          <div class="m-card-meta">${c.ward}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span class="badge ${status.cls}">${status.label}</span>
+          ${isSelectMode?`<input type="checkbox" class="m-cb" style="position:static;width:18px;height:18px;" ${isSelected?'checked':''}>`:''}
+        </div>
+      </div>
+      <div class="m-card-badges">
+        <span class="badge ${lvl.cls}">${lvl.label}</span>
+        <span class="badge badge-gray">${c.action}</span>
+      </div>
+      <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="m-card-next">Next: ${c.currentStep<steps.length?steps[c.currentStep]:'Completed'}</div>
+    `;
+
+    // Long press to enter select mode
+    let pressTimer=null;
+    card.addEventListener('pointerdown',()=>{
+      pressTimer=setTimeout(()=>{
+        state.selectedCallingIds.add(c.id);
+        render();
+      },500);
+    });
+    card.addEventListener('pointerup',()=>clearTimeout(pressTimer));
+    card.addEventListener('pointerleave',()=>clearTimeout(pressTimer));
+
+    // Tap handler
+    card.addEventListener('click',e=>{
+      if(e.target.type==='checkbox')return;
+      if(isSelectMode){
+        if(isSelected)state.selectedCallingIds.delete(c.id);
+        else state.selectedCallingIds.add(c.id);
+        render();return;
+      }
+      state.view='detail';state.detailId=c.id;render();
+    });
+
+    // Checkbox direct tap
+    const cb=card.querySelector('.m-cb');
+    if(cb){cb.addEventListener('change',()=>{if(cb.checked)state.selectedCallingIds.add(c.id);else state.selectedCallingIds.delete(c.id);render();});}
+
+    mobileWrap.appendChild(card);
+  });
+  el.appendChild(mobileWrap);
+
   const table=document.createElement('table');table.className='callings-table';
+  tableWrap.appendChild(table);
+  // Redirect el.appendChild(table) calls to tableWrap
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
 
@@ -1397,7 +1530,197 @@ function renderCallings(el,role){
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  el.appendChild(table);
+  tableWrap.appendChild(table);
+}
+
+function renderCallingDetail(el,role){
+  const c=state.callings.find(x=>x.id===state.detailId);if(!c)return;
+  if(!c.stepMeta)c.stepMeta={};
+  const steps=getSteps(c),status=getStatusBadge(c);
+  const canEdit=canAdvanceWorkflow(role)&&!isReadOnly(role);
+  const DUAL_STEP='Set Appts to Extend & Release Current';
+
+  // Header
+  const hdr=document.createElement('div');hdr.className='detail-header';
+  const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';
+  bb.addEventListener('click',()=>{state.view='list';state.detailId=null;render();});
+  const hdi=document.createElement('div');
+  hdi.innerHTML=`<div class="detail-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:11px;vertical-align:middle">Custom</span>':''}</div><div class="detail-member">${c.name}</div>`;
+  hdr.appendChild(bb);hdr.appendChild(hdi);
+  if(canEdit){
+    const editBtn=document.createElement('button');
+    editBtn.style.cssText='margin-left:auto;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background 0.15s;';
+    editBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit';
+    editBtn.addEventListener('mouseenter',()=>{editBtn.style.background='#f5f7ff';});
+    editBtn.addEventListener('mouseleave',()=>{editBtn.style.background='#fff';});
+    editBtn.addEventListener('click',()=>openCallingEditModal(c,role));
+    hdr.appendChild(editBtn);
+  }
+  el.appendChild(hdr);
+
+  if(isReadOnly(role)){const ro=document.createElement('div');ro.className='read-only-notice';ro.innerHTML='<span>&#128065;</span><span>View only.</span>';el.appendChild(ro);}
+
+  // Info grid
+  const info=document.createElement('div');info.className='info-grid';
+  info.innerHTML=`<div><div class="info-cell-label">Ward</div><div class="info-cell-value">${c.ward}</div></div><div><div class="info-cell-label">Organization</div><div class="info-cell-value">${c.org}</div></div><div><div class="info-cell-label">Level</div><div class="info-cell-value">${c.level}</div></div><div><div class="info-cell-label">Action</div><div class="info-cell-value">${c.action}</div></div><div><div class="info-cell-label">Status</div><div class="info-cell-value"><span class="badge ${status.cls}">${status.label}</span></div></div><div><div class="info-cell-label">Submitted</div><div class="info-cell-value">${fmt(c.submittedDate)}</div></div>`;
+  el.appendChild(info);
+
+  // Member extra info
+  const mi=document.createElement('div');mi.className='info-grid';mi.style.marginTop='4px';
+  let miHTML='';
+  if(c.memberCallings&&c.memberCallings.length>0){
+    const callingsDisplay=c.memberCallings.map(cl=>`<div style="display:flex;align-items:center;gap:6px;">${cl} <span class="badge badge-amber" style="font-size:10px">To be released</span></div>`).join('');
+    miHTML+=`<div><div class="info-cell-label">Callings to Release</div><div class="info-cell-value">${callingsDisplay}</div></div>`;
+  } else if(c.memberCurrentCalling){
+    miHTML+=`<div><div class="info-cell-label">Current Calling</div><div class="info-cell-value">${c.memberCurrentCalling}${c.memberNeedsRelease?' <span class="badge badge-amber" style="font-size:10px">To be released</span>':''}</div></div>`;
+  }
+  if(c.spouseName){miHTML+=`<div><div class="info-cell-label">Spouse</div><div class="info-cell-value">${c.spouseName}</div></div>`;}
+  if(c.spouseCalling){miHTML+=`<div><div class="info-cell-label">Spouse\'s Calling</div><div class="info-cell-value">${c.spouseCalling}</div></div>`;}
+  if(miHTML){mi.innerHTML=miHTML;el.appendChild(mi);}
+
+  if(c.currentlyFilled&&c.releaseName){
+    const rb=document.createElement('div');rb.className='currently-filled-box';rb.style.margin='12px 0';
+    rb.innerHTML=`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a5400;margin-bottom:6px;">Current Holder — To Be Released</div><div style="font-size:14px;font-weight:600;color:#1c2537">${c.releaseName}</div><div style="font-size:12px;color:#666;margin-top:2px">${c.calling}</div>`;
+    el.appendChild(rb);
+  }
+  if(c.notes){
+    const nb=document.createElement('div');nb.style.cssText='font-size:12px;color:#666;background:#f8f9fb;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
+    nb.innerHTML=`<span style="font-weight:600;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">Notes</span><div style="margin-top:4px">${c.notes}</div>`;
+    el.appendChild(nb);
+  }
+
+  const dv=document.createElement('div');dv.className='divider';el.appendChild(dv);
+  const wl=document.createElement('div');wl.style.cssText='font-size:13px;font-weight:700;color:#1c2537;margin-bottom:8px;';wl.textContent='Workflow Progress';el.appendChild(wl);
+
+  const sl=document.createElement('div');sl.className='step-list';
+  steps.forEach((step,i)=>{
+    if(step==='Completed')return;
+    const isDual=step===DUAL_STEP;
+    const isChecked=i<c.currentStep;
+    const prevChecked=i===0||(i-1)<c.currentStep;
+    const canCheck=canEdit&&prevChecked;
+
+    const item=document.createElement('div');item.className='step-item';
+    const row=document.createElement('div');row.className='step-row';
+    const cb=document.createElement('div');
+    cb.className='step-cb'+(isChecked?' checked':'')+(canCheck?'':' disabled');
+    const body=document.createElement('div');body.className='step-body';
+    const nameEl=document.createElement('div');nameEl.className='step-name';nameEl.textContent=step;
+    body.appendChild(nameEl);
+
+    // Dual step hint
+    if(isDual&&!isChecked&&canCheck){
+      const hint=document.createElement('div');hint.style.cssText='font-size:11px;color:#aaa;margin-top:3px;';
+      hint.textContent="Checking will record today's date for both appointments. Use \u270f to adjust.";
+      body.appendChild(hint);
+    }
+
+    // Note on Extend Calling step
+    if(step==='Extend Calling'&&c.memberNeedsRelease&&c.memberCurrentCalling){
+      const note=document.createElement('div');
+      note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border-radius:6px;padding:4px 8px;margin-top:4px;display:inline-block;';
+      note.textContent=`Also release ${c.name} from ${c.memberCurrentCalling}`;
+      body.appendChild(note);
+    }
+
+    // Note on Release Current step
+    if(step==='Release Current'&&c.currentlyFilled&&c.releaseName){
+      const note=document.createElement('div');
+      note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border-radius:6px;padding:4px 8px;margin-top:4px;display:inline-block;';
+      note.textContent=`${c.releaseName} as ${c.calling}`;
+      body.appendChild(note);
+    }
+
+    // Date display with pencil
+    if(isChecked){
+      if(isDual){
+        const m=c.stepMeta[i]||{};
+        ['extendDate','releaseDate'].forEach(key=>{
+          const lbl=key==='extendDate'?'Extend appt':'Release appt';
+          const val=m[key]||'';
+          const wrap=document.createElement('div');wrap.style.cssText='display:flex;align-items:center;gap:6px;margin-top:3px;';
+          const txt=document.createElement('span');txt.className='step-date';txt.textContent=lbl+': '+fmt(val);
+          const pencil=document.createElement('span');
+          pencil.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+          pencil.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1px solid rgba(0,0,0,0.18);border-radius:4px;cursor:pointer;color:#666;background:#fff;flex-shrink:0;';
+          pencil.title='Edit date';
+          pencil.addEventListener('mouseenter',()=>{pencil.style.background='#f0f4ff';pencil.style.borderColor='#1c2537';pencil.style.color='#1c2537';});
+          pencil.addEventListener('mouseleave',()=>{pencil.style.background='#fff';pencil.style.borderColor='rgba(0,0,0,0.18)';pencil.style.color='#666';});
+          let editing=false;
+          pencil.addEventListener('click',e=>{
+            e.stopPropagation();if(editing)return;editing=true;
+            const inp=document.createElement('input');inp.type='date';inp.className='compact';inp.value=val;inp.style.marginLeft='4px';
+            wrap.replaceChildren(txt,inp);inp.focus();
+            function save(){if(!c.stepMeta[i])c.stepMeta[i]={};c.stepMeta[i][key]=inp.value||val;if(key==='extendDate')c.stepDates[i]=inp.value||val;render();}
+            inp.addEventListener('blur',save);inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
+          });
+          wrap.appendChild(txt);if(canEdit)wrap.appendChild(pencil);
+          body.appendChild(wrap);
+        });
+      } else if(c.stepDates[i]){
+        const wrap=document.createElement('div');wrap.style.cssText='display:flex;align-items:center;gap:6px;margin-top:3px;';
+        const txt=document.createElement('span');txt.className='step-date';txt.textContent='Completed '+fmt(c.stepDates[i]);
+        const pencil=document.createElement('span');
+        pencil.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        pencil.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1px solid rgba(0,0,0,0.18);border-radius:4px;cursor:pointer;color:#666;background:#fff;flex-shrink:0;';
+        pencil.title='Edit date';
+        pencil.addEventListener('mouseenter',()=>{pencil.style.background='#f0f4ff';pencil.style.borderColor='#1c2537';pencil.style.color='#1c2537';});
+        pencil.addEventListener('mouseleave',()=>{pencil.style.background='#fff';pencil.style.borderColor='rgba(0,0,0,0.18)';pencil.style.color='#666';});
+        let editing=false;
+        pencil.addEventListener('click',e=>{
+          e.stopPropagation();if(editing)return;editing=true;
+          const inp=document.createElement('input');inp.type='date';inp.className='compact';inp.value=c.stepDates[i];inp.style.marginLeft='4px';
+          wrap.replaceChildren(txt,inp);inp.focus();
+          function save(){c.stepDates[i]=inp.value||c.stepDates[i];render();}
+          inp.addEventListener('blur',save);inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
+        });
+        wrap.appendChild(txt);if(canEdit)wrap.appendChild(pencil);
+        body.appendChild(wrap);
+      }
+    }
+
+    // Checkbox click
+    cb.addEventListener('click',()=>{
+      if(!canCheck)return;
+      if(isChecked){
+        c.currentStep=i;c.stepDates[i]=undefined;
+        if(isDual)delete c.stepMeta[i];
+        render();
+      } else {
+        if(isDual){
+          if(!c.stepMeta[i])c.stepMeta[i]={};
+          if(!c.stepMeta[i].extendDate)c.stepMeta[i].extendDate=today();
+          if(!c.stepMeta[i].releaseDate)c.stepMeta[i].releaseDate=today();
+          c.stepDates[i]=c.stepMeta[i].extendDate;
+        } else {
+          c.stepDates[i]=today();
+        }
+        c.currentStep=Math.max(c.currentStep,i+1);
+        render();
+      }
+    });
+
+    row.appendChild(cb);row.appendChild(body);item.appendChild(row);
+    sl.appendChild(item);
+  });
+  el.appendChild(sl);
+
+  // Delete button
+  if(canEdit){
+    const delDivider=document.createElement('div');delDivider.className='divider';el.appendChild(delDivider);
+    const delBtn=document.createElement('button');
+    delBtn.style.cssText='background:transparent;border:1px solid #e57373;color:#c62828;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
+    delBtn.textContent='Delete Calling';
+    delBtn.addEventListener('mouseenter',()=>{delBtn.style.background='#fff5f5';});
+    delBtn.addEventListener('mouseleave',()=>{delBtn.style.background='transparent';});
+    delBtn.addEventListener('click',()=>{
+      if(confirm(`Delete the calling for "${c.calling} — ${c.name}"? This cannot be undone.`)){
+        state.callings=state.callings.filter(x=>x.id!==c.id);
+        state.view='list';state.detailId=null;render();
+      }
+    });
+    el.appendChild(delBtn);
+  }
 }
 
 function renderArchive(el,role){
