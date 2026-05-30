@@ -286,10 +286,7 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <div class="sidebar-label" style="margin-bottom:0;">Main</div>
         <button class="sidebar-toggle" id="sidebar-toggle" title="Collapse sidebar">&laquo;</button>
       </div>
-      <button class="nav-item active" id="nav-dashboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        <span class="nav-label">Dashboard</span>
-      </button>
+
       <button class="nav-item" id="nav-callings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
         <span class="nav-label">Callings</span>
@@ -537,14 +534,14 @@ function saveState(){
     const toSave={...state,
       selectedCallingIds:[...state.selectedCallingIds], // convert Set to array for JSON
       // Don't persist UI state
-      tab:'dashboard',view:'list',detailId:null,
+      tab:'callings',view:'list',detailId:null,
     };
     localStorage.setItem('leadertools_state',JSON.stringify(toSave));
   }catch(e){console.warn('Failed to save state:',e);}
 }
 
 let state={
-  tab:'dashboard',view:'list',detailId:null,
+  tab:'callings',view:'list',detailId:null,
   filterLevel:'All',
   activeRoleId:'admin',
   sidebarCollapsed:false,
@@ -594,7 +591,7 @@ mqDesktop.addEventListener('change',handleMq);
 document.getElementById('topbar-avatar').addEventListener('click',openRoleSwitcher);
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
 document.getElementById('bta').addEventListener('click',()=>{state.activeRoleId='admin';state.tab='dashboard';state.view='list';render();});
-['dashboard','callings'].forEach(tab=>{
+['callings'].forEach(tab=>{
   document.getElementById('nav-'+tab).addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
 });
 
@@ -619,7 +616,7 @@ function updateChrome(){
   const init=role.label.charAt(0).toUpperCase();
   ['sidebar-avatar','topbar-avatar'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=init;el.style.background=role.color;}});
   document.getElementById('sidebar-role-name').textContent=role.label;
-  const titles={dashboard:'Dashboard',callings:'Callings'};
+  const titles={callings:'Callings'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   const banner=document.getElementById('preview-banner');
   if(state.activeRoleId!=='admin'){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
@@ -1228,34 +1225,12 @@ function openRoleSwitcher(){
 
 // ── Render ───────────────────────────────────────────────────────────────────
 function render(){
+  if(state.tab==='dashboard')state.tab='callings'; // dashboard removed
   updateChrome();
   saveState();
   const el=document.getElementById('content');el.innerHTML='';
   const role=getRole();
-  if(state.tab==='dashboard')renderDashboard(el,role);
-  else if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
-
-}
-
-function renderDashboard(el,role){
-  const vc=filterCallings(state.callings,role);
-  el.innerHTML='<div class="page-title">Dashboard</div><div class="page-sub">Queen Creek East Stake</div>';
-  const grid=document.createElement('div');grid.className='stat-grid';
-  const tiles=[
-    {label:'Active Callings',value:vc.filter(c=>c.currentStep<getSteps(c).length).length,sub:'In progress',cb:()=>{state.tab='callings';render();}},
-    {label:'Callings Completed',value:vc.filter(c=>c.currentStep>=getSteps(c).length).length,sub:'This month',cb:()=>{state.tab='callings';render();}},
-
-  ];
-  tiles.forEach(t=>{const c=document.createElement('div');c.className='stat-card';c.innerHTML=`<div class="stat-label">${t.label}</div><div class="stat-value">${t.value}</div><div class="stat-sub">${t.sub} &rsaquo;</div>`;c.addEventListener('click',t.cb);grid.appendChild(c);});
-  el.appendChild(grid);
-  const h1=document.createElement('div');h1.className='section-header';h1.innerHTML='<span class="section-title">Recent Callings</span>';el.appendChild(h1);
-  if(!vc.length){const es=document.createElement('div');es.className='empty-state';es.textContent='No callings visible for this role';el.appendChild(es);}
-  else vc.slice(0,6).forEach(c=>{
-    const steps=getSteps(c),status=getStatusBadge(c),pct=Math.round((c.currentStep/(steps.length-1))*100);
-    const card=document.createElement('div');card.className='card';
-    card.innerHTML=`<div class="card-row"><div><div class="card-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px;vertical-align:middle">Custom</span>':''}</div><div class="card-member">${c.name}</div><div class="card-sub">${c.ward}</div></div><span class="badge ${status.cls}">${status.label}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="card-meta">Step ${c.currentStep} of ${steps.length} &middot; ${c.action}</div>`;
-    card.addEventListener('click',()=>{state.tab='callings';state.view='detail';state.detailId=c.id;render();});el.appendChild(card);
-  });
+  if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
 
 }
 
