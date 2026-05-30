@@ -505,15 +505,8 @@ function getStatusBadge(c){
   return{label:'Near Completion',cls:'badge-amber'};
 }
 function getLevelBadge(l){if(l==='Stake')return{label:'Stake',cls:'badge-purple'};if(l==='Stake Issued')return{label:'Stake-Issued',cls:'badge-blue'};return{label:'Ward',cls:'badge-gray'};}
-let state={
-  tab:'dashboard',view:'list',detailId:null,
-  filterLevel:'All',
-  activeRoleId:'admin',
-  sidebarCollapsed:false,
-  callingsSort:{col:null,dir:'asc'},
-  archiveSort:{col:null,dir:'asc'},
-  selectedCallingIds:new Set(),
-  callings:[
+// ── Persistence via localStorage ─────────────────────────────────────────
+const DEFAULT_CALLINGS=[
     {id:1,name:'James Thornton',calling:'Bishop',org:'Bishopric',ward:'Meadows Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-01',currentStep:2,stepDates:['2025-05-02','2025-05-08'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
     {id:2,name:'Sarah Mitchell',calling:'Relief Society President',org:'Ward Relief Society',ward:'Parks Ward',level:'Ward',action:'Calling & Release',submittedDate:'2025-05-05',currentStep:2,stepDates:['2025-05-06','2025-05-09'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
     {id:3,name:'David Okafor',calling:'Stake High Councilor',org:'Stake High Council',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-04-20',currentStep:8,stepDates:['2025-04-21','2025-04-22','2025-04-25','2025-04-28','2025-05-01','2025-05-04','2025-05-08','2025-05-10'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
@@ -522,8 +515,55 @@ let state={
     {id:6,name:'Linda Sorensen',calling:'Elders Quorum President',org:"Elder's Quorum",ward:'Parks Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-18',currentStep:1,stepDates:['2025-05-19'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
     {id:7,name:'Marcus Webb',calling:'Stake Relief Society President',org:'Stake Relief Society',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-05-20',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
     {id:8,name:'Priya Kapoor',calling:'Youth Retreat Coordinator',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-22',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:true,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-  ],
+];
+
+function loadState(){
+  try{
+    const saved=localStorage.getItem('leadertools_state');
+    if(saved){
+      const parsed=JSON.parse(saved);
+      // Restore Set from array
+      parsed.selectedCallingIds=new Set(parsed.selectedCallingIds||[]);
+      // Ensure stepMeta is object not null on each calling
+      (parsed.callings||[]).forEach(c=>{if(!c.stepMeta)c.stepMeta={};});
+      return parsed;
+    }
+  }catch(e){console.warn('Failed to load state:',e);}
+  return null;
+}
+
+function saveState(){
+  try{
+    const toSave={...state,
+      selectedCallingIds:[...state.selectedCallingIds], // convert Set to array for JSON
+      // Don't persist UI state
+      tab:'dashboard',view:'list',detailId:null,
+    };
+    localStorage.setItem('leadertools_state',JSON.stringify(toSave));
+  }catch(e){console.warn('Failed to save state:',e);}
+}
+
+let state={
+  tab:'dashboard',view:'list',detailId:null,
+  filterLevel:'All',
+  activeRoleId:'admin',
+  sidebarCollapsed:false,
+  callingsSort:{col:null,dir:'asc'},
+  archiveSort:{col:null,dir:'asc'},
+  selectedCallingIds:new Set(),
+  callings:DEFAULT_CALLINGS,
 };
+
+// Load persisted state, merge with defaults
+const saved=loadState();
+if(saved){
+  state.callings=saved.callings||DEFAULT_CALLINGS;
+  state.sidebarCollapsed=saved.sidebarCollapsed||false;
+  state.callingsSort=saved.callingsSort||{col:null,dir:'asc'};
+  state.archiveSort=saved.archiveSort||{col:null,dir:'asc'};
+  state.activeRoleId=saved.activeRoleId||'admin';
+}
+
 
 function getRole(){return ROLES.find(r=>r.id===state.activeRoleId)||ROLES[0];}
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
@@ -1189,6 +1229,7 @@ function openRoleSwitcher(){
 // ── Render ───────────────────────────────────────────────────────────────────
 function render(){
   updateChrome();
+  saveState();
   const el=document.getElementById('content');el.innerHTML='';
   const role=getRole();
   if(state.tab==='dashboard')renderDashboard(el,role);
