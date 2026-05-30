@@ -294,10 +294,7 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
         <span class="nav-label">Callings</span>
       </button>
-      <button class="nav-item" id="nav-ordinations">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
-        <span class="nav-label">Ordinations</span>
-      </button>
+
     </div>
     <div class="sidebar-footer">
       <button class="role-btn" id="sidebar-role-btn">
@@ -460,12 +457,6 @@ function filterCallings(cs,role){
   if(role.scope==='ward_org')return cs.filter(c=>c.level==='Ward'&&c.ward===role.ward&&c.org===role.org);
   return[];
 }
-function filterOrdinations(os,role){
-  if(role.scope==='admin'||role.scope==='stake')return os;
-  if(role.scope==='ward')return os.filter(o=>o.ward===role.ward);
-  return[];
-}
-function canSeeOrdinations(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward';}
 function isReadOnly(r){return r.id==='high_council';}
 function canAdvanceWorkflow(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward';}
 function getCallingDirForRole(role){
@@ -500,8 +491,7 @@ function scopeLabel(r){
   if(r.scope==='ward_org')return`Viewing: ${r.org} callings for ${r.ward}`;
   return'';
 }
-const AARONIC=['Deacon','Teacher','Priest'];
-const MELCH=['Elder','High Priest'];
+
 function today(){return new Date().toISOString().split('T')[0];}
 function fmt(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
 function getStatusBadge(c){
@@ -515,27 +505,6 @@ function getStatusBadge(c){
   return{label:'Near Completion',cls:'badge-amber'};
 }
 function getLevelBadge(l){if(l==='Stake')return{label:'Stake',cls:'badge-purple'};if(l==='Stake Issued')return{label:'Stake-Issued',cls:'badge-blue'};return{label:'Ward',cls:'badge-gray'};}
-function getOrdBadge(s){if(s==='Completed')return'badge-green';if(s==='Pending Approval')return'badge-amber';return'badge-blue';}
-
-let state={
-  tab:'dashboard',view:'list',detailId:null,filterLevel:'All',filterOrdStatus:'All',activeRoleId:'admin',sidebarCollapsed:false,callingsSort:{col:null,dir:'asc'},archiveSort:{col:null,dir:'asc'},selectedCallingIds:new Set(),
-  callings:[
-    {id:1,name:'James Thornton',calling:'Bishop',org:'Bishopric',ward:'Meadows Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-01',currentStep:2,stepDates:['2025-05-02','2025-05-08'],stepMeta:{},notes:'',custom:false},
-    {id:2,name:'Sarah Mitchell',calling:'Relief Society President',org:'Ward Relief Society',ward:'Parks Ward',level:'Ward',action:'Calling & Release',submittedDate:'2025-05-05',currentStep:2,stepDates:['2025-05-06','2025-05-09'],stepMeta:{},notes:'',custom:false},
-    {id:3,name:'David Okafor',calling:'Stake High Councilor',org:'Stake High Council',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-04-20',currentStep:8,stepDates:['2025-04-21','2025-04-22','2025-04-25','2025-04-28','2025-05-01','2025-05-04','2025-05-08','2025-05-10'],stepMeta:{},notes:'',custom:false},
-    {id:4,name:'Emily Nguyen',calling:'Young Women President',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-12',currentStep:1,stepDates:['2025-05-13'],stepMeta:{},notes:'',custom:false},
-    {id:5,name:'Carlos Rivera',calling:'Primary President',org:'Ward Primary',ward:'Pecan Grove Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-15',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:false},
-    {id:6,name:'Linda Sorensen',calling:'Elders Quorum President',org:"Elder's Quorum",ward:'Parks Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-18',currentStep:1,stepDates:['2025-05-19'],stepMeta:{},notes:'',custom:false},
-    {id:7,name:'Marcus Webb',calling:'Stake Relief Society President',org:'Stake Relief Society',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-05-20',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:false},
-    {id:8,name:'Priya Kapoor',calling:'Youth Retreat Coordinator',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-22',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:true},
-  ],
-  ordinations:[
-    {id:1,name:'Tyler Brooks',ward:'Pecan Creek 1st Ward',priesthood:'Aaronic',office:'Deacon',ordainedBy:'Bishop Peterson',date:'2025-05-11',approvedDate:'2025-05-04',status:'Completed'},
-    {id:2,name:'Marcus Chen',ward:'Pecan Grove Ward',priesthood:'Melchizedek',office:'Elder',ordainedBy:'',date:'',approvedDate:'',status:'Pending Approval'},
-    {id:3,name:'Elijah Santos',ward:'Meadows Ward',priesthood:'Aaronic',office:'Teacher',ordainedBy:'Bishop Harris',date:'',approvedDate:'2025-05-18',status:'Approved \u2013 Awaiting Ordination'},
-  ],
-};
-
 function getRole(){return ROLES.find(r=>r.id===state.activeRoleId)||ROLES[0];}
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
@@ -565,7 +534,7 @@ mqDesktop.addEventListener('change',handleMq);
 document.getElementById('topbar-avatar').addEventListener('click',openRoleSwitcher);
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
 document.getElementById('bta').addEventListener('click',()=>{state.activeRoleId='admin';state.tab='dashboard';state.view='list';render();});
-['dashboard','callings','ordinations'].forEach(tab=>{
+['dashboard','callings'].forEach(tab=>{
   document.getElementById('nav-'+tab).addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
 });
 
@@ -586,11 +555,11 @@ function forceNavWhite(){
 function updateChrome(){
   const role=getRole();
   ['dashboard','callings','ordinations'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
-  document.getElementById('nav-ordinations').classList.toggle('hidden',!canSeeOrdinations(role));
+
   const init=role.label.charAt(0).toUpperCase();
   ['sidebar-avatar','topbar-avatar'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=init;el.style.background=role.color;}});
   document.getElementById('sidebar-role-name').textContent=role.label;
-  const titles={dashboard:'Dashboard',callings:'Callings',ordinations:'Ordinations'};
+  const titles={dashboard:'Dashboard',callings:'Callings'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   const banner=document.getElementById('preview-banner');
   if(state.activeRoleId!=='admin'){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
@@ -1181,29 +1150,6 @@ function openCallingEditModal(c,role){
   modal.appendChild(saveBtn);
 }
 
-function openOrdinationModal(role){
-  const root=document.getElementById('modal-root');root.innerHTML='';
-  const overlay=document.createElement('div');overlay.className='modal-overlay';
-  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
-  const modal=document.createElement('div');modal.className='modal';modal.innerHTML='<div class="modal-handle"></div>';
-  const title=document.createElement('div');title.className='modal-title';title.textContent='New Ordination';modal.appendChild(title);
-  const wo=role.scope==='admin'||role.scope==='stake'?WARDS_ONLY:role.ward?[role.ward]:[];
-  function fg(lbl,el){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.textContent=lbl;g.appendChild(l);g.appendChild(el);modal.appendChild(g);}
-  const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='Full name';fg('Member Name',nameInp);
-  const wardSel=document.createElement('select');wo.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w;wardSel.appendChild(o);});fg('Ward',wardSel);
-  const priestSel=document.createElement('select');['Aaronic','Melchizedek'].forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;priestSel.appendChild(o);});fg('Priesthood',priestSel);
-  const officeSel=document.createElement('select');[...AARONIC,...MELCH].forEach(of=>{const o=document.createElement('option');o.value=of;o.textContent=of;officeSel.appendChild(o);});fg('Office',officeSel);
-  const byInp=document.createElement('input');byInp.type='text';byInp.placeholder='Name of officiant';fg('Ordained By',byInp);
-  const submitBtn=document.createElement('button');submitBtn.className='btn-primary';submitBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';submitBtn.textContent='Submit Ordination';
-  submitBtn.addEventListener('click',()=>{
-    const name=nameInp.value.trim();if(!name){alert('Please enter a name.');return;}
-    const newId=Math.max(0,...state.ordinations.map(o=>o.id))+1;
-    state.ordinations.push({id:newId,name,ward:wardSel.value,priesthood:priestSel.value,office:officeSel.value,ordainedBy:byInp.value,date:'',approvedDate:'',status:'Pending Approval'});
-    closeModal();render();
-  });
-  modal.appendChild(submitBtn);overlay.appendChild(modal);root.appendChild(overlay);
-}
-
 function openRoleSwitcher(){
   const root=document.getElementById('modal-root');root.innerHTML='';
   const overlay=document.createElement('div');overlay.className='modal-overlay';
@@ -1227,20 +1173,17 @@ function render(){
   const role=getRole();
   if(state.tab==='dashboard')renderDashboard(el,role);
   else if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
-  else if(state.tab==='ordinations'){if(state.view==='detail')renderOrdinationDetail(el,role);else renderOrdinations(el,role);}
+
 }
 
 function renderDashboard(el,role){
-  const vc=filterCallings(state.callings,role),vo=filterOrdinations(state.ordinations,role);
+  const vc=filterCallings(state.callings,role);
   el.innerHTML='<div class="page-title">Dashboard</div><div class="page-sub">Queen Creek East Stake overview</div>';
   const grid=document.createElement('div');grid.className='stat-grid';
   const tiles=[
     {label:'Active Callings',value:vc.filter(c=>c.currentStep<getSteps(c).length).length,sub:'In progress',cb:()=>{state.tab='callings';render();}},
     {label:'Callings Completed',value:vc.filter(c=>c.currentStep>=getSteps(c).length).length,sub:'This month',cb:()=>{state.tab='callings';render();}},
-    ...(canSeeOrdinations(role)?[
-      {label:'Pending Ordinations',value:vo.filter(o=>o.status!=='Completed').length,sub:'Awaiting action',cb:()=>{state.tab='ordinations';state.filterOrdStatus='Pending';render();}},
-      {label:'Ordinations Completed',value:vo.filter(o=>o.status==='Completed').length,sub:'This month',cb:()=>{state.tab='ordinations';state.filterOrdStatus='Completed';render();}},
-    ]:[]),
+
   ];
   tiles.forEach(t=>{const c=document.createElement('div');c.className='stat-card';c.innerHTML=`<div class="stat-label">${t.label}</div><div class="stat-value">${t.value}</div><div class="stat-sub">${t.sub} &rsaquo;</div>`;c.addEventListener('click',t.cb);grid.appendChild(c);});
   el.appendChild(grid);
@@ -1252,10 +1195,7 @@ function renderDashboard(el,role){
     card.innerHTML=`<div class="card-row"><div><div class="card-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px;vertical-align:middle">Custom</span>':''}</div><div class="card-member">${c.name}</div><div class="card-sub">${c.ward}</div></div><span class="badge ${status.cls}">${status.label}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div class="card-meta">Step ${c.currentStep} of ${steps.length} &middot; ${c.action}</div>`;
     card.addEventListener('click',()=>{state.tab='callings';state.view='detail';state.detailId=c.id;render();});el.appendChild(card);
   });
-  if(canSeeOrdinations(role)&&vo.length){
-    const h2=document.createElement('div');h2.className='section-header';h2.style.marginTop='22px';h2.innerHTML='<span class="section-title">Recent Ordinations</span>';el.appendChild(h2);
-    vo.slice(0,3).forEach(o=>{const card=document.createElement('div');card.className='card';card.innerHTML=`<div class="card-row"><div><div class="card-calling">${o.office}</div><div class="card-member">${o.name}</div><div class="card-sub">${o.ward}</div></div><span class="badge ${getOrdBadge(o.status)}">${o.status}</span></div>`;card.addEventListener('click',()=>{state.tab='ordinations';state.view='detail';state.detailId=o.id;render();});el.appendChild(card);});
-  }
+
 }
 
 function renderCallings(el,role){
@@ -1794,65 +1734,3 @@ function renderArchive(el,role){
   table.appendChild(tbody);el.appendChild(table);
 }
 
-function renderOrdinations(el,role){
-  el.innerHTML='<div class="page-title">Ordinations</div><div class="page-sub">Track Aaronic and Melchizedek Priesthood ordinations</div>';
-  const hdr=document.createElement('div');hdr.className='section-header';hdr.innerHTML='<span class="section-title">All Ordinations</span>';
-  if(canAdvanceWorkflow(role)){const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='+ New Ordination';btn.addEventListener('click',()=>openOrdinationModal(role));hdr.appendChild(btn);}
-  el.appendChild(hdr);
-  const fr=document.createElement('div');fr.className='filter-row';
-  ['All','Aaronic','Melchizedek','Pending','Completed'].forEach(f=>{const chip=document.createElement('button');chip.className='filter-chip'+(state.filterOrdStatus===f?' active':'');chip.textContent=f;chip.addEventListener('click',()=>{state.filterOrdStatus=f;render();});fr.appendChild(chip);});
-  el.appendChild(fr);
-  let list=filterOrdinations(state.ordinations,role);
-  if(state.filterOrdStatus==='Aaronic')list=list.filter(o=>o.priesthood==='Aaronic');
-  else if(state.filterOrdStatus==='Melchizedek')list=list.filter(o=>o.priesthood==='Melchizedek');
-  else if(state.filterOrdStatus==='Pending')list=list.filter(o=>o.status!=='Completed');
-  else if(state.filterOrdStatus==='Completed')list=list.filter(o=>o.status==='Completed');
-  if(!list.length){const es=document.createElement('div');es.className='empty-state';es.textContent='No ordinations found';el.appendChild(es);return;}
-  list.forEach(o=>{
-    const card=document.createElement('div');card.className='card';
-    card.innerHTML=`<div class="card-row"><div><div class="card-calling">${o.office}</div><div class="card-member">${o.name}</div><div class="card-sub">${o.ward}${o.date?' &middot; '+fmt(o.date):''}</div></div><span class="badge ${getOrdBadge(o.status)}">${o.status}</span></div>`;
-    card.addEventListener('click',()=>{state.view='detail';state.detailId=o.id;render();});el.appendChild(card);
-  });
-}
-
-function renderOrdinationDetail(el,role){
-  const o=state.ordinations.find(x=>x.id===state.detailId);if(!o)return;
-  const hdr=document.createElement('div');hdr.className='detail-header';
-  const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';bb.addEventListener('click',()=>{state.view='list';state.detailId=null;render();});
-  const hdi=document.createElement('div');
-  hdi.innerHTML=`<div class="detail-calling">${o.office} Ordination</div><div class="detail-member">${o.name}</div>`;
-  hdr.appendChild(bb);hdr.appendChild(hdi);el.appendChild(hdr);
-  const info=document.createElement('div');info.className='info-grid';
-  info.innerHTML=`<div><div class="info-cell-label">Ward</div><div class="info-cell-value">${o.ward}</div></div><div><div class="info-cell-label">Priesthood</div><div class="info-cell-value">${o.priesthood}</div></div><div><div class="info-cell-label">Office</div><div class="info-cell-value">${o.office}</div></div><div><div class="info-cell-label">Status</div><div class="info-cell-value"><span class="badge ${getOrdBadge(o.status)}">${o.status}</span></div></div>${o.ordainedBy?`<div><div class="info-cell-label">Ordained By</div><div class="info-cell-value">${o.ordainedBy}</div></div>`:''}${o.date?`<div><div class="info-cell-label">Date</div><div class="info-cell-value">${fmt(o.date)}</div></div>`:''}${o.approvedDate?`<div><div class="info-cell-label">Approved</div><div class="info-cell-value">${fmt(o.approvedDate)}</div></div>`:''}`;
-  el.appendChild(info);
-  const dv=document.createElement('div');dv.className='divider';el.appendChild(dv);
-  const steps=[
-    {name:'Bishop Interview & Approval',done:!!o.approvedDate,date:o.approvedDate},
-    ...(o.priesthood==='Melchizedek'?[{name:'Stake President Interview',done:!!o.approvedDate,date:o.approvedDate}]:[]),
-    {name:'Sustain in Sacrament Meeting',done:!!o.date,date:o.date},
-    {name:'Ordination',done:!!o.date,date:o.date},
-    {name:'Record in LCR',done:o.status==='Completed',date:o.status==='Completed'?o.date:''},
-  ];
-  const fp=steps.findIndex(s=>!s.done);
-  const wl=document.createElement('div');wl.style.cssText='font-size:13px;font-weight:700;color:#1c2537;margin-bottom:8px;';wl.textContent='Workflow Progress';el.appendChild(wl);
-  const sl=document.createElement('div');sl.className='step-list';
-  steps.forEach((step,i)=>{
-    const item=document.createElement('div');item.className='step-item';
-    const row=document.createElement('div');row.className='step-row';
-    const cb=document.createElement('div');cb.className='step-cb'+(step.done?' checked':' disabled');
-    const body=document.createElement('div');body.className='step-body';
-    body.innerHTML=`<div class="step-name">${step.name}</div>${step.date?`<div class="step-date">Completed ${fmt(step.date)}</div>`:''}`;
-    row.appendChild(cb);row.appendChild(body);item.appendChild(row);sl.appendChild(item);
-  });
-  el.appendChild(sl);
-  if(o.status!=='Completed'&&canAdvanceWorkflow(role)){
-    const dv2=document.createElement('div');dv2.className='divider';el.appendChild(dv2);
-    const cb=document.createElement('button');cb.className='btn-primary';cb.style.cssText='padding:12px 24px;font-size:14px;border-radius:10px;';cb.textContent='Mark Ordination Complete';
-    cb.addEventListener('click',()=>{o.status='Completed';o.date=o.date||today();render();});el.appendChild(cb);
-  }
-}
-
-render();
-</script>
-</body>
-</html>
