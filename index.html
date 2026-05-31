@@ -66,6 +66,59 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .topbar-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0;}
 .banner{padding:9px 16px;font-size:12px;display:flex;align-items:center;gap:8px;background:#faeeda;color:#854f0b;border-bottom:1px solid #fac775;}
 .banner.hidden{display:none;}
+.req{color:#c62828;margin-left:2px;font-size:13px;}
+/* ── Custom date input — full field clickable ── */
+.date-wrap{position:relative;display:inline-block;width:100%;}
+.date-wrap input[type="date"]{width:100%;cursor:pointer;}
+.date-wrap input[type="date"]::-webkit-calendar-picker-indicator{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;
+}
+/* ── Agenda styles ── */
+.agenda-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);}
+.agenda-table thead tr{background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
+.agenda-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;}
+.agenda-table th:hover{color:#1c2537;}
+.agenda-table th.sort-asc::after{content:" ↑";color:#1c2537;}
+.agenda-table th.sort-desc::after{content:" ↓";color:#1c2537;}
+.agenda-table tbody tr{border-bottom:1px solid rgba(0,0,0,0.06);cursor:pointer;transition:background 0.12s;}
+.agenda-table tbody tr:last-child{border-bottom:none;}
+.agenda-table tbody tr:hover{background:#f5f7ff;}
+.agenda-table td{padding:12px 14px;font-size:13px;color:#1c2537;vertical-align:middle;}
+.agenda-table .td-date{font-weight:700;font-size:14px;}
+.agenda-type-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#e6f1fb;color:#185fa5;}
+.agenda-type-badge.fast{background:#f0eeff;color:#5b47d6;}
+/* Agenda wizard */
+.agenda-section{background:#f8f9fb;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:16px;margin-bottom:14px;}
+.agenda-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:12px;}
+.agenda-field{margin-bottom:12px;}
+.agenda-field label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:4px;}
+.agenda-field input,.agenda-field select,.agenda-field textarea{width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;}
+.agenda-field textarea{resize:vertical;min-height:60px;}
+.agenda-field .hint{font-size:11px;color:#aaa;margin-top:3px;}
+.release-row,.sustain-row,.speaker-row,.ordination-row,.blessing-row{display:grid;gap:8px;margin-bottom:8px;align-items:center;}
+.release-row{grid-template-columns:1fr 1fr auto;}
+.sustain-row{grid-template-columns:1fr 1fr auto;}
+.speaker-row{grid-template-columns:1fr 1fr;}
+.ordination-row{grid-template-columns:1fr 1fr auto;}
+.blessing-row{grid-template-columns:1fr auto;}
+.add-row-btn{display:flex;align-items:center;gap:5px;background:transparent;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;margin-top:2px;}
+.add-row-btn:hover{color:#1c2537;}
+.remove-row-btn{background:transparent;border:none;color:#ccc;font-size:18px;cursor:pointer;padding:0;line-height:1;align-self:center;}
+.remove-row-btn:hover{color:#c62828;}
+/* Script view */
+.script-view{max-width:700px;}
+.script-block{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:18px 20px;margin-bottom:12px;}
+.script-step{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#aaa;margin-bottom:6px;}
+.script-text{font-size:15px;line-height:1.7;color:#1c2537;white-space:pre-wrap;}
+.script-actions{display:flex;gap:10px;margin-bottom:20px;}
+@media print{
+  .sidebar,.topbar,.banner,.script-actions,.back-btn,.detail-header button{display:none!important;}
+  .main{margin:0!important;}
+  .content{padding:20px!important;max-width:100%!important;}
+  .script-block{break-inside:avoid;border:none;padding:0 0 16px 0;}
+  .script-step{color:#888;}
+}
 .bulk-toolbar{
   display:flex;align-items:center;gap:10px;
   margin-bottom:8px;font-size:13px;
@@ -290,6 +343,10 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
       <button class="nav-item" id="nav-callings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
         <span class="nav-label">Callings</span>
+      </button>
+      <button class="nav-item" id="nav-agendas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+        <span class="nav-label">Agendas</span>
       </button>
 
     </div>
@@ -549,12 +606,14 @@ let state={
   archiveSort:{col:null,dir:'asc'},
   selectedCallingIds:new Set(),
   callings:DEFAULT_CALLINGS,
+  agendas:[],
 };
 
 // Load persisted state, merge with defaults
 const saved=loadState();
 if(saved){
   state.callings=saved.callings||DEFAULT_CALLINGS;
+  state.agendas=saved.agendas||[];
   state.sidebarCollapsed=saved.sidebarCollapsed||false;
   state.callingsSort=saved.callingsSort||{col:null,dir:'asc'};
   state.archiveSort=saved.archiveSort||{col:null,dir:'asc'};
@@ -580,6 +639,11 @@ document.getElementById('sidebar-toggle').addEventListener('click',()=>{
 // ── Mobile sidebar ───────────────────────────────────────────────────────────
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('open');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');}
+// Make all date inputs fully clickable
+document.addEventListener('click',e=>{
+  if(e.target.type==='date'){try{e.target.showPicker();}catch(ex){}}
+});
+
 document.getElementById('hamburger').addEventListener('click',openSidebar);
 document.getElementById('sidebar-overlay').addEventListener('click',closeSidebar);
 
@@ -591,7 +655,7 @@ mqDesktop.addEventListener('change',handleMq);
 document.getElementById('topbar-avatar').addEventListener('click',openRoleSwitcher);
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
 document.getElementById('bta').addEventListener('click',()=>{state.activeRoleId='admin';state.tab='dashboard';state.view='list';render();});
-['callings'].forEach(tab=>{
+['callings','agendas'].forEach(tab=>{
   document.getElementById('nav-'+tab).addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
 });
 
@@ -616,7 +680,7 @@ function updateChrome(){
   const init=role.label.charAt(0).toUpperCase();
   ['sidebar-avatar','topbar-avatar'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=init;el.style.background=role.color;}});
   document.getElementById('sidebar-role-name').textContent=role.label;
-  const titles={callings:'Callings'};
+  const titles={callings:'Callings',agendas:'Agendas'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   const banner=document.getElementById('preview-banner');
   if(state.activeRoleId!=='admin'){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
@@ -850,7 +914,7 @@ function openCallingModal(role){
         data.callingName=data.isCustom?'':parts[0];
         customWrap.classList.toggle('hidden',!data.isCustom);
       });
-      fg('Calling',sel);
+      fg('Calling<span class="req">*</span>',sel);
       const customWrap=document.createElement('div');customWrap.className='custom-box'+(data.isCustom?'':' hidden');
       const cl=document.createElement('label');cl.className='form-label';cl.textContent='Custom calling name';
       const ci=document.createElement('input');ci.type='text';ci.placeholder='Enter calling title...';ci.value=(data.isCustom&&data.callingName)||'';
@@ -874,7 +938,7 @@ function openCallingModal(role){
       const rb=document.createElement('div');
       rb.className='currently-filled-box'+(data.currentlyFilledAnswer==='yes'?'':' hidden');
       rb.style.marginTop='12px';
-      const rlbl=document.createElement('label');rlbl.className='form-label';rlbl.style.color='#7a5400';rlbl.textContent='Name of current holder to be released';
+      const rlbl=document.createElement('label');rlbl.className='form-label';rlbl.style.color='#7a5400';rlbl.textContent='Name of current holder to be released<span class="req">*</span>';
       const rinp=document.createElement('input');rinp.type='text';rinp.placeholder='Full name';rinp.value=data.releaseName||'';
       rinp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;margin-top:6px;';
       rinp.addEventListener('input',()=>{data.releaseName=rinp.value;});
@@ -899,7 +963,7 @@ function openCallingModal(role){
         title('Member Being Called');
         subtitle('Enter the details of the person receiving this calling.');
       }
-      textInp('Full Name','First and last name','memberName');
+      textInp('Full Name<span class="req">*</span>','First and last name','memberName');
       // Pre-populate memberCallings array if not set
       if(!data.memberCallings) data.memberCallings=[''];
       if(data.intent==='both'){
@@ -1084,11 +1148,11 @@ function openCallingEditModal(c,role){
   }
 
   // Member Name
-  inp('Member Name',c.name,'name');
+  inp('Member Name<span class="req">*</span>',c.name,'name');
 
   // Ward (needed to filter callings)
   const wardGroup=document.createElement('div');wardGroup.className='form-group';
-  const wardLbl=document.createElement('label');wardLbl.className='form-label';wardLbl.textContent='Ward / Unit';
+  const wardLbl=document.createElement('label');wardLbl.className='form-label';wardLbl.innerHTML='Ward / Unit<span class="req">*</span>';
   const wardSel=document.createElement('select');
   ALL_WARDS.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w;if(w===c.ward)o.selected=true;wardSel.appendChild(o);});
   wardGroup.appendChild(wardLbl);wardGroup.appendChild(wardSel);modal.appendChild(wardGroup);
@@ -1224,6 +1288,596 @@ function openRoleSwitcher(){
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
+// ── Agenda helpers ────────────────────────────────────────────────────────────
+function getAgendaWard(role){
+  // Sacrament meetings are ward-level only
+  if(role.scope==='ward'||role.scope==='ward_org') return role.ward||'';
+  if(role.scope==='admin') return 'Pecan Ranch Ward'; // admin defaults to first ward for testing
+  return null; // stake scope = no sacrament meeting access
+}
+
+function canCreateSacramentAgenda(role){
+  // Only bishopric members (ward scope with Bishopric org) or admin
+  if(role.scope==='admin') return true;
+  if(role.scope==='ward'&&role.org==='Bishopric') return true;
+  return false;
+}
+
+function makeDateInput(value,onChange,extraStyle){
+  // Wrapper makes the entire field clickable for the date picker
+  const wrap=document.createElement('div');wrap.className='date-wrap';
+  const inp=document.createElement('input');inp.type='date';
+  inp.value=value||'';
+  if(extraStyle)inp.style.cssText=extraStyle;
+  inp.addEventListener('change',()=>onChange(inp.value));
+  // Clicking anywhere on the input opens the picker
+  inp.addEventListener('click',()=>{try{inp.showPicker();}catch(e){}});
+  wrap.appendChild(inp);
+  return{wrap,inp};
+}
+
+function fmtDate(d){
+  if(!d)return'';
+  const [y,m,day]=d.split('-');
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+}
+
+function salutation(name){
+  if(!name||!name.trim())return name;
+  const parts=name.trim().split(' ');
+  const last=parts[parts.length-1];
+  return `Brother/Sister ${last}`;
+}
+
+// ── Render Agendas List ───────────────────────────────────────────────────────
+function renderAgendas(el,role){
+  el.innerHTML='';
+
+  // Stake-only roles don't have sacrament meetings
+  if(role.scope==='stake'){
+    const es=document.createElement('div');es.className='empty-state';
+    es.innerHTML='<div style="font-size:32px;margin-bottom:12px;">📋</div><div>Sacrament Meeting agendas are ward-level.</div><div style="font-size:12px;color:#bbb;margin-top:6px;">This module is available to Bishopric members and ward leaders.</div>';
+    el.appendChild(es);return;
+  }
+
+  const hdr=document.createElement('div');hdr.className='section-header';hdr.style.marginBottom='12px';
+  const spacer=document.createElement('div');hdr.appendChild(spacer);
+  if(canCreateSacramentAgenda(role)){
+    const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='+ New Agenda';
+    btn.addEventListener('click',()=>{window._agendaDraft=null;state.view='new';render();});
+    hdr.appendChild(btn);
+  }
+  el.appendChild(hdr);
+
+  const agendas=state.agendas||[];
+  // Filter to role's ward, sort by date descending
+  const roleWard=getAgendaWard(role);
+  const filtered=role.scope==='admin'?agendas:agendas.filter(a=>a.ward===roleWard);
+  const sorted=[...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+
+  if(!sorted.length){
+    const es=document.createElement('div');es.className='empty-state';
+    es.innerHTML='<div style="font-size:32px;margin-bottom:12px;">📋</div><div>No agendas yet.</div><div style="font-size:12px;color:#bbb;margin-top:6px;">Click "+ New Agenda" to create your first sacrament meeting agenda.</div>';
+    el.appendChild(es);return;
+  }
+  const table=document.createElement('table');table.className='agenda-table';
+  const thead=document.createElement('thead');
+  thead.innerHTML='<tr><th>Date</th><th>Ward</th><th>Type</th><th>Conducting</th><th>Presiding</th></tr>';
+  table.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  sorted.forEach(a=>{
+    const tr=document.createElement('tr');
+    const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType}</span>`;
+    tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td style="color:#888;font-size:12px;">${a.ward}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td>`;
+    tr.addEventListener('click',()=>{state.detailId=a.id;state.view='detail';render();});
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);el.appendChild(table);
+}
+
+// ── Agenda Wizard ─────────────────────────────────────────────────────────────
+function dateInp(val,key_unused){
+  // Compatibility shim — used inside wizard via d[key] pattern
+  const {wrap}=makeDateInput(val,()=>{});
+  return wrap;
+}
+
+function renderAgendaWizard(el,role,editingAgenda){
+  el.innerHTML='';
+
+  if(!canCreateSacramentAgenda(role)){
+    el.innerHTML='<div class="empty-state">Only Bishopric members can create sacrament meeting agendas.</div>';return;
+  }
+
+  const ward=getAgendaWard(role)||'';
+  const isEditing=!!editingAgenda;
+
+  // Init draft from existing agenda or blank
+  if(!window._agendaDraft){
+    if(isEditing){
+      window._agendaDraft=JSON.parse(JSON.stringify(editingAgenda));
+    } else {
+      window._agendaDraft={
+        date:'',ward,meetingType:'Regular',
+        conducting:'',presiding:'',highCounselor:'',stakeVisiting:false,
+        chorister:'',accompanist:'',
+        openingPrayer:'',closingPrayer:'',
+        openingHymnNum:'',openingHymnTitle:'',
+        sacramentHymnNum:'',sacramentHymnTitle:'',
+        intermediateHymn:'',intermediateHymnTitle:'',
+        closingHymnNum:'',closingHymnTitle:'',
+        announcementList:[],
+        newRecordsList:[],
+        releases:[],sustainings:[],ordinations:[],
+        babyBlessingsList:[],confirmationsList:[],
+        speaker1:'',speaker1Topic:'',
+        speaker2:'',speaker2Topic:'',
+        finalSpeaker:'',finalSpeakerTopic:'',
+      };
+    }
+  }
+  const d=window._agendaDraft;
+  // Always keep ward in sync with role
+  if(!isEditing) d.ward=ward||d.ward;
+
+  const hdr=document.createElement('div');hdr.className='detail-header';
+  const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';
+  bb.addEventListener('click',()=>{window._agendaDraft=null;state.view=isEditing?'detail':'list';render();});
+  const hdi=document.createElement('div');
+  hdi.innerHTML=`<div class="detail-calling">${isEditing?'Edit Agenda':'New Sacrament Meeting Agenda'}</div>`;
+  hdr.appendChild(bb);hdr.appendChild(hdi);el.appendChild(hdr);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function inp(val,key,placeholder){
+    const i=document.createElement('input');i.type='text';i.value=val||'';i.placeholder=placeholder||'';
+    i.addEventListener('input',()=>{d[key]=i.value;});return i;
+  }
+  function selInp(options,val,key){
+    const s=document.createElement('select');
+    options.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;if(o===val)op.selected=true;s.appendChild(op);});
+    s.addEventListener('change',()=>{d[key]=s.value;if(key==='meetingType'){window._agendaDraft=d;render();}});return s;
+  }
+  function field(lbl,el2,hint){
+    const w=document.createElement('div');w.className='agenda-field';
+    const l=document.createElement('label');l.innerHTML=lbl;w.appendChild(l);
+    if(hint){const h=document.createElement('div');h.className='hint';h.textContent=hint;w.appendChild(h);}
+    w.appendChild(el2);return w;
+  }
+  function hymnRow(numKey,titleKey,lbl){
+    const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:90px 1fr;gap:8px;';
+    const nf=document.createElement('div');nf.className='agenda-field';nf.style.marginBottom='0';
+    nf.innerHTML='<label>Hymn #</label>';nf.appendChild(inp(d[numKey],numKey,'#'));
+    const tf=document.createElement('div');tf.className='agenda-field';tf.style.marginBottom='0';
+    tf.innerHTML='<label>Title (optional)</label>';tf.appendChild(inp(d[titleKey],titleKey,'Hymn title'));
+    row.appendChild(nf);row.appendChild(tf);
+    return field(lbl,row);
+  }
+
+  // ── Collapsible section builder ─────────────────────────────────────────────
+  function collapsibleSection(title,buildFn,startOpen){
+    const wrap=document.createElement('div');wrap.className='agenda-section';wrap.style.padding='0';
+    const hd=document.createElement('div');
+    hd.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;border-radius:10px;transition:background 0.15s;';
+    const ht=document.createElement('div');ht.className='agenda-section-title';ht.style.margin='0';ht.textContent=title;
+    const arrow=document.createElement('span');arrow.style.cssText='font-size:12px;color:#aaa;transition:transform 0.2s;';
+    arrow.textContent='▼';
+    hd.appendChild(ht);hd.appendChild(arrow);wrap.appendChild(hd);
+
+    const body=document.createElement('div');body.style.cssText='padding:0 16px 14px;';
+    buildFn(body);
+    wrap.appendChild(body);
+
+    let open=startOpen!==false;
+    function setOpen(o){
+      open=o;
+      body.style.display=open?'block':'none';
+      arrow.style.transform=open?'':'rotate(-90deg)';
+      hd.style.background=open?'':'';
+    }
+    setOpen(open);
+    hd.addEventListener('click',()=>setOpen(!open));
+    hd.addEventListener('mouseenter',()=>{hd.style.background='rgba(0,0,0,0.03)';});
+    hd.addEventListener('mouseleave',()=>{hd.style.background='';});
+    return wrap;
+  }
+
+  // Dynamic list builder helper
+  function dynamicList(arr,renderRow,addLabel,addDefault){
+    const wrap=document.createElement('div');
+    function rebuild(){
+      wrap.innerHTML='';
+      arr.forEach((item,i)=>{ const row=renderRow(item,i,rebuild); wrap.appendChild(row); });
+      const addBtn=document.createElement('button');addBtn.className='add-row-btn';addBtn.innerHTML=addLabel;
+      addBtn.addEventListener('click',()=>{arr.push(addDefault());rebuild();});
+      wrap.appendChild(addBtn);
+    }
+    rebuild();
+    return wrap;
+  }
+
+  // ── SECTION: Meeting Basics ─────────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Meeting Basics', body=>{
+    body.appendChild(field('Meeting Date<span class="req">*</span>',dateInp(d.date,'date')));
+
+    const wardDisplay=document.createElement('input');wardDisplay.type='text';
+    wardDisplay.value=isEditing?d.ward:ward;wardDisplay.readOnly=true;
+    wardDisplay.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:14px;background:#f0f2f5;color:#555;cursor:default;';
+    body.appendChild(field('Ward',wardDisplay));
+
+    body.appendChild(field('Meeting Type',selInp(['Regular','Fast & Testimony'],d.meetingType,'meetingType')));
+    body.appendChild(field('Conducting<span class="req">*</span>',inp(d.conducting,'conducting','Full name')));
+    body.appendChild(field('Presiding<span class="req">*</span>',inp(d.presiding,'presiding','Full name')));
+
+    const hcRow=document.createElement('div');hcRow.style.cssText='display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:start;';
+    const hcField=document.createElement('div');hcField.className='agenda-field';hcField.style.marginBottom='0';
+    hcField.innerHTML='<label>High Counselor Visiting (optional)</label>';
+    hcField.appendChild(inp(d.highCounselor,'highCounselor','Full name'));
+    const stakeField=document.createElement('div');stakeField.className='agenda-field';stakeField.style.marginBottom='0';
+    stakeField.innerHTML='<label>Stake Business?</label>';
+    const stakeS=selInp(['No','Yes'],d.stakeVisiting?'Yes':'No','_sv');
+    stakeS.style.width='100%';stakeS.addEventListener('change',()=>{d.stakeVisiting=stakeS.value==='Yes';});
+    stakeField.appendChild(stakeS);
+    hcRow.appendChild(hcField);hcRow.appendChild(stakeField);body.appendChild(hcRow);
+
+    body.appendChild(field('Chorister',inp(d.chorister,'chorister','Full name')));
+    body.appendChild(field('Accompanist',inp(d.accompanist,'accompanist','Full name')));
+  }, true));
+
+  // ── SECTION: Announcements ──────────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Announcements', body=>{
+    if(!Array.isArray(d.announcementList))d.announcementList=[];
+    body.appendChild(dynamicList(d.announcementList,
+      (item,i,rebuild)=>{
+        const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        const inp2=document.createElement('input');inp2.type='text';inp2.placeholder='Announcement text';inp2.value=item||'';inp2.style.flex='1';
+        inp2.addEventListener('input',()=>{d.announcementList[i]=inp2.value;});
+        const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+        rm.addEventListener('click',()=>{d.announcementList.splice(i,1);rebuild();});
+        row.appendChild(inp2);row.appendChild(rm);return row;
+      },'+ Add announcement',()=>''));
+  }, false));
+
+  // ── SECTION: Ward Business ──────────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Ward Business', body=>{
+    // New Records
+    if(!Array.isArray(d.newRecordsList))d.newRecordsList=[];
+    const nrLbl=document.createElement('div');nrLbl.className='agenda-field';nrLbl.innerHTML='<label>New Record(s)</label>';
+    nrLbl.appendChild(dynamicList(d.newRecordsList,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      const inp2=document.createElement('input');inp2.type='text';inp2.placeholder='Member name';inp2.value=item||'';inp2.style.flex='1';
+      inp2.addEventListener('input',()=>{d.newRecordsList[i]=inp2.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.newRecordsList.splice(i,1);rebuild();});
+      row.appendChild(inp2);row.appendChild(rm);return row;
+    },'+ Add new record',()=>''));
+    body.appendChild(nrLbl);
+
+    // Releases
+    if(!Array.isArray(d.releases))d.releases=[];
+    const relLbl=document.createElement('div');relLbl.className='agenda-field';relLbl.innerHTML='<label>Release(s)</label>';
+    relLbl.appendChild(dynamicList(d.releases,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.className='release-row';
+      const m=document.createElement('input');m.type='text';m.placeholder='Member name';m.value=item.member||'';
+      m.addEventListener('input',()=>{d.releases[i].member=m.value;});
+      const c=document.createElement('input');c.type='text';c.placeholder='Calling being released from';c.value=item.calling||'';
+      c.addEventListener('input',()=>{d.releases[i].calling=c.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.releases.splice(i,1);rebuild();});
+      row.appendChild(m);row.appendChild(c);row.appendChild(rm);return row;
+    },'+ Add release',()=>({member:'',calling:''})));
+    body.appendChild(relLbl);
+
+    // Sustainings
+    if(!Array.isArray(d.sustainings))d.sustainings=[];
+    const susLbl=document.createElement('div');susLbl.className='agenda-field';susLbl.innerHTML='<label>Calling Sustaining(s)</label>';
+    susLbl.appendChild(dynamicList(d.sustainings,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.className='sustain-row';
+      const m=document.createElement('input');m.type='text';m.placeholder='Member name';m.value=item.member||'';
+      m.addEventListener('input',()=>{d.sustainings[i].member=m.value;});
+      const c=document.createElement('input');c.type='text';c.placeholder='Calling/Assignment';c.value=item.calling||'';
+      c.addEventListener('input',()=>{d.sustainings[i].calling=c.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.sustainings.splice(i,1);rebuild();});
+      row.appendChild(m);row.appendChild(c);row.appendChild(rm);return row;
+    },'+ Add sustaining',()=>({member:'',calling:''})));
+    body.appendChild(susLbl);
+
+    // Ordinations
+    if(!Array.isArray(d.ordinations))d.ordinations=[];
+    const ordLbl=document.createElement('div');ordLbl.className='agenda-field';ordLbl.innerHTML='<label>Priesthood Ordination(s)</label>';
+    ordLbl.appendChild(dynamicList(d.ordinations,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.className='ordination-row';
+      const m=document.createElement('input');m.type='text';m.placeholder='Member name';m.value=item.member||'';
+      m.addEventListener('input',()=>{d.ordinations[i].member=m.value;});
+      const of2=document.createElement('select');
+      ['Deacon','Teacher','Priest','Elder','High Priest'].forEach(v=>{const op=document.createElement('option');op.value=v;op.textContent=v;if(v===item.office)op.selected=true;of2.appendChild(op);});
+      of2.addEventListener('change',()=>{d.ordinations[i].office=of2.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.ordinations.splice(i,1);rebuild();});
+      row.appendChild(m);row.appendChild(of2);row.appendChild(rm);return row;
+    },'+ Add ordination',()=>({member:'',office:'Deacon'})));
+    body.appendChild(ordLbl);
+
+    // Baby Blessings
+    if(!Array.isArray(d.babyBlessingsList))d.babyBlessingsList=[];
+    const bbLbl=document.createElement('div');bbLbl.className='agenda-field';bbLbl.innerHTML='<label>Baby Blessing(s)</label>';
+    bbLbl.appendChild(dynamicList(d.babyBlessingsList,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      const inp2=document.createElement('input');inp2.type='text';inp2.placeholder="Child's name";inp2.value=item||'';inp2.style.flex='1';
+      inp2.addEventListener('input',()=>{d.babyBlessingsList[i]=inp2.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.babyBlessingsList.splice(i,1);rebuild();});
+      row.appendChild(inp2);row.appendChild(rm);return row;
+    },'+ Add baby blessing',()=>''));
+    body.appendChild(bbLbl);
+
+    // Confirmations
+    if(!Array.isArray(d.confirmationsList))d.confirmationsList=[];
+    const cfLbl=document.createElement('div');cfLbl.className='agenda-field';cfLbl.innerHTML='<label>Confirmation(s)</label>';
+    cfLbl.appendChild(dynamicList(d.confirmationsList,(item,i,rebuild)=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      const inp2=document.createElement('input');inp2.type='text';inp2.placeholder="Member's name";inp2.value=item||'';inp2.style.flex='1';
+      inp2.addEventListener('input',()=>{d.confirmationsList[i]=inp2.value;});
+      const rm=document.createElement('button');rm.className='remove-row-btn';rm.textContent='×';
+      rm.addEventListener('click',()=>{d.confirmationsList.splice(i,1);rebuild();});
+      row.appendChild(inp2);row.appendChild(rm);return row;
+    },'+ Add confirmation',()=>''));
+    body.appendChild(cfLbl);
+  }, false));
+
+  // ── SECTION: Hymns ──────────────────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Hymns', body=>{
+    body.appendChild(hymnRow('openingHymnNum','openingHymnTitle','Opening Hymn'));
+    body.appendChild(hymnRow('sacramentHymnNum','sacramentHymnTitle','Sacrament Hymn'));
+    if(d.meetingType!=='Fast & Testimony'){
+      body.appendChild(hymnRow('intermediateHymn','intermediateHymnTitle','Intermediate Hymn / Musical Number'));
+    }
+    body.appendChild(hymnRow('closingHymnNum','closingHymnTitle','Closing Hymn'));
+  }, true));
+
+  // ── SECTION: Prayers ───────────────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Prayers', body=>{
+    body.appendChild(field('Opening Prayer<span class="req">*</span>',inp(d.openingPrayer,'openingPrayer','Full name')));
+    body.appendChild(field('Closing Prayer<span class="req">*</span>',inp(d.closingPrayer,'closingPrayer','Full name')));
+  }, true));
+
+  // ── SECTION: Speakers ───────────────────────────────────────────────────────
+  el.appendChild(collapsibleSection(d.meetingType==='Fast & Testimony'?'Fast & Testimony':'Speakers', body=>{
+    if(d.meetingType==='Fast & Testimony'){
+      body.appendChild(field('Meeting Notes (optional)',inp(d.speaker1Topic,'speaker1Topic','Any special notes for the meeting')));
+    } else {
+      function speakerRow(numLbl,nameKey,topicKey){
+        const r=document.createElement('div');r.className='speaker-row';r.style.marginBottom='10px;';
+        const nf=document.createElement('div');nf.className='agenda-field';nf.style.marginBottom='0';
+        nf.innerHTML=`<label>${numLbl}</label>`;nf.appendChild(inp(d[nameKey],nameKey,'Full name'));
+        const tf=document.createElement('div');tf.className='agenda-field';tf.style.marginBottom='0';
+        tf.innerHTML='<label>Topic (optional)</label>';tf.appendChild(inp(d[topicKey],topicKey,'Topic'));
+        r.appendChild(nf);r.appendChild(tf);return r;
+      }
+      body.appendChild(speakerRow('Speaker 1','speaker1','speaker1Topic'));
+      const s2=speakerRow('Speaker 2 (optional)','speaker2','speaker2Topic');s2.style.marginTop='8px';body.appendChild(s2);
+      const fs=speakerRow('Final Speaker (optional)','finalSpeaker','finalSpeakerTopic');fs.style.marginTop='8px';body.appendChild(fs);
+    }
+  }, false));
+
+  // ── Required note + Save ────────────────────────────────────────────────────
+  const reqNote=document.createElement('div');reqNote.style.cssText='font-size:11px;color:#aaa;margin:12px 0 8px;';
+  reqNote.innerHTML='<span class="req">*</span> Required field';el.appendChild(reqNote);
+
+  const submitBtn=document.createElement('button');submitBtn.className='btn-primary';
+  submitBtn.style.cssText='width:100%;padding:14px;font-size:15px;border-radius:10px;';
+  submitBtn.textContent=isEditing?'Save Changes':'Save Agenda & Generate Script';
+  submitBtn.addEventListener('click',()=>{
+    if(!d.date){alert('Please enter a meeting date.');return;}
+    if(!d.conducting){alert('Please enter who is conducting.');return;}
+    if(!d.presiding){alert('Please enter who is presiding.');return;}
+    if(isEditing){
+      // Update existing agenda in place
+      Object.assign(editingAgenda,d);
+      window._agendaDraft=null;
+      state.view='detail';render();
+    } else {
+      const newId=Math.max(0,...(state.agendas||[]).map(a=>a.id))+1;
+      const agenda={id:newId,...JSON.parse(JSON.stringify(d))};
+      if(!state.agendas)state.agendas=[];
+      state.agendas.push(agenda);
+      window._agendaDraft=null;
+      state.view='detail';state.detailId=newId;render();
+    }
+  });
+  el.appendChild(submitBtn);
+}
+
+
+// ── Build Script ──────────────────────────────────────────────────────────────
+function buildScript(a){
+  const blocks=[];
+  const ward=a.ward||'the ward';
+  const date=fmtDate(a.date);
+  const isFast=a.meetingType==='Fast & Testimony';
+
+  // 1 — Welcome
+  blocks.push({step:'Welcome',text:`Good ${date&&new Date(a.date+'T12:00:00').getHours()<12?'morning':'afternoon'} brothers and sisters.\nWe welcome you to the Church of Jesus Christ of Latter-day Saints!\n\nThis is the ${isFast?'Fast and Testimony Meeting':'Sacrament Meeting'} for the ${ward} on ${date}.`});
+
+  // 2 — Introduction
+  let intro=`My name is ${a.conducting||'[Conducting]'}. ${a.presiding?`${a.presiding}, who presides at today's meeting, has asked that I conduct.`:''}`;
+  if(a.highCounselor) intro+=`\n\nWe welcome ${a.highCounselor} from the stake high council who is visiting with us today${a.stakeVisiting?' to conduct stake business.':'.'}`;
+  if(a.chorister||a.accompanist){
+    intro+=`\n\nWe'd like to extend a special thank you to our Chorister ${a.chorister||'[Chorister]'} and our Accompanist ${a.accompanist||'[Accompanist]'} who will provide the music for today's meeting.`;
+  }
+  blocks.push({step:'Introduction',text:intro.trim()});
+
+  // 3 — Opening Hymn & Prayer
+  let hymnLine=a.openingHymnNum?`We will open by singing hymn number ${a.openingHymnNum}${a.openingHymnTitle?`, "${a.openingHymnTitle}"`:''}.`:'We will now sing our opening hymn.';
+  hymnLine+=a.openingPrayer?`\n\nFollowing the hymn, ${a.openingPrayer} will offer our opening prayer.`:'\n\nFollowing the hymn we will have our opening prayer.';
+  blocks.push({step:'Opening Hymn & Prayer',text:hymnLine});
+
+  // 4 — Announcements
+  const annList=a.announcementList?a.announcementList.filter(Boolean):a.announcements?a.announcements.split('\n').filter(Boolean):[];
+  if(annList.length){
+    const annText=annList.length===1
+      ?annList[0]
+      :annList.map((ann,i)=>`${i+1}. ${ann}`).join('\n');
+    blocks.push({step:'Announcements',text:`By way of announcements:\n\n${annText}`});
+  }
+
+  // 5 — Ward Business (if any)
+  const hasWB=(a.releases&&a.releases.some(r=>r.member))||
+              (a.sustainings&&a.sustainings.some(s=>s.member))||
+              (a.ordinations&&a.ordinations.some(o=>o.member))||
+              (a.babyBlessingsList&&a.babyBlessingsList.some(Boolean))||a.babyBlessings||
+              (a.confirmationsList&&a.confirmationsList.some(Boolean))||a.confirmations||
+              (a.newRecordsList&&a.newRecordsList.some(Boolean))||a.newRecords;
+
+  if(hasWB){
+    blocks.push({step:'Ward Business',text:'Before we continue with the Sacrament portion of our program, we have some Ward Business to attend to.'});
+
+    const nrList=a.newRecordsList?a.newRecordsList.filter(Boolean):a.newRecords?[a.newRecords]:[];
+  if(nrList.length){
+      blocks.push({step:'New Records',text:`We'd like to welcome the following member(s) whose records have been received into our ward:\n\n${nrList.join('\n')}`});
+    }
+
+    const releases=a.releases?a.releases.filter(r=>r.member):[];
+    if(releases.length){
+      const plural=releases.length>1;
+      let txt=plural
+        ?'The following members have been released from their calling:\n\n'
+        :'The following member has been released from his/her calling:\n\n';
+      txt+=releases.map(r=>`${r.member}${r.calling?` as ${r.calling}`:''}`).join('\n');
+      txt+=plural
+        ?'\n\nWe propose that they be given a vote of thanks for their service. Those who wish to express their appreciation may manifest by the uplifted hand.'
+        :'\n\nWe propose that he/she be given a vote of thanks for his/her service. Those who wish to express their appreciation may manifest by the uplifted hand.';
+      blocks.push({step:'Release(s)',text:txt});
+    }
+
+    const sustainings=a.sustainings?a.sustainings.filter(s=>s.member):[];
+    if(sustainings.length){
+      let txt='';
+      txt+=sustainings.map(s=>`${s.member}${s.calling?` as ${s.calling}`:''}`).join('\n');
+      const plural2=sustainings.length>1;
+      const header=plural2
+        ?'The following members have been called. If they are here, will they please stand until after the vote is taken. We have called:\n\n'
+        :'The following member has been called. If he/she is here, will he/she please stand until after the vote is taken. We have called:\n\n';
+      const footer=plural2
+        ?'\n\nWe propose that they be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.'
+        :'\n\nWe propose that he/she be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.';
+      txt=header+txt+footer;
+      blocks.push({step:'Sustaining(s)',text:txt.trim()});
+    }
+
+    const ords=a.ordinations?a.ordinations.filter(o=>o.member):[];
+    if(ords.length){
+      let txt=ords.map(o=>`We will now proceed with the ordination of ${o.member} to the office of ${o.office} in the ${['Deacon','Teacher','Priest'].includes(o.office)?'Aaronic':'Melchizedek'} Priesthood.`).join('\n\n');
+      blocks.push({step:'Ordination(s)',text:txt});
+    }
+
+    const bbList=a.babyBlessingsList?a.babyBlessingsList.filter(Boolean):a.babyBlessings?[a.babyBlessings]:[];
+    if(bbList.length){
+      blocks.push({step:'Baby Blessing(s)',text:`We will now proceed with the blessing of the following child${bbList.length>1?'ren':''}:\n\n${bbList.join('\n')}`});
+    }
+
+    const cfList=a.confirmationsList?a.confirmationsList.filter(Boolean):a.confirmations?[a.confirmations]:[];
+    if(cfList.length){
+      blocks.push({step:'Confirmation(s)',text:`We will now proceed with the confirmation of the following individual${cfList.length>1?'s':''}:\n\n${cfList.join('\n')}`});
+    }
+  }
+
+  // 6 — Sacrament Hymn
+  let sacLine=a.sacramentHymnNum?`We will prepare to partake of the Sacrament by singing hymn number ${a.sacramentHymnNum}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}.`:'We will now sing our Sacrament hymn.';
+  blocks.push({step:'Sacrament Hymn',text:sacLine});
+
+  // 7 — After Sacrament
+  blocks.push({step:'After Sacrament',text:"We'd like to thank the Aaronic Priesthood for the reverent manner in which they administered the Sacrament."});
+
+  // 8 — Program
+  if(isFast){
+    blocks.push({step:'Fast & Testimony',text:"We will now open the meeting for the bearing of testimonies. We invite all who feel so inclined to come to the podium and share their testimony."});
+  } else {
+    const speakers=[];
+    if(a.speaker1) speakers.push({name:a.speaker1,topic:a.speaker1Topic});
+    if(a.speaker2) speakers.push({name:a.speaker2,topic:a.speaker2Topic});
+
+    let progText='The remainder of our program will go as follows:\n\n';
+    speakers.forEach((s,i)=>{
+      progText+=`- We will ${i===0?'first be privileged':'next be pleased'} to hear from ${s.name}${s.topic?` speaking on "${s.topic}"`:''}.`;
+      if(i<speakers.length-1) progText+='\n\n';
+    });
+    if(a.intermediateHymn||a.intermediateHymnTitle){
+      progText+=`\n\n- Our intermediate ${a.intermediateHymnTitle&&!a.intermediateHymn?'musical number':'hymn'} will be ${a.intermediateHymn?`number ${a.intermediateHymn}`:''}${a.intermediateHymnTitle?` "${a.intermediateHymnTitle}"`:''}.`;
+    }
+    if(a.finalSpeaker){
+      progText+=`\n\n- And our concluding speaker will be ${a.finalSpeaker}${a.finalSpeakerTopic?` speaking on "${a.finalSpeakerTopic}"`:''}.`;
+    }
+    blocks.push({step:'Program Overview',text:progText});
+
+    // Individual speaker introductions
+    speakers.forEach(s=>{
+      blocks.push({step:`Introduce: ${s.name}`,text:`We will now hear from ${s.name}.`});
+    });
+    if(a.intermediateHymn||a.intermediateHymnTitle){
+      blocks.push({step:'Intermediate Hymn',text:`We will now ${a.intermediateHymn?`sing hymn number ${a.intermediateHymn}${a.intermediateHymnTitle?`, "${a.intermediateHymnTitle}"`:''}`:a.intermediateHymnTitle?`enjoy "${a.intermediateHymnTitle}"`:' have our intermediate musical number'}.`});
+    }
+    if(a.finalSpeaker){
+      blocks.push({step:`Introduce: ${a.finalSpeaker}`,text:`We will now hear from our concluding speaker, ${a.finalSpeaker}.`});
+    }
+  }
+
+  // 9 — Closing
+  let closingLine=a.closingHymnNum?`We will close by singing hymn number ${a.closingHymnNum}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}.`:'We will now sing our closing hymn.';
+  closingLine+=a.closingPrayer?`\n\n${a.closingPrayer} will then offer our closing prayer.`:'\n\nWe will then have our closing prayer.';
+  blocks.push({step:'Closing Hymn & Prayer',text:closingLine});
+  blocks.push({step:'Dismissal',text:'This meeting is now dismissed.'});
+
+  return blocks;
+}
+
+// ── Render Agenda Detail (Script View) ────────────────────────────────────────
+function renderAgendaDetail(el,role){
+  const a=state.agendas.find(x=>x.id===state.detailId);
+  if(!a){el.innerHTML='<div class="empty-state">Agenda not found.</div>';return;}
+
+  const hdr=document.createElement('div');hdr.className='detail-header';
+  const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';
+  bb.addEventListener('click',()=>{state.view='list';state.detailId=null;render();});
+  const hdi=document.createElement('div');
+  const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}" style="font-size:12px;vertical-align:middle;margin-left:8px;">${a.meetingType}</span>`;
+  hdi.innerHTML=`<div class="detail-calling">${fmtDate(a.date)}${typeBadge}</div><div class="detail-member">${a.ward} &middot; Conducting: ${a.conducting||'—'}</div>`;
+  hdr.appendChild(bb);hdr.appendChild(hdi);el.appendChild(hdr);
+
+  // Action buttons
+  const actions=document.createElement('div');actions.className='script-actions';
+  const printBtn=document.createElement('button');printBtn.className='btn-primary';
+  printBtn.innerHTML='🖨 Print Script';printBtn.addEventListener('click',()=>window.print());
+
+  const editAgendaBtn=document.createElement('button');
+  editAgendaBtn.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;';
+  editAgendaBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit';
+  editAgendaBtn.addEventListener('click',()=>{window._agendaDraft=JSON.parse(JSON.stringify(a));state.view='new';render();});
+
+  const delBtn=document.createElement('button');
+  delBtn.style.cssText='background:transparent;border:1px solid #e57373;color:#c62828;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
+  delBtn.textContent='Delete Agenda';
+  delBtn.addEventListener('click',()=>{
+    if(confirm(`Delete the agenda for ${fmtDate(a.date)}?`)){
+      state.agendas=state.agendas.filter(x=>x.id!==a.id);
+      state.view='list';state.detailId=null;render();
+    }
+  });
+  actions.appendChild(printBtn);actions.appendChild(editAgendaBtn);actions.appendChild(delBtn);el.appendChild(actions);
+
+  // Script blocks
+  const scriptView=document.createElement('div');scriptView.className='script-view';
+  const blocks=buildScript(a);
+  blocks.forEach(b=>{
+    const block=document.createElement('div');block.className='script-block';
+    const step=document.createElement('div');step.className='script-step';step.textContent=b.step;
+    const text=document.createElement('div');text.className='script-text';text.textContent=b.text;
+    block.appendChild(step);block.appendChild(text);scriptView.appendChild(block);
+  });
+  el.appendChild(scriptView);
+}
+
 function render(){
   if(state.tab==='dashboard')state.tab='callings'; // dashboard removed
   updateChrome();
@@ -1231,6 +1885,7 @@ function render(){
   const el=document.getElementById('content');el.innerHTML='';
   const role=getRole();
   if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
+  else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
 
 }
 
@@ -1628,7 +2283,8 @@ function renderCallingDetail(el,role){
           let editing=false;
           pencil.addEventListener('click',e=>{
             e.stopPropagation();if(editing)return;editing=true;
-            const inp=document.createElement('input');inp.type='date';inp.className='compact';inp.value=val;inp.style.marginLeft='4px';
+            const {wrap:dw,inp}=makeDateInput(val,v=>{});inp.className='compact';inp.style.marginLeft='4px';
+            inp.value=val;
             wrap.replaceChildren(txt,inp);inp.focus();
             function save(){if(!c.stepMeta[i])c.stepMeta[i]={};c.stepMeta[i][key]=inp.value||val;if(key==='extendDate')c.stepDates[i]=inp.value||val;render();}
             inp.addEventListener('blur',save);inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
@@ -1648,7 +2304,8 @@ function renderCallingDetail(el,role){
         let editing=false;
         pencil.addEventListener('click',e=>{
           e.stopPropagation();if(editing)return;editing=true;
-          const inp=document.createElement('input');inp.type='date';inp.className='compact';inp.value=c.stepDates[i];inp.style.marginLeft='4px';
+          const {inp}=makeDateInput(c.stepDates[i],v=>{});inp.className='compact';inp.style.marginLeft='4px';
+          inp.value=c.stepDates[i];
           wrap.replaceChildren(txt,inp);inp.focus();
           function save(){c.stepDates[i]=inp.value||c.stepDates[i];render();}
           inp.addEventListener('blur',save);inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
