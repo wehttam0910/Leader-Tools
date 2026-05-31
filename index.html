@@ -639,9 +639,9 @@ document.getElementById('sidebar-toggle').addEventListener('click',()=>{
 // ── Mobile sidebar ───────────────────────────────────────────────────────────
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('open');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('open');}
-// Make all date inputs fully clickable
+// Make date inputs open picker on click (desktop only — mobile handles natively)
 document.addEventListener('click',e=>{
-  if(e.target.type==='date'){try{e.target.showPicker();}catch(ex){}}
+  if(e.target.type==='date'&&window.innerWidth>=768){try{e.target.showPicker();}catch(ex){}}
 });
 
 document.getElementById('hamburger').addEventListener('click',openSidebar);
@@ -1377,10 +1377,15 @@ function renderAgendas(el,role){
 }
 
 // ── Agenda Wizard ─────────────────────────────────────────────────────────────
-function dateInp(val,key_unused){
-  // Compatibility shim — used inside wizard via d[key] pattern
-  const {wrap}=makeDateInput(val,()=>{});
-  return wrap;
+function dateInp(val,onChange){
+  // Create a simple date input that works reliably on mobile
+  const inp=document.createElement('input');
+  inp.type='date';
+  inp.value=val||'';
+  inp.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;';
+  inp.addEventListener('change',()=>{if(onChange)onChange(inp.value);});
+  inp.addEventListener('input',()=>{if(onChange)onChange(inp.value);});
+  return inp;
 }
 
 function renderAgendaWizard(el,role,editingAgenda){
@@ -1498,7 +1503,7 @@ function renderAgendaWizard(el,role,editingAgenda){
 
   // ── SECTION: Meeting Basics ─────────────────────────────────────────────────
   el.appendChild(collapsibleSection('Meeting Basics', body=>{
-    body.appendChild(field('Meeting Date<span class="req">*</span>',dateInp(d.date,'date')));
+    body.appendChild(field('Meeting Date<span class="req">*</span>',dateInp(d.date,v=>{d.date=v;})));
 
     const wardDisplay=document.createElement('input');wardDisplay.type='text';
     wardDisplay.value=isEditing?d.ward:ward;wardDisplay.readOnly=true;
