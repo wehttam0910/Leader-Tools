@@ -1985,11 +1985,10 @@ function renderAgendaDetail(el,role){
 
   // Sacrament
   sectionDiv('Sacrament');
-  scriptPara(`We will now prepare for the partaking of the Sacrament by singing hymn number ${a.sacramentHymnNum||'[hymn number]'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}.  Following the hymn, the Sacrament will be administered by the Aaronic Priesthood.`);
+  scriptPara(`We will now prepare for the partaking of the Sacrament by singing hymn #${a.sacramentHymnNum||'[hymn number]'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}.  Following the hymn, the Sacrament will be administered by the Aaronic Priesthood.`);
   if(a.sacramentHymnNum||a.sacramentHymnTitle)
     agendaItem('Sacrament Hymn',`#${a.sacramentHymnNum||'—'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}`);
   agendaItem('Administration','Sacrament administered by the Aaronic Priesthood');
-  scriptPara("We'd like to thank the Aaronic Priesthood for the reverent manner in which they administered the Sacrament.");
 
   // Program
   sectionDiv(isFast?'Fast & Testimony':'Program');
@@ -2003,7 +2002,7 @@ function renderAgendaDetail(el,role){
       let prog="We'd like to thank the Aaronic Priesthood for the reverent manner in which they administered the Sacrament.\n\nThe remainder of our program will go as follows:\n\n";
       if(spk.length>0) prog+=`- We will first be privileged to hear from ${spk[0].name}.`;
       if(spk.length>1) prog+=`\n\n- Following ${spk[0].name}'s remarks we will be pleased to hear from ${spk[1].name}.`;
-      if(a.intermediateHymn||a.intermediateHymnTitle) prog+=`\n\n- Our Intermediate Hymn will be ${a.intermediateHymn||''}${a.intermediateHymn&&a.intermediateHymnTitle?', ':''}${a.intermediateHymnTitle||''}.`;
+      if(a.intermediateHymn||a.intermediateHymnTitle) prog+=`\n\n- Our Intermediate Hymn will be ${a.intermediateHymn?`#${a.intermediateHymn}`:''}${a.intermediateHymn&&a.intermediateHymnTitle?', ':''}${a.intermediateHymnTitle||''}.`;
       if(a.finalSpeaker) prog+=`\n\n- And our concluding speaker will be ${a.finalSpeaker}.`;
       scriptPara(prog.trim());
     }
@@ -2020,7 +2019,7 @@ function renderAgendaDetail(el,role){
 
   // Closing
   sectionDiv('Closing');
-  scriptPara(`I'd like to thank our speakers for the spirit that was felt here today.\n\nOur closing hymn will be hymn number ${a.closingHymnNum||'[hymn number]'}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}.\n\nAfter the hymn the closing prayer will be offered by ${a.closingPrayer||'[closing prayer]'}.`);
+  scriptPara(`I'd like to thank our speakers for the spirit that was felt here today.\n\nOur closing hymn will be hymn #${a.closingHymnNum||'[hymn number]'}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}.\n\nAfter the hymn the closing prayer will be offered by ${a.closingPrayer||'[closing prayer]'}.`);
   if(a.closingHymnNum||a.closingHymnTitle)
     agendaItem('Closing Hymn',`#${a.closingHymnNum||'—'}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}`);
   if(a.closingPrayer)agendaItem('Benediction',a.closingPrayer);
