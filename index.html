@@ -66,6 +66,8 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .topbar-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0;}
 .banner{padding:9px 16px;font-size:12px;display:flex;align-items:center;gap:8px;background:#faeeda;color:#854f0b;border-bottom:1px solid #fac775;}
 .banner.hidden{display:none;}
+.date-full-click{display:flex;align-items:center;gap:4px;}
+.date-full-click input[type="date"]{cursor:pointer;flex:1;}
 .req{color:#c62828;margin-left:2px;font-size:13px;}
 /* ── Custom date input — full field clickable ── */
 .date-wrap{position:relative;display:inline-block;width:100%;}
@@ -487,6 +489,16 @@ const CALLING_DIR=[
   {name:'Ward Bulletin Specialist',level:'Ward',org:'Additional Ward Callings'},
 ];
 const WORKFLOWS={
+  'Stake-Bishop':[
+    'Stake Presidency Approval',
+    'Q12 Approval',
+    'Set Appt to Extend',
+    'Extend Calling',
+    'Sustain over Pulpit',
+    'Set Apart',
+    'Record in LCR',
+    'Completed'
+  ],
   'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
   'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Extend Calling','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
   'Stake-Release Only':['Presidency Approval','Set Appt to Release','Release Current','Release over Pulpit','Record in LCR','Completed'],
@@ -497,22 +509,29 @@ const WORKFLOWS={
 const DUAL_STEP='Set Appts to Extend & Release Current';
 
 function getSteps(c){
+  // Bishop calling has its own special workflow
+  if(c.calling==='Bishop'||(c.calling||'').toLowerCase()==='bishop'){
+    return WORKFLOWS['Stake-Bishop']||WORKFLOWS['Stake-Calling Only'];
+  }
   const t=(c.level==='Stake'||c.level==='Stake Issued')?'Stake':'Ward';
-  // If calling is occupied (currentlyFilled) but action is Calling Only,
-  // use the Calling & Release workflow so the current holder gets a release step —
-  // but the action label stays "Calling Only" for clarity to the bishopric
   const workflowKey=c.currentlyFilled&&c.action==='Calling Only'?t+'-Calling & Release':t+'-'+c.action;
   return WORKFLOWS[workflowKey]||WORKFLOWS['Ward-Calling Only'];
 }
 function filterCallings(cs,role){
+  const isBishop=c=>(c.calling||'').toLowerCase()==='bishop';
+  // Bishop callings only visible to admin and stake presidency (not high council)
+  const canSeeBishop=role.scope==='admin'||(role.scope==='stake'&&role.id!=='high_council');
   if(role.scope==='admin')return cs;
-  if(role.scope==='stake')return cs.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
-  if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward);
+  if(role.scope==='stake'){
+    const base=cs.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
+    return canSeeBishop?base:base.filter(c=>!isBishop(c));
+  }
+  if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishop(c));
   if(role.scope==='ward_org')return cs.filter(c=>c.level==='Ward'&&c.ward===role.ward&&c.org===role.org);
   return[];
 }
-function isReadOnly(r){return r.id==='high_council';}
-function canAdvanceWorkflow(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward';}
+function isReadOnly(r){return false;} // step-level permissions handle restrictions
+function canAdvanceWorkflow(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward'||r.id==='high_council';}
 function getCallingDirForRole(role){
   let d=CALLING_DIR;
   if(role.scope==='stake')d=d.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
@@ -2174,8 +2193,17 @@ function renderCallingDetail(el,role){
     if(canCheckStep&&(c.level==='Stake Issued'||c.level==='Stake')){
       const isStake=role.scope==='stake'||role.scope==='admin';
       const isWardBishopric=role.scope==='ward'&&role.org==='Bishopric';
-      if(step==="Bishop's Approval"){
+      const isHighCouncilor=role.id==='high_council';
+      // Steps a High Councilor can complete when assigned
+      const hcSteps=["Set Appt to Extend","Extend Calling","Sustain over Pulpit","Set Apart",
+                     "Set Appts to Extend & Release Current","Sustain & Release over Pulpit",
+                     "Set Appt to Release","Release Current","Release over Pulpit"];
+      if(step==="Bishop's Approval"||step==="Stake Presidency Approval"){
         canCheckStep=isStake||isWardBishopric;
+      } else if(step==='Q12 Approval'){
+        canCheckStep=isStake; // Stake Presidency records this, HC cannot
+      } else if(isHighCouncilor&&hcSteps.includes(step)){
+        canCheckStep=prevChecked; // HC can check these steps
       } else {
         canCheckStep=isStake;
       }
@@ -2205,7 +2233,6 @@ function renderCallingDetail(el,role){
       const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
       const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
       dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
-      dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
       dateInp2.addEventListener('change',()=>{
         m.apptDate=dateInp2.value||null;
         if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
@@ -2223,7 +2250,6 @@ function renderCallingDetail(el,role){
       const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
       const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
       dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
-      dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
       dateInp2.addEventListener('change',()=>{
         m.apptDate=dateInp2.value||null;
         if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
@@ -2242,8 +2268,7 @@ function renderCallingDetail(el,role){
         const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent=label+':';
         const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m[key]||'';
         dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
-        dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
-        dateInp2.addEventListener('change',()=>{
+          dateInp2.addEventListener('change',()=>{
           m[key]=dateInp2.value||null;
           if(m.extendDate&&m.releaseDate){c.stepDates[i]=m.extendDate;c.currentStep=Math.max(c.currentStep,i+1);}
           else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
