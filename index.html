@@ -834,7 +834,7 @@ function openCallingModal(role){
     function subtitle(txt){const s=document.createElement('div');s.style.cssText='font-size:13px;color:#888;margin-bottom:16px;margin-top:-8px;';s.textContent=txt;modal.appendChild(s);}
     function fg(lbl,el,hint){
       const g=document.createElement('div');g.className='form-group';
-      const l=document.createElement('label');l.className='form-label';l.textContent=lbl;g.appendChild(l);
+      const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;g.appendChild(l);
       if(hint){const h=document.createElement('div');h.style.cssText='font-size:11px;color:#999;margin-bottom:6px;';h.textContent=hint;g.appendChild(h);}
       g.appendChild(el);modal.appendChild(g);return el;
     }
@@ -1151,7 +1151,7 @@ function openCallingEditModal(c,role){
 
   function fg(lbl,el){
     const g=document.createElement('div');g.className='form-group';
-    const l=document.createElement('label');l.className='form-label';l.textContent=lbl;
+    const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;
     g.appendChild(l);g.appendChild(el);modal.appendChild(g);return el;
   }
   function inp(lbl,val,key){
@@ -1422,6 +1422,31 @@ function renderAgendaWizard(el,role,editingAgenda){
     if(isEditing){
       window._agendaDraft=JSON.parse(JSON.stringify(editingAgenda));
     } else {
+      // Auto-populate sustainings and releases from callings tracker
+      const autoSustain=[];
+      const autoRelease=[];
+      (state.callings||[]).forEach(c=>{
+        if(c.ward!==ward)return; // only this ward
+        const steps=getSteps(c);
+        const sustainIdx=steps.indexOf('Sustain over Pulpit');
+        const sustainAltIdx=steps.indexOf('Sustain & Release over Pulpit');
+        const isSustainReady=(sustainIdx>=0&&c.currentStep===sustainIdx)||
+                             (sustainAltIdx>=0&&c.currentStep===sustainAltIdx);
+        if(isSustainReady){
+          autoSustain.push({member:c.name,calling:c.calling,_callingId:c.id,_auto:true});
+          // Also add release if there's a current holder to release
+          if(c.currentlyFilled&&c.releaseName){
+            autoRelease.push({member:c.releaseName,calling:c.calling,_callingId:c.id,_auto:true});
+          }
+          // Also add member's own release if Calling & Release
+          if(c.action==='Calling & Release'&&c.memberCallings&&c.memberCallings.length){
+            c.memberCallings.forEach(mc=>{
+              autoRelease.push({member:c.name,calling:mc,_callingId:c.id,_auto:true});
+            });
+          }
+        }
+      });
+
       window._agendaDraft={
         date:'',ward,meetingType:'Regular',
         conducting:'',presiding:'',highCounselor:'',stakeVisiting:false,
@@ -1433,7 +1458,7 @@ function renderAgendaWizard(el,role,editingAgenda){
         closingHymnNum:'',closingHymnTitle:'',
         announcementList:[],
         newRecordsList:[],
-        releases:[],sustainings:[],ordinations:[],
+        releases:autoRelease,sustainings:autoSustain,ordinations:[],
         babyBlessingsList:[],confirmationsList:[],
         speaker1:'',speaker1Topic:'',
         speaker2:'',speaker2Topic:'',
@@ -1905,7 +1930,7 @@ function renderAgendaDetail(el,role){
   function metaLine(lbl,val){
     if(!val)return;
     const row=document.createElement('div');row.style.cssText='display:flex;gap:20px;margin-bottom:5px;font-size:13px;';
-    const l=document.createElement('span');l.style.cssText='font-weight:700;min-width:110px;color:#1c2537;';l.textContent=lbl+':';
+    const l=document.createElement('span');l.style.cssText='font-weight:700;min-width:110px;color:#1c2537;';l.innerHTML=lbl+':';
     const v=document.createElement('span');v.style.color='#333';v.textContent=val;
     row.appendChild(l);row.appendChild(v);doc.appendChild(row);
   }
@@ -1986,12 +2011,76 @@ function renderAgendaDetail(el,role){
     if(releases.length){
       const pl=releases.length>1;
       scriptPara(`The following member${pl?'s have':' has'} been released from ${pl?'their':'his/her'} calling:\n\n${releases.map(r=>`${r.member}${r.calling?` as ${r.calling}`:''}`).join('\n')}\n\nWe propose that ${pl?'they':'he/she'} be given a vote of thanks for ${pl?'their':'his/her'} service. Those who wish to express their appreciation may manifest by the uplifted hand.`);
-      agendaItem('Release(s)',releases.map(r=>`${r.member}${r.calling?` — ${r.calling}`:''}`).join('<br>'));
+
+      // Release agenda items with optional "mark complete" checkbox for linked callings
+      const relDiv=document.createElement('div');relDiv.style.cssText='margin-bottom:8px;';
+      const relLblEl=document.createElement('span');relLblEl.style.cssText='font-weight:700;min-width:130px;font-size:13px;color:#1c2537;display:inline-block;';relLblEl.textContent='Release(s):';
+      relDiv.appendChild(relLblEl);
+      releases.forEach(r=>{
+        const rrow=document.createElement('div');rrow.style.cssText='display:flex;align-items:center;gap:8px;margin-top:4px;padding-left:130px;font-size:13px;';
+        const rname=document.createElement('span');rname.style.flex='1';rname.textContent=`${r.member}${r.calling?` — ${r.calling}`:''}`;
+        rrow.appendChild(rname);
+        if(r._callingId){
+          const linkedC=state.callings.find(c=>c.id===r._callingId);
+          if(linkedC){
+            const steps=getSteps(linkedC);
+            const relIdx=Math.max(steps.indexOf('Release Current'),steps.indexOf('Release over Pulpit'));
+            const alreadyDone=relIdx>=0&&linkedC.currentStep>relIdx;
+            const cb=document.createElement('input');cb.type='checkbox';cb.checked=alreadyDone;
+            cb.title='Mark Release as complete in Callings';
+            cb.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#1c7a45;';
+            const cblbl=document.createElement('span');cblbl.style.cssText='font-size:11px;color:#888;white-space:nowrap;';cblbl.textContent='Mark released';
+            cb.addEventListener('change',()=>{
+              if(cb.checked){
+                if(relIdx>=0){linkedC.stepDates[relIdx]=today();linkedC.currentStep=Math.max(linkedC.currentStep,relIdx+1);}
+              } else {
+                if(relIdx>=0){linkedC.stepDates[relIdx]=undefined;if(linkedC.currentStep===relIdx+1)linkedC.currentStep=relIdx;}
+              }
+              saveState();
+            });
+            rrow.appendChild(cb);rrow.appendChild(cblbl);
+          }
+        }
+        relDiv.appendChild(rrow);
+      });
+      doc.appendChild(relDiv);
     }
     if(sustainings.length){
       const pl=sustainings.length>1;
       scriptPara(`The following member${pl?'s have':' has'} been called. If ${pl?'they are':'he/she is'} here, will ${pl?'they':'he/she'} please stand until after the vote is taken. We have called:\n\n${sustainings.map(s=>`${s.member}${s.calling?` as ${s.calling}`:''}`).join('\n')}\n\nWe propose that ${pl?'they':'he/she'} be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.`);
-      agendaItem('Sustaining(s)',sustainings.map(s=>`${s.member}${s.calling?` — ${s.calling}`:''}`).join('<br>'));
+
+      // Sustaining agenda items with optional "mark complete" checkbox for linked callings
+      const susDiv=document.createElement('div');susDiv.style.cssText='margin-bottom:8px;';
+      const susLblEl=document.createElement('span');susLblEl.style.cssText='font-weight:700;min-width:130px;font-size:13px;color:#1c2537;display:inline-block;';susLblEl.textContent='Sustaining(s):';
+      susDiv.appendChild(susLblEl);
+      sustainings.forEach(s=>{
+        const srow=document.createElement('div');srow.style.cssText='display:flex;align-items:center;gap:8px;margin-top:4px;padding-left:130px;font-size:13px;';
+        const sname=document.createElement('span');sname.style.flex='1';sname.textContent=`${s.member}${s.calling?` — ${s.calling}`:''}`;
+        srow.appendChild(sname);
+        if(s._callingId){
+          const linkedC=state.callings.find(c=>c.id===s._callingId);
+          if(linkedC){
+            const steps=getSteps(linkedC);
+            const sustainIdx=Math.max(steps.indexOf('Sustain over Pulpit'),steps.indexOf('Sustain & Release over Pulpit'));
+            const alreadyDone=sustainIdx>=0&&linkedC.currentStep>sustainIdx;
+            const cb=document.createElement('input');cb.type='checkbox';cb.checked=alreadyDone;
+            cb.title='Mark Sustain over Pulpit as complete in Callings';
+            cb.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#1c7a45;';
+            const cblbl=document.createElement('span');cblbl.style.cssText='font-size:11px;color:#888;white-space:nowrap;';cblbl.textContent='Mark sustained';
+            cb.addEventListener('change',()=>{
+              if(cb.checked){
+                if(sustainIdx>=0){linkedC.stepDates[sustainIdx]=today();linkedC.currentStep=Math.max(linkedC.currentStep,sustainIdx+1);}
+              } else {
+                if(sustainIdx>=0){linkedC.stepDates[sustainIdx]=undefined;if(linkedC.currentStep===sustainIdx+1)linkedC.currentStep=sustainIdx;}
+              }
+              saveState();
+            });
+            srow.appendChild(cb);srow.appendChild(cblbl);
+          }
+        }
+        susDiv.appendChild(srow);
+      });
+      doc.appendChild(susDiv);
     }
     if(ords.length){
       ords.forEach(o=>scriptPara(`We will now proceed with the ordination of ${o.member} to the office of ${o.office} in the ${['Deacon','Teacher','Priest'].includes(o.office)?'Aaronic':'Melchizedek'} Priesthood.`));
