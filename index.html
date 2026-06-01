@@ -2105,7 +2105,19 @@ function renderCallingDetail(el,role){
     // A step is checkable if the previous step is checked (or it's step 0)
     // Unchecking is always allowed — it just lowers currentStep to i
     const prevChecked=i===0||(i-1)<c.currentStep;
-    const canCheck=canEdit&&prevChecked;
+
+    // Step-level permissions for Stake Issued / Stake callings
+    let canCheckStep=canEdit&&prevChecked;
+    if(canCheckStep&&(c.level==='Stake Issued'||c.level==='Stake')){
+      const isStake=role.scope==='stake'||role.scope==='admin';
+      const isWardBishopric=role.scope==='ward'&&role.org==='Bishopric';
+      if(step==="Bishop's Approval"){
+        canCheckStep=isStake||isWardBishopric;
+      } else {
+        canCheckStep=isStake;
+      }
+    }
+    const canCheck=canCheckStep;
 
     const item=document.createElement('div');item.className='step-item';
 
