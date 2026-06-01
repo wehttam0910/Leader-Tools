@@ -2098,8 +2098,71 @@ function renderCallingDetail(el,role){
   // ── Step list with checkboxes ─────────────────────────────────────────────
   const sl=document.createElement('div');sl.className='step-list';
 
+  const allPrevDone=c.currentStep>=steps.length-1||c.stepDates[steps.length-1]!=null;
+
   steps.forEach((step,i)=>{
-    if(step==='Completed')return; // Don't render the final "Completed" marker as a step
+    if(step==='Completed'){
+      // Render as special Complete step
+      const compItem=document.createElement('div');compItem.className='step-item';
+      const compRow=document.createElement('div');compRow.className='step-row';
+
+      // Permission: stake presidency/admin for all callings; bishopric for ward callings
+      const isStakeRole=role.scope==='stake'||role.scope==='admin';
+      const isWardBishopricRole=role.scope==='ward'&&role.org==='Bishopric';
+      const canComplete=(c.level==='Stake Issued'||c.level==='Stake')
+        ? isStakeRole
+        : isStakeRole||isWardBishopricRole;
+
+      const compCb=document.createElement('div');
+      compCb.className='step-cb'+(allPrevDone?' checked':'')+(canComplete?'':' disabled');
+      if(allPrevDone)compCb.style.background='#1c7a45';
+
+      const compBody=document.createElement('div');compBody.className='step-body';
+      const compName=document.createElement('div');compName.className='step-name';
+      compName.style.cssText='font-weight:700;color:'+(allPrevDone?'#1c7a45':'#1c2537')+';';
+      compName.textContent='Complete';
+      compBody.appendChild(compName);
+
+      if(allPrevDone&&c.stepDates[i]){
+        const dateEl=document.createElement('div');dateEl.className='step-date';
+        dateEl.textContent='Completed '+fmt(c.stepDates[i]);
+        compBody.appendChild(dateEl);
+      }
+
+      compCb.addEventListener('click',()=>{
+        if(!canComplete)return;
+        if(allPrevDone){
+          // Uncheck — restore from snapshot if available
+          if(c._completedSnapshot){
+            c.currentStep=c._completedSnapshot.currentStep;
+            c.stepDates=c._completedSnapshot.stepDates.slice();
+            delete c._completedSnapshot;
+          } else {
+            // No snapshot — just revert to second-to-last step
+            c.currentStep=steps.length-2;
+            c.stepDates[steps.length-1]=undefined;
+          }
+          render();
+        } else {
+          // Save snapshot before completing
+          c._completedSnapshot={
+            currentStep:c.currentStep,
+            stepDates:c.stepDates.slice()
+          };
+          // Complete all steps with today's date
+          steps.forEach((_,si)=>{
+            if(!c.stepDates[si])c.stepDates[si]=today();
+          });
+          c.currentStep=steps.length-1;
+          c.stepDates[steps.length-1]=today();
+          render();
+        }
+      });
+
+      compRow.appendChild(compCb);compRow.appendChild(compBody);
+      compItem.appendChild(compRow);sl.appendChild(compItem);
+      return;
+    } // Don't render the final "Completed" marker as a step
     const isDual=step===DUAL_STEP;
     const isChecked=i<c.currentStep;
     // A step is checkable if the previous step is checked (or it's step 0)
@@ -2119,22 +2182,107 @@ function renderCallingDetail(el,role){
     }
     const canCheck=canCheckStep;
 
+    const extendIdx=steps.indexOf('Extend Calling');
+    const isAfterDeclined=c.declined&&extendIdx>=0&&i>extendIdx;
     const item=document.createElement('div');item.className='step-item';
+    if(isAfterDeclined)item.style.opacity='0.35';
 
     // Top row
     const row=document.createElement('div');row.className='step-row';
     const cb=document.createElement('div');
-    cb.className='step-cb'+(isChecked?' checked':'')+(canCheck?'':' disabled');
+    cb.className='step-cb'+(isChecked?' checked':'')+(canCheck&&!isAfterDeclined?'':' disabled');
 
     const body=document.createElement('div');body.className='step-body';
     const nameEl=document.createElement('div');nameEl.className='step-name';nameEl.textContent=step;
     body.appendChild(nameEl);
 
     // For dual step that is upcoming: show compact date pre-entry fields (optional, auto-filled on check)
-    if(isDual&&!isChecked&&canCheck){
-      const hint=document.createElement('div');hint.style.cssText='font-size:11px;color:#aaa;margin-top:3px;';
-      hint.textContent="Checking will record today's date for both appointments. Use ✏ to adjust.";
-      body.appendChild(hint);
+    // ── SET APPT TO EXTEND (single) — date input ─────────────────────────────
+    if(step==='Set Appt to Extend'&&prevChecked&&canCheck&&!isChecked){
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const m=c.stepMeta[i];
+      const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
+      const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
+      const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
+      dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
+      dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
+      dateInp2.addEventListener('change',()=>{
+        m.apptDate=dateInp2.value||null;
+        if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
+        else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
+        render();
+      });
+      row2.appendChild(lbl2);row2.appendChild(dateInp2);body.appendChild(row2);
+    }
+
+    // ── SET APPT TO RELEASE (single) — date input ────────────────────────────
+    if(step==='Set Appt to Release'&&prevChecked&&canCheck&&!isChecked){
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const m=c.stepMeta[i];
+      const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
+      const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
+      const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
+      dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
+      dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
+      dateInp2.addEventListener('change',()=>{
+        m.apptDate=dateInp2.value||null;
+        if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
+        else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
+        render();
+      });
+      row2.appendChild(lbl2);row2.appendChild(dateInp2);body.appendChild(row2);
+    }
+
+    // ── SET APPTS TO EXTEND & RELEASE CURRENT — dual date inputs ─────────────
+    if(isDual&&prevChecked&&canCheck&&!isChecked){
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const m=c.stepMeta[i];
+      function makeApptDateRow(label,key){
+        const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
+        const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent=label+':';
+        const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m[key]||'';
+        dateInp2.style.cssText='font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;color:#1c2537;cursor:pointer;';
+        dateInp2.addEventListener('click',()=>{try{dateInp2.showPicker();}catch(e){}});
+        dateInp2.addEventListener('change',()=>{
+          m[key]=dateInp2.value||null;
+          if(m.extendDate&&m.releaseDate){c.stepDates[i]=m.extendDate;c.currentStep=Math.max(c.currentStep,i+1);}
+          else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
+          render();
+        });
+        row2.appendChild(lbl2);row2.appendChild(dateInp2);return row2;
+      }
+      body.appendChild(makeApptDateRow('Extend Calling Appt','extendDate'));
+      body.appendChild(makeApptDateRow('Release Current Holder Appt','releaseDate'));
+    }
+
+    // ── EXTEND CALLING — Accepted/Declined toggle ────────────────────────────
+    if(step==='Extend Calling'&&prevChecked&&canCheck&&!isChecked){
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const response=c.stepMeta[i].response;
+      const toggleRow=document.createElement('div');toggleRow.style.cssText='display:flex;gap:8px;margin-top:8px;';
+      ['Accepted','Declined'].forEach(opt=>{
+        const btn=document.createElement('button');
+        const isSel=response===opt;
+        btn.textContent=(opt==='Accepted'?'✓ ':'✗ ')+opt;
+        btn.style.cssText=`padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${isSel?(opt==='Accepted'?'#1c7a45':'#c62828'):'#ddd'};background:${isSel?(opt==='Accepted'?'#e6f7ee':'#fdecea'):'#fff'};color:${isSel?(opt==='Accepted'?'#1c7a45':'#c62828'):'#888'};`;
+        btn.addEventListener('click',()=>{
+          c.stepMeta[i].response=opt;
+          c.stepDates[i]=today();
+          c.currentStep=Math.max(c.currentStep,i+1);
+          if(opt==='Declined'){
+            c.declined=true;
+            if(!c._declinedSnapshot)c._declinedSnapshot={currentStep:c.currentStep,stepDates:c.stepDates.slice()};
+            getSteps(c).forEach((_,si)=>{if(!c.stepDates[si])c.stepDates[si]=today();});
+            c.currentStep=getSteps(c).length-1;
+          } else {
+            c.declined=false;
+            if(c._declinedSnapshot){c.currentStep=c._declinedSnapshot.currentStep;c.stepDates=c._declinedSnapshot.stepDates.slice();delete c._declinedSnapshot;}
+          }
+          render();
+        });
+        toggleRow.appendChild(btn);
+      });
+      body.appendChild(toggleRow);
     }
 
     // Note on Extend Calling step if member needs release from prior calling
@@ -2219,8 +2367,10 @@ function renderCallingDetail(el,role){
     item.appendChild(row);
 
     // ── Checkbox click handler ─────────────────────────────────────────────
+    const isApptStep=step==='Set Appt to Extend'||step==='Set Appt to Release'||isDual;
     cb.addEventListener('click',()=>{
       if(!canCheck)return;
+      if(isApptStep)return; // auto-checks only via date input
       if(isChecked){
         // Uncheck: revert
         c.currentStep=i;
@@ -2344,6 +2494,7 @@ function renderCallings(el,role){
     const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
       ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
+    const declinedBadge=c.declined?`<span class="badge" style="font-size:10px;margin-left:4px;background:#fdecea;color:#c62828;">✗ Declined</span>`:'';
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
       <td>${c.name}</td>
