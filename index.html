@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>LeaderTools</title>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="icon" type="image/png" href="data:image/png;base64,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"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -585,7 +587,201 @@ function getStatusBadge(c){
   return{label:'Near Completion',cls:'badge-amber'};
 }
 function getLevelBadge(l){if(l==='Stake')return{label:'Stake',cls:'badge-purple'};if(l==='Stake Issued')return{label:'Stake-Issued',cls:'badge-blue'};return{label:'Ward',cls:'badge-gray'};}
-// ── Persistence via localStorage ─────────────────────────────────────────
+// ── Supabase client ───────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://kxmeleysvnbubxlayuwb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bWVsZXlzdm5idWJ4bGF5dXdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNjQxMTIsImV4cCI6MjA5NTk0MDExMn0.toT_OJ7IZrG1bfX4FUOq1JSWUoxw2WS48bo3Fzksy3E';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Field name mapping: JS camelCase <-> Supabase snake_case ─────────────
+function callingToDb(c) {
+  return {
+    id: c.id,
+    name: c.name,
+    calling: c.calling,
+    org: c.org,
+    ward: c.ward,
+    level: c.level,
+    action: c.action,
+    submitted_date: c.submittedDate || null,
+    current_step: c.currentStep,
+    step_dates: c.stepDates || [],
+    step_meta: c.stepMeta || {},
+    notes: c.notes || '',
+    custom: !!c.custom,
+    member_current_calling: c.memberCurrentCalling || '',
+    member_callings: c.memberCallings || [],
+    member_needs_release: !!c.memberNeedsRelease,
+    spouse_name: c.spouseName || '',
+    spouse_calling: c.spouseCalling || '',
+    release_name: c.releaseName || '',
+    currently_filled: !!c.currentlyFilled,
+    declined: !!c.declined,
+    declined_snapshot: c._declinedSnapshot || null,
+    archived: !!c.archived,
+  };
+}
+
+function callingFromDb(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    calling: r.calling,
+    org: r.org,
+    ward: r.ward,
+    level: r.level,
+    action: r.action,
+    submittedDate: r.submitted_date || '',
+    currentStep: r.current_step || 0,
+    stepDates: r.step_dates || [],
+    stepMeta: r.step_meta || {},
+    notes: r.notes || '',
+    custom: !!r.custom,
+    memberCurrentCalling: r.member_current_calling || '',
+    memberCallings: r.member_callings || [],
+    memberNeedsRelease: !!r.member_needs_release,
+    spouseName: r.spouse_name || '',
+    spouseCalling: r.spouse_calling || '',
+    releaseName: r.release_name || '',
+    currentlyFilled: !!r.currently_filled,
+    declined: !!r.declined,
+    _declinedSnapshot: r.declined_snapshot || null,
+    archived: !!r.archived,
+  };
+}
+
+function agendaToDb(a) {
+  return {
+    id: a.id,
+    ward: a.ward,
+    date: a.date || null,
+    meeting_type: a.meetingType || 'Regular',
+    conducting: a.conducting || '',
+    presiding: a.presiding || '',
+    high_counselor: a.highCounselor || '',
+    stake_visiting: !!a.stakeVisiting,
+    chorister: a.chorister || '',
+    accompanist: a.accompanist || '',
+    opening_hymn_num: a.openingHymnNum || '',
+    opening_hymn_title: a.openingHymnTitle || '',
+    sacrament_hymn_num: a.sacramentHymnNum || '',
+    sacrament_hymn_title: a.sacramentHymnTitle || '',
+    intermediate_hymn: a.intermediateHymn || '',
+    intermediate_hymn_title: a.intermediateHymnTitle || '',
+    closing_hymn_num: a.closingHymnNum || '',
+    closing_hymn_title: a.closingHymnTitle || '',
+    opening_prayer: a.openingPrayer || '',
+    closing_prayer: a.closingPrayer || '',
+    speaker1: a.speaker1 || '',
+    speaker1_topic: a.speaker1Topic || '',
+    speaker2: a.speaker2 || '',
+    speaker2_topic: a.speaker2Topic || '',
+    final_speaker: a.finalSpeaker || '',
+    final_speaker_topic: a.finalSpeakerTopic || '',
+    announcement_list: a.announcementList || [],
+    new_records_list: a.newRecordsList || [],
+    releases: a.releases || [],
+    sustainings: a.sustainings || [],
+    ordinations: a.ordinations || [],
+    baby_blessings_list: a.babyBlessingsList || [],
+    confirmations_list: a.confirmationsList || [],
+  };
+}
+
+function agendaFromDb(r) {
+  return {
+    id: r.id,
+    ward: r.ward,
+    date: r.date || '',
+    meetingType: r.meeting_type || 'Regular',
+    conducting: r.conducting || '',
+    presiding: r.presiding || '',
+    highCounselor: r.high_counselor || '',
+    stakeVisiting: !!r.stake_visiting,
+    chorister: r.chorister || '',
+    accompanist: r.accompanist || '',
+    openingHymnNum: r.opening_hymn_num || '',
+    openingHymnTitle: r.opening_hymn_title || '',
+    sacramentHymnNum: r.sacrament_hymn_num || '',
+    sacramentHymnTitle: r.sacrament_hymn_title || '',
+    intermediateHymn: r.intermediate_hymn || '',
+    intermediateHymnTitle: r.intermediate_hymn_title || '',
+    closingHymnNum: r.closing_hymn_num || '',
+    closingHymnTitle: r.closing_hymn_title || '',
+    openingPrayer: r.opening_prayer || '',
+    closingPrayer: r.closing_prayer || '',
+    speaker1: r.speaker1 || '',
+    speaker1Topic: r.speaker1_topic || '',
+    speaker2: r.speaker2 || '',
+    speaker2Topic: r.speaker2_topic || '',
+    finalSpeaker: r.final_speaker || '',
+    finalSpeakerTopic: r.final_speaker_topic || '',
+    announcementList: r.announcement_list || [],
+    newRecordsList: r.new_records_list || [],
+    releases: r.releases || [],
+    sustainings: r.sustainings || [],
+    ordinations: r.ordinations || [],
+    babyBlessingsList: r.baby_blessings_list || [],
+    confirmationsList: r.confirmations_list || [],
+  };
+}
+
+// ── Supabase CRUD helpers ─────────────────────────────────────────────────
+async function dbLoadAll() {
+  const [{ data: callings, error: ce }, { data: agendas, error: ae }] = await Promise.all([
+    sb.from('callings').select('*').order('id', { ascending: true }),
+    sb.from('agendas').select('*').order('date', { ascending: false }),
+  ]);
+  if (ce) console.error('Error loading callings:', ce);
+  if (ae) console.error('Error loading agendas:', ae);
+  return {
+    callings: (callings || []).map(callingFromDb),
+    agendas: (agendas || []).map(agendaFromDb),
+  };
+}
+
+async function dbSaveCalling(c) {
+  const row = callingToDb(c);
+  if (row.id && typeof row.id === 'number' && row.id > 0) {
+    // Check if this is a real DB id (positive int) vs a temp local id
+    const { error } = await sb.from('callings').upsert(row, { onConflict: 'id' });
+    if (error) console.error('Error saving calling:', error);
+    return row.id;
+  } else {
+    // New record — let DB assign id
+    const insertRow = { ...row };
+    delete insertRow.id;
+    const { data, error } = await sb.from('callings').insert(insertRow).select('id').single();
+    if (error) console.error('Error inserting calling:', error);
+    return data?.id;
+  }
+}
+
+async function dbDeleteCalling(id) {
+  const { error } = await sb.from('callings').delete().eq('id', id);
+  if (error) console.error('Error deleting calling:', error);
+}
+
+async function dbSaveAgenda(a) {
+  const row = agendaToDb(a);
+  if (row.id && typeof row.id === 'number' && row.id > 0) {
+    const { error } = await sb.from('agendas').upsert(row, { onConflict: 'id' });
+    if (error) console.error('Error saving agenda:', error);
+    return row.id;
+  } else {
+    const insertRow = { ...row };
+    delete insertRow.id;
+    const { data, error } = await sb.from('agendas').insert(insertRow).select('id').single();
+    if (error) console.error('Error inserting agenda:', error);
+    return data?.id;
+  }
+}
+
+async function dbDeleteAgenda(id) {
+  const { error } = await sb.from('agendas').delete().eq('id', id);
+  if (error) console.error('Error deleting agenda:', error);
+}
+
+// ── Persistence via localStorage (sidebar/role prefs only) ───────────────
 const DEFAULT_CALLINGS=[
     {id:1,name:'James Thornton',calling:'Bishop',org:'Bishopric',ward:'Meadows Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-01',currentStep:2,stepDates:['2025-05-02','2025-05-08'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
     {id:2,name:'Sarah Mitchell',calling:'Relief Society President',org:'Ward Relief Society',ward:'Parks Ward',level:'Ward',action:'Calling & Release',submittedDate:'2025-05-05',currentStep:2,stepDates:['2025-05-06','2025-05-09'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
@@ -597,31 +793,20 @@ const DEFAULT_CALLINGS=[
     {id:8,name:'Priya Kapoor',calling:'Youth Retreat Coordinator',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-22',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:true,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
 ];
 
-function loadState(){
-  try{
-    const saved=localStorage.getItem('leadertools_state');
-    if(saved){
-      const parsed=JSON.parse(saved);
-      // Restore Set from array
-      parsed.selectedCallingIds=new Set(parsed.selectedCallingIds||[]);
-      // Ensure stepMeta is object not null on each calling
-      (parsed.callings||[]).forEach(c=>{if(!c.stepMeta)c.stepMeta={};});
-      return parsed;
-    }
-  }catch(e){console.warn('Failed to load state:',e);}
+function loadPrefs(){
+  try{const p=localStorage.getItem('leadertools_prefs');if(p)return JSON.parse(p);}catch(e){}
   return null;
 }
-
-function saveState(){
-  try{
-    const toSave={...state,
-      selectedCallingIds:[...state.selectedCallingIds], // convert Set to array for JSON
-      // Don't persist UI state
-      tab:'callings',view:'list',detailId:null,
-    };
-    localStorage.setItem('leadertools_state',JSON.stringify(toSave));
-  }catch(e){console.warn('Failed to save state:',e);}
+function savePrefs(){
+  try{localStorage.setItem('leadertools_prefs',JSON.stringify({
+    sidebarCollapsed:state.sidebarCollapsed,
+    activeRoleId:state.activeRoleId,
+    callingsSort:state.callingsSort,
+    archiveSort:state.archiveSort,
+  }));}catch(e){}
 }
+// saveState: persists UI prefs only; data is pushed to Supabase explicitly
+function saveState(){savePrefs();}
 
 let state={
   tab:'callings',view:'list',detailId:null,
@@ -631,19 +816,18 @@ let state={
   callingsSort:{col:null,dir:'asc'},
   archiveSort:{col:null,dir:'asc'},
   selectedCallingIds:new Set(),
-  callings:DEFAULT_CALLINGS,
+  callings:[],
   agendas:[],
+  loading:true,
 };
 
-// Load persisted state, merge with defaults
-const saved=loadState();
-if(saved){
-  state.callings=saved.callings||DEFAULT_CALLINGS;
-  state.agendas=saved.agendas||[];
-  state.sidebarCollapsed=saved.sidebarCollapsed||false;
-  state.callingsSort=saved.callingsSort||{col:null,dir:'asc'};
-  state.archiveSort=saved.archiveSort||{col:null,dir:'asc'};
-  state.activeRoleId=saved.activeRoleId||'admin';
+// Restore UI prefs from localStorage
+const prefs=loadPrefs();
+if(prefs){
+  state.sidebarCollapsed=prefs.sidebarCollapsed||false;
+  state.callingsSort=prefs.callingsSort||{col:null,dir:'asc'};
+  state.archiveSort=prefs.archiveSort||{col:null,dir:'asc'};
+  state.activeRoleId=prefs.activeRoleId||'admin';
 }
 
 
@@ -652,8 +836,8 @@ function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
 // ── Sidebar collapse ─────────────────────────────────────────────────────────
 function applySidebarState(){
-  const sb=document.getElementById('sidebar');
-  sb.classList.toggle('collapsed',state.sidebarCollapsed);
+  const sidebar=document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed',state.sidebarCollapsed);
   const btn=document.getElementById('sidebar-toggle');
   if(btn)btn.innerHTML=state.sidebarCollapsed?'»':'«';
 }
@@ -1116,12 +1300,10 @@ function openCallingModal(role){
 
   function submitCalling(){
     const {action,level,ward,org}=derived();
-    const newId=Math.max(0,...state.callings.map(c=>c.id))+1;
     // hasCurrentHolder = the calling is currently occupied by someone who needs replacing
-    // This is true for 'both' intent (regardless of action type)
     const hasCurrentHolder=(data.intent==='fill'||data.intent==='both')&&data.currentlyFilledAnswer==='yes';
-    state.callings.push({
-      id:newId,
+    const newCalling={
+      id:null, // will be assigned by DB
       name:data.memberName,
       calling:data.callingName,
       org,ward,level,action,
@@ -1135,8 +1317,19 @@ function openCallingModal(role){
       spouseCalling:data.spouseCalling,
       releaseName:hasCurrentHolder?data.releaseName:'',
       currentlyFilled:hasCurrentHolder,
+    };
+    closeModal();
+    // Optimistically add to state with temp id, then update with real DB id
+    const tempId = Date.now();
+    newCalling.id = tempId;
+    state.callings.push(newCalling);
+    render();
+    dbSaveCalling(newCalling).then(realId=>{
+      if(realId){
+        const c=state.callings.find(x=>x.id===tempId);
+        if(c) c.id=realId;
+      }
     });
-    closeModal();render();
   }
 
   renderWizard();
@@ -1329,7 +1522,7 @@ function openCallingEditModal(c,role){
   saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
   saveBtn.textContent='Save Changes';
-  saveBtn.addEventListener('click',()=>{closeModal();render();});
+  saveBtn.addEventListener('click',()=>{closeModal();render();dbSaveCalling(c);});
   modal.appendChild(saveBtn);
 }
 
@@ -1772,13 +1965,20 @@ function renderAgendaWizard(el,role,editingAgenda){
       Object.assign(editingAgenda,d);
       window._agendaDraft=null;
       state.view='detail';render();
+      dbSaveAgenda(editingAgenda);
     } else {
-      const newId=Math.max(0,...(state.agendas||[]).map(a=>a.id))+1;
-      const agenda={id:newId,...JSON.parse(JSON.stringify(d))};
+      const tempId=Date.now();
+      const agenda={id:tempId,...JSON.parse(JSON.stringify(d))};
       if(!state.agendas)state.agendas=[];
       state.agendas.push(agenda);
       window._agendaDraft=null;
-      state.view='detail';state.detailId=newId;render();
+      state.view='detail';state.detailId=tempId;render();
+      dbSaveAgenda(agenda).then(realId=>{
+        if(realId){
+          const a=state.agendas.find(x=>x.id===tempId);
+          if(a){a.id=realId;state.detailId=realId;}
+        }
+      });
     }
   });
   el.appendChild(submitBtn);
@@ -1941,8 +2141,10 @@ function renderAgendaDetail(el,role){
   delBtn2.textContent='Delete';
   delBtn2.addEventListener('click',()=>{
     if(confirm('Delete this agenda?')){
+      const deletedId=a.id;
       state.agendas=state.agendas.filter(x=>x.id!==a.id);
       state.view='list';state.detailId=null;render();
+      dbDeleteAgenda(deletedId);
     }
   });
   actions.appendChild(printBtn);actions.appendChild(editBtn2);actions.appendChild(delBtn2);
@@ -2372,7 +2574,7 @@ function renderCallingDetail(el,role){
         m.apptDate=dateInp2.value||null;
         if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
         else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
-        render();
+        render();dbSaveCalling(c);
       });
       row2.appendChild(lbl2);row2.appendChild(dateInp2);body.appendChild(row2);
     }
@@ -2389,7 +2591,7 @@ function renderCallingDetail(el,role){
         m.apptDate=dateInp2.value||null;
         if(m.apptDate){c.stepDates[i]=m.apptDate;c.currentStep=Math.max(c.currentStep,i+1);}
         else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
-        render();
+        render();dbSaveCalling(c);
       });
       row2.appendChild(lbl2);row2.appendChild(dateInp2);body.appendChild(row2);
     }
@@ -2407,7 +2609,7 @@ function renderCallingDetail(el,role){
           m[key]=dateInp2.value||null;
           if(m.extendDate&&m.releaseDate){c.stepDates[i]=m.extendDate;c.currentStep=Math.max(c.currentStep,i+1);}
           else{c.stepDates[i]=undefined;if(c.currentStep===i+1)c.currentStep=i;}
-          render();
+          render();dbSaveCalling(c);
         });
         row2.appendChild(lbl2);row2.appendChild(dateInp2);return row2;
       }
@@ -2438,7 +2640,7 @@ function renderCallingDetail(el,role){
             c.declined=false;
             if(c._declinedSnapshot){c.currentStep=c._declinedSnapshot.currentStep;c.stepDates=c._declinedSnapshot.stepDates.slice();delete c._declinedSnapshot;}
           }
-          render();
+          render();dbSaveCalling(c);
         });
         toggleRow.appendChild(btn);
       });
@@ -2489,7 +2691,7 @@ function renderCallingDetail(el,role){
               if(!c.stepMeta[i])c.stepMeta[i]={};
               c.stepMeta[i][key]=inp.value||val;
               if(key==='extendDate')c.stepDates[i]=inp.value||val;
-              render();
+              render();dbSaveCalling(c);
             }
             inp.addEventListener('blur',save);
             inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
@@ -2514,7 +2716,7 @@ function renderCallingDetail(el,role){
           inp.style.marginLeft='4px';
           wrap.replaceChildren(txt,inp);
           inp.focus();
-          function save(){c.stepDates[i]=inp.value||c.stepDates[i];render();}
+          function save(){c.stepDates[i]=inp.value||c.stepDates[i];render();dbSaveCalling(c);}
           inp.addEventListener('blur',save);
           inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
         });
@@ -2536,7 +2738,7 @@ function renderCallingDetail(el,role){
         c.currentStep=i;
         c.stepDates[i]=undefined;
         if(isDual)delete c.stepMeta[i];
-        render();
+        render();dbSaveCalling(c);
       } else {
         // Check: mark complete with today's date
         if(isDual){
@@ -2548,7 +2750,7 @@ function renderCallingDetail(el,role){
           c.stepDates[i]=today();
         }
         c.currentStep=Math.max(c.currentStep,i+1);
-        render();
+        render();dbSaveCalling(c);
       }
     });
 
@@ -2567,9 +2769,10 @@ function renderCallingDetail(el,role){
     delBtn.addEventListener('mouseleave',()=>{delBtn.style.background='transparent';});
     delBtn.addEventListener('click',()=>{
       if(confirm(`Delete the calling for "${c.calling} — ${c.name}"? This cannot be undone.`)){
+        const deletedId=c.id;
         state.callings=state.callings.filter(x=>x.id!==c.id);
         state.view='list';state.detailId=null;
-        render();
+        render();dbDeleteCalling(deletedId);
       }
     });
     el.appendChild(delBtn);
@@ -2749,11 +2952,30 @@ function render(){
   saveState();
   const el=document.getElementById('content');el.innerHTML='';
   const role=getRole();
+  if(state.loading){
+    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:300px;flex-direction:column;gap:14px;color:#aaa;"><div style="font-size:28px;">⏳</div><div style="font-size:14px;font-weight:500;">Loading from Supabase...</div></div>';
+    return;
+  }
   if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
   else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
 }
 
-render();
+// ── Boot: load all data from Supabase, then render ────────────────────────
+(async()=>{
+  render(); // show loading spinner immediately
+  try{
+    const{callings,agendas}=await dbLoadAll();
+    state.callings=callings;
+    state.agendas=agendas;
+  }catch(e){
+    console.error('Failed to load from Supabase:',e);
+    // Fall back to empty state rather than crashing
+    state.callings=[];
+    state.agendas=[];
+  }
+  state.loading=false;
+  render();
+})();
 </script>
 </body>
 </html>
