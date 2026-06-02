@@ -447,19 +447,54 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 const WARDS_ONLY=['Pecan Creek 1st Ward','Pecan Creek 2nd Ward','Pecan Creek 3rd Ward','Meadows Ward','Parks Ward','Pecan Grove Ward','Pecan Ranch Ward'];
 const ALL_WARDS=['Stake',...WARDS_ONLY];
 const ROLES=[
-  {id:'admin',label:'Admin',desc:'Full access — all levels, all wards',color:'#534ab7',scope:'admin',ward:null,org:null},
-  {id:'stake_pres',label:'Stake President',desc:'Stake & Stake Issued callings only',color:'#185fa5',scope:'stake',ward:null,org:null},
-  {id:'high_council',label:'High Councilor',desc:'View-only — stake workflow steps',color:'#378add',scope:'stake',ward:null,org:'Stake High Council'},
-  {id:'bishop_meadows',label:'Bishop (Meadows)',desc:'Meadows Ward callings',color:'#3b6d11',scope:'ward',ward:'Meadows Ward',org:'Bishopric'},
-  {id:'bishop_parks',label:'Bishop (Parks)',desc:'Parks Ward callings',color:'#3b6d11',scope:'ward',ward:'Parks Ward',org:'Bishopric'},
-  {id:'bishop_pc1',label:'Bishop (Pecan Creek 1st)',desc:'Pecan Creek 1st callings',color:'#3b6d11',scope:'ward',ward:'Pecan Creek 1st Ward',org:'Bishopric'},
-  {id:'bishop_pc2',label:'Bishop (Pecan Creek 2nd)',desc:'Pecan Creek 2nd callings',color:'#3b6d11',scope:'ward',ward:'Pecan Creek 2nd Ward',org:'Bishopric'},
-  {id:'bishop_pc3',label:'Bishop (Pecan Creek 3rd)',desc:'Pecan Creek 3rd callings',color:'#3b6d11',scope:'ward',ward:'Pecan Creek 3rd Ward',org:'Bishopric'},
-  {id:'bishop_grove',label:'Bishop (Pecan Grove)',desc:'Pecan Grove Ward callings',color:'#3b6d11',scope:'ward',ward:'Pecan Grove Ward',org:'Bishopric'},
-  {id:'bishop_ranch',label:'Bishop (Pecan Ranch)',desc:'Pecan Ranch Ward callings',color:'#3b6d11',scope:'ward',ward:'Pecan Ranch Ward',org:'Bishopric'},
-  {id:'yw_meadows',label:'Young Women President (Meadows)',desc:'YW callings for Meadows',color:'#d4537e',scope:'ward_org',ward:'Meadows Ward',org:'Ward Young Women'},
-  {id:'rs_parks',label:'Relief Society President (Parks)',desc:'RS callings for Parks',color:'#993556',scope:'ward_org',ward:'Parks Ward',org:'Ward Relief Society'},
-  {id:'eq_grove',label:'Elders Quorum President (Pecan Grove)',desc:'EQ callings for Pecan Grove',color:'#854f0b',scope:'ward_org',ward:'Pecan Grove Ward',org:"Elder's Quorum"},
+  // ── Superadmin ──────────────────────────────────────────────────────────
+  {id:'admin',label:'Admin',desc:'Full access — all levels, all wards',color:'#534ab7',scope:'admin',org:null},
+  // ── Stake Presidency ────────────────────────────────────────────────────
+  {id:'stake_president',label:'Stake President',desc:'Full stake access',color:'#185fa5',scope:'stake',org:'Stake Presidency'},
+  {id:'stake_1c',label:'First Counselor (Stake)',desc:'Full stake access',color:'#185fa5',scope:'stake',org:'Stake Presidency'},
+  {id:'stake_2c',label:'Second Counselor (Stake)',desc:'Full stake access',color:'#185fa5',scope:'stake',org:'Stake Presidency'},
+  {id:'stake_clerk',label:'Stake Clerk',desc:'Stake access',color:'#2563a8',scope:'stake',org:'Stake Presidency'},
+  {id:'stake_asst_clerk',label:'Stake Assistant Clerk',desc:'Stake access',color:'#2563a8',scope:'stake',org:'Stake Presidency'},
+  {id:'stake_exec_sec',label:'Stake Executive Secretary',desc:'Stake access',color:'#2563a8',scope:'stake',org:'Stake Presidency'},
+  {id:'high_council',label:'High Councilor',desc:'Stake — workflow steps only',color:'#378add',scope:'stake',org:'Stake High Council'},
+  // ── Stake Orgs ──────────────────────────────────────────────────────────
+  {id:'stake_rs_pres',label:'Stake Relief Society President',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
+  {id:'stake_rs_1c',label:'Stake Relief Society 1st Counselor',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
+  {id:'stake_rs_2c',label:'Stake Relief Society 2nd Counselor',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
+  {id:'stake_ym_pres',label:'Stake Young Men President',desc:'Stake YM',color:'#1a6b55',scope:'stake',org:'Stake Young Men'},
+  {id:'stake_ym_1c',label:'Stake Young Men 1st Counselor',desc:'Stake YM',color:'#1a6b55',scope:'stake',org:'Stake Young Men'},
+  {id:'stake_yw_pres',label:'Stake Young Women President',desc:'Stake YW',color:'#d4537e',scope:'stake',org:'Stake Young Women'},
+  {id:'stake_yw_1c',label:'Stake Young Women 1st Counselor',desc:'Stake YW',color:'#d4537e',scope:'stake',org:'Stake Young Women'},
+  {id:'stake_primary_pres',label:'Stake Primary President',desc:'Stake Primary',color:'#b45309',scope:'stake',org:'Stake Primary'},
+  // ── Bishopric ───────────────────────────────────────────────────────────
+  {id:'bishop',label:'Bishop',desc:'Full ward access',color:'#3b6d11',scope:'ward',org:'Bishopric'},
+  {id:'ward_1c',label:'First Counselor (Ward)',desc:'Full ward access',color:'#3b6d11',scope:'ward',org:'Bishopric'},
+  {id:'ward_2c',label:'Second Counselor (Ward)',desc:'Full ward access',color:'#3b6d11',scope:'ward',org:'Bishopric'},
+  {id:'ward_clerk',label:'Ward Clerk',desc:'Ward access',color:'#4a7c20',scope:'ward',org:'Bishopric'},
+  {id:'ward_asst_clerk',label:'Ward Assistant Clerk',desc:'Ward access',color:'#4a7c20',scope:'ward',org:'Bishopric'},
+  {id:'ward_exec_sec',label:'Ward Executive Secretary',desc:'Ward access',color:'#4a7c20',scope:'ward',org:'Bishopric'},
+  // ── Ward Orgs ───────────────────────────────────────────────────────────
+  {id:'rs_president',label:'Relief Society President',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
+  {id:'rs_1c',label:'Relief Society 1st Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
+  {id:'rs_2c',label:'Relief Society 2nd Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
+  {id:'rs_secretary',label:'Relief Society Secretary',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
+  {id:'eq_president',label:'Elders Quorum President',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
+  {id:'eq_1c',label:'Elders Quorum 1st Counselor',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
+  {id:'eq_2c',label:'Elders Quorum 2nd Counselor',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
+  {id:'eq_secretary',label:'Elders Quorum Secretary',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
+  {id:'yw_president',label:'Young Women President',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
+  {id:'yw_1c',label:'Young Women 1st Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
+  {id:'yw_2c',label:'Young Women 2nd Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
+  {id:'yw_secretary',label:'Young Women Secretary',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
+  {id:'ym_president',label:'Young Men President',desc:'Ward — YM',color:'#1a6b55',scope:'ward_org',org:'Ward Young Men'},
+  {id:'ym_1c',label:'Young Men 1st Counselor',desc:'Ward — YM',color:'#1a6b55',scope:'ward_org',org:'Ward Young Men'},
+  {id:'primary_president',label:'Primary President',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
+  {id:'primary_1c',label:'Primary 1st Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
+  {id:'primary_2c',label:'Primary 2nd Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
+  {id:'primary_secretary',label:'Primary Secretary',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
+  {id:'sunday_school_pres',label:'Sunday School President',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Ward Sunday School'},
+  {id:'sunday_school_1c',label:'Sunday School 1st Counselor',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Ward Sunday School'},
+  {id:'ward_mission_leader',label:'Ward Mission Leader',desc:'Ward — Mission',color:'#0e7490',scope:'ward_org',org:'Ward Mission'},
 ];
 const CALLING_DIR=[
   {name:'Stake Clerk',level:'Stake',org:'Stake Presidency'},
@@ -587,21 +622,22 @@ function getSteps(c){
   const workflowKey=t+'-'+action;
   return WORKFLOWS[workflowKey]||WORKFLOWS['Ward-Calling Only'];
 }
+function isStakePresidency(r){return r.scope==='stake'&&r.id!=='high_council';}
+function isBishopric(r){return r.scope==='ward';}
 function filterCallings(cs,role){
-  const isBishop=c=>(c.calling||'').toLowerCase()==='bishop';
-  // Bishop callings only visible to admin and stake presidency (not high council)
-  const canSeeBishop=role.scope==='admin'||(role.scope==='stake'&&role.id!=='high_council');
+  const isBishopCalling=c=>(c.calling||'').toLowerCase()==='bishop';
+  const canSeeBishop=role.scope==='admin'||isStakePresidency(role);
   if(role.scope==='admin')return cs;
   if(role.scope==='stake'){
     const base=cs.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
-    return canSeeBishop?base:base.filter(c=>!isBishop(c));
+    return canSeeBishop?base:base.filter(c=>!isBishopCalling(c));
   }
-  if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishop(c));
+  if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishopCalling(c));
   if(role.scope==='ward_org')return cs.filter(c=>c.level==='Ward'&&c.ward===role.ward&&c.org===role.org);
   return[];
 }
 function isReadOnly(r){return false;} // step-level permissions handle restrictions
-function canAdvanceWorkflow(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward'||r.id==='high_council';}
+function canAdvanceWorkflow(r){return r.scope==='admin'||r.scope==='stake'||r.scope==='ward';}
 function getCallingDirForRole(role){
   let d=CALLING_DIR;
   if(role.scope==='stake')d=d.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
@@ -998,7 +1034,13 @@ if(prefs){
 }
 
 
-function getRole(){return ROLES.find(r=>r.id===getEffectiveRoleId())||ROLES[0];}
+function getRole(){
+  const roleId=getEffectiveRoleId();
+  const base=ROLES.find(r=>r.id===roleId)||ROLES[0];
+  // Inject ward from the logged-in user's profile (unless superadmin in dev mode picked a role)
+  const ward = (isSuperAdmin()&&devModeRole) ? (base.ward||null) : (currentProfile?.ward||null);
+  return {...base, ward};
+}
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
 // ── Sidebar collapse ─────────────────────────────────────────────────────────
@@ -1702,24 +1744,38 @@ function openCallingEditModal(c,role){
 }
 
 function openRoleSwitcher(){
-  // Only superadmin can switch roles (dev mode)
   if(!isSuperAdmin()) return;
   const root=document.getElementById('modal-root');root.innerHTML='';
   const overlay=document.createElement('div');overlay.className='modal-overlay';
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
   const modal=document.createElement('div');modal.className='modal';modal.innerHTML='<div class="modal-handle"></div>';
   const title=document.createElement('div');title.className='modal-title';title.textContent='Dev Mode — Switch Role';modal.appendChild(title);
-  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:16px;';sub.textContent='Preview the app as a different user type (superadmin only)';modal.appendChild(sub);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:16px;';sub.textContent='Preview as a different role (superadmin only)';modal.appendChild(sub);
   const currentId=getEffectiveRoleId();
-  ROLES.forEach(r=>{
-    const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
-    card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#1c2537">${r.label}</div><div style="font-size:12px;color:#888;margin-top:1px">${r.desc}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
-    card.addEventListener('click',()=>{
-      devModeRole=r.id==='admin'?null:r.id;
-      state.tab='callings';state.view='list';state.filterLevel='All';
-      closeModal();render();
+
+  // Group roles by scope
+  const groups=[
+    {label:'System',roles:ROLES.filter(r=>r.scope==='admin')},
+    {label:'Stake',roles:ROLES.filter(r=>r.scope==='stake')},
+    {label:'Bishopric / Ward',roles:ROLES.filter(r=>r.scope==='ward')},
+    {label:'Ward Organizations',roles:ROLES.filter(r=>r.scope==='ward_org')},
+  ];
+
+  groups.forEach(group=>{
+    if(!group.roles.length) return;
+    const grpLabel=document.createElement('div');
+    grpLabel.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#aaa;margin:12px 0 6px;';
+    grpLabel.textContent=group.label;modal.appendChild(grpLabel);
+    group.roles.forEach(r=>{
+      const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
+      card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
+      card.addEventListener('click',()=>{
+        devModeRole=r.id==='admin'?null:r.id;
+        state.tab='callings';state.view='list';state.filterLevel='All';
+        closeModal();render();
+      });
+      modal.appendChild(card);
     });
-    modal.appendChild(card);
   });
   overlay.appendChild(modal);root.appendChild(overlay);
 }
@@ -3230,9 +3286,21 @@ function openInviteModal(callerRole,onDone){
 
   // Role selector — stake can assign any role; bishop can only assign ward roles
   const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
-  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'&&(r.ward===callerRole.ward||!r.ward));
+  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'||r.scope==='ward_org');
   const roleSel=document.createElement('select');
-  availableRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;roleSel.appendChild(o);});
+  const scopeGroups=[
+    {label:'System',scopes:['admin']},
+    {label:'Stake',scopes:['stake']},
+    {label:'Bishopric / Ward',scopes:['ward']},
+    {label:'Ward Organizations',scopes:['ward_org']},
+  ];
+  scopeGroups.forEach(sg=>{
+    const groupRoles=availableRoles.filter(r=>sg.scopes.includes(r.scope));
+    if(!groupRoles.length)return;
+    const og=document.createElement('optgroup');og.label=sg.label;
+    groupRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;og.appendChild(o);});
+    roleSel.appendChild(og);
+  });
   fg('Role<span class="req">*</span>',roleSel);
 
   // Ward selector
@@ -3288,9 +3356,21 @@ function openEditUserModal(profile,callerRole,onDone){
   const nameInp=document.createElement('input');nameInp.type='text';nameInp.value=profile.full_name||'';fg('Full Name',nameInp);
 
   const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
-  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward');
+  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'||r.scope==='ward_org');
   const roleSel=document.createElement('select');
-  availableRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;if(r.id===profile.role_id)o.selected=true;roleSel.appendChild(o);});
+  const scopeGroups2=[
+    {label:'System',scopes:['admin']},
+    {label:'Stake',scopes:['stake']},
+    {label:'Bishopric / Ward',scopes:['ward']},
+    {label:'Ward Organizations',scopes:['ward_org']},
+  ];
+  scopeGroups2.forEach(sg=>{
+    const groupRoles=availableRoles.filter(r=>sg.scopes.includes(r.scope));
+    if(!groupRoles.length)return;
+    const og=document.createElement('optgroup');og.label=sg.label;
+    groupRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;if(r.id===profile.role_id)o.selected=true;og.appendChild(o);});
+    roleSel.appendChild(og);
+  });
   fg('Role',roleSel);
 
   const wardSel=document.createElement('select');
