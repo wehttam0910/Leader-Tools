@@ -310,7 +310,39 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 .section-divider{height:1px;background:rgba(0,0,0,0.08);margin:14px 0;}
 .currently-filled-box{background:#fff8e6;border:1px solid #fcd97a;border-radius:8px;padding:12px;margin-top:8px;}
 
-/* ── Mobile: sidebar slides in over content ── */
+/* ── Auth / Login screen ── */
+#auth-screen{display:none;min-height:100vh;background:#f0f2f5;align-items:center;justify-content:center;padding:20px;}
+#auth-screen.visible{display:flex;}
+.auth-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);padding:36px 32px;width:100%;max-width:400px;}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.auth-logo-text{font-size:20px;font-weight:700;color:#1c2537;}
+.auth-title{font-size:22px;font-weight:700;color:#1c2537;margin-bottom:6px;}
+.auth-sub{font-size:13px;color:#888;margin-bottom:24px;}
+.auth-field{margin-bottom:16px;}
+.auth-field label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+.auth-field input{width:100%;padding:11px 14px;border:1px solid rgba(0,0,0,0.15);border-radius:9px;font-size:14px;color:#1c2537;outline:none;transition:border-color 0.15s;}
+.auth-field input:focus{border-color:#1c2537;}
+.auth-btn{width:100%;padding:13px;background:#1c2537;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:opacity 0.15s;}
+.auth-btn:hover{opacity:0.88;}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.auth-error{background:#fdecea;border:1px solid #f5a3a3;border-radius:8px;padding:10px 13px;font-size:13px;color:#c62828;margin-bottom:16px;display:none;}
+.auth-error.visible{display:block;}
+.auth-forgot{text-align:right;margin-top:-8px;margin-bottom:16px;}
+.auth-forgot a{font-size:12px;color:#1c2537;text-decoration:none;opacity:0.7;}
+.auth-forgot a:hover{opacity:1;}
+
+/* ── Dev mode toggle in sidebar ── */
+.dev-mode-section{border-top:1px solid rgba(255,255,255,0.1);padding:10px 8px 4px;}
+.dev-mode-label{font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#f59e0b;padding:0 8px;margin-bottom:6px;}
+
+/* ── User management ── */
+.user-table{width:100%;border-collapse:collapse;font-size:13px;}
+.user-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#888;border-bottom:2px solid rgba(0,0,0,0.08);}
+.user-table td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,0.06);color:#1c2537;}
+.user-table tr:hover td{background:#f8f9fb;}
+.user-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+
+
 @media(max-width:767px){
   .sidebar{position:fixed;top:0;left:0;bottom:0;height:100vh;transform:translateX(-100%);transition:transform 0.26s cubic-bezier(.4,0,.2,1);}
   .sidebar.open{transform:translateX(0);}
@@ -329,7 +361,31 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 </style>
 </head>
 <body>
-<div class="shell">
+<!-- ── Auth Screen ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+        <div style="font-size:13px;color:#aaa;margin-bottom:6px;">Welcome to</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <img src="data:image/png;base64,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" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;" onerror="this.style.display='none'"/>
+      <div class="auth-title" style="margin-bottom:0;">LeaderTools</div>
+    </div>
+    <div class="auth-sub">Sign in to your account to continue</div>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div class="auth-forgot"><a href="#" id="auth-forgot-link">Forgot password?</a></div>
+    <button class="auth-btn" id="auth-submit-btn">Sign In</button>
+  </div>
+</div>
+
+<!-- ── App Shell ── -->
+<div class="shell" id="app-shell" style="display:none;">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div style="display:flex;align-items:center;gap:10px;">
@@ -352,6 +408,10 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
         <span class="nav-label">Agendas</span>
       </button>
+      <button class="nav-item" id="nav-users" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span class="nav-label">Users</span>
+      </button>
 
     </div>
     <div class="sidebar-footer">
@@ -359,9 +419,10 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <div class="role-avatar" id="sidebar-avatar" style="background:#534ab7">A</div>
         <div>
           <div class="role-name" id="sidebar-role-name">Admin</div>
-          <div class="role-hint">Click to switch role</div>
+          <div class="role-hint" id="sidebar-role-hint">Click to switch role</div>
         </div>
       </button>
+      <button id="sidebar-logout-btn" style="display:none;width:100%;margin-top:6px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:8px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;text-align:center;">Sign Out</button>
     </div>
   </aside>
 
@@ -379,7 +440,7 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
     </div>
     <div class="content" id="content"></div>
   </div>
-</div>
+</div><!-- end app-shell -->
 <div id="modal-root"></div>
 
 <script>
@@ -591,6 +652,112 @@ function getLevelBadge(l){if(l==='Stake')return{label:'Stake',cls:'badge-purple'
 const SUPABASE_URL = 'https://kxmeleysvnbubxlayuwb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bWVsZXlzdm5idWJ4bGF5dXdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNjQxMTIsImV4cCI6MjA5NTk0MDExMn0.toT_OJ7IZrG1bfX4FUOq1JSWUoxw2WS48bo3Fzksy3E';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Superadmin config ─────────────────────────────────────────────────────
+const SUPERADMIN_EMAIL = 'wehttam0910@gmail.com'; // your email — only this account gets dev mode
+let currentUser = null;      // Supabase auth user
+let currentProfile = null;   // row from profiles table
+let devModeRole = null;      // when superadmin is previewing another role
+
+// ── Auth helpers ──────────────────────────────────────────────────────────
+function isSuperAdmin(){
+  return currentUser && currentUser.email === SUPERADMIN_EMAIL;
+}
+
+function getEffectiveRoleId(){
+  // Superadmin in dev mode uses the previewed role; otherwise uses their profile role
+  if(isSuperAdmin() && devModeRole) return devModeRole;
+  if(currentProfile) return currentProfile.role_id;
+  return state.activeRoleId; // fallback during loading
+}
+
+async function loadOrCreateProfile(user){
+  // Try to load existing profile
+  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(data) return data;
+  // Create profile — superadmin gets admin role, everyone else gets ward_member
+  const role_id = user.email===SUPERADMIN_EMAIL ? 'admin' : 'ward_member';
+  const newProfile={id:user.id,email:user.email,full_name:user.user_metadata?.full_name||'',role_id,ward:null};
+  const {data:created}=await sb.from('profiles').insert(newProfile).select().single();
+  return created||newProfile;
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  currentUser=null;currentProfile=null;devModeRole=null;
+  showAuthScreen();
+}
+
+// ── Auth UI ───────────────────────────────────────────────────────────────
+function showAuthScreen(){
+  document.getElementById('auth-screen').classList.add('visible');
+  document.getElementById('app-shell').style.display='none';
+}
+
+function showAppShell(){
+  document.getElementById('auth-screen').classList.remove('visible');
+  document.getElementById('app-shell').style.display='flex';
+  // Wire logout button
+  const logoutBtn=document.getElementById('sidebar-logout-btn');
+  logoutBtn.style.display='block';
+  logoutBtn.onclick=()=>{if(confirm('Sign out?'))signOut();};
+  // Wire role hint for superadmin
+  const hint=document.getElementById('sidebar-role-hint');
+  if(isSuperAdmin()) hint.textContent='Dev mode — click to switch';
+  else hint.textContent='';
+}
+
+// ── Login form ────────────────────────────────────────────────────────────
+document.getElementById('auth-submit-btn').addEventListener('click', async()=>{
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('auth-password').value;
+  const errEl=document.getElementById('auth-error');
+  const btn=document.getElementById('auth-submit-btn');
+  errEl.classList.remove('visible');
+  if(!email||!password){errEl.textContent='Please enter your email and password.';errEl.classList.add('visible');return;}
+  btn.disabled=true;btn.textContent='Signing in…';
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  btn.disabled=false;btn.textContent='Sign In';
+  if(error){errEl.textContent=error.message;errEl.classList.add('visible');return;}
+  // Success handled by onAuthStateChange
+});
+
+// Enter key on password field submits
+document.getElementById('auth-password').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('auth-submit-btn').click();
+});
+
+// Forgot password
+document.getElementById('auth-forgot-link').addEventListener('click',async e=>{
+  e.preventDefault();
+  const email=document.getElementById('auth-email').value.trim();
+  if(!email){alert('Enter your email address first.');return;}
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://wehttam0910.github.io/Leader-Tools/'});
+  if(error)alert('Error: '+error.message);
+  else alert('Password reset email sent! Check your inbox.');
+});
+
+// ── Auth state listener ───────────────────────────────────────────────────
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(session?.user){
+    currentUser=session.user;
+    currentProfile=await loadOrCreateProfile(currentUser);
+    // Sync role to state
+    state.activeRoleId=currentProfile.role_id;
+    devModeRole=null;
+    showAppShell();
+    // Boot data load
+    state.loading=true;
+    render();
+    const{callings,agendas}=await dbLoadAll();
+    state.callings=callings;state.agendas=agendas;
+    state.loading=false;
+    render();
+  } else {
+    showAuthScreen();
+  }
+});
+
 
 // ── Field name mapping: JS camelCase <-> Supabase snake_case ─────────────
 function callingToDb(c) {
@@ -831,7 +998,7 @@ if(prefs){
 }
 
 
-function getRole(){return ROLES.find(r=>r.id===state.activeRoleId)||ROLES[0];}
+function getRole(){return ROLES.find(r=>r.id===getEffectiveRoleId())||ROLES[0];}
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
 // ── Sidebar collapse ─────────────────────────────────────────────────────────
@@ -864,9 +1031,10 @@ mqDesktop.addEventListener('change',handleMq);
 
 document.getElementById('topbar-avatar').addEventListener('click',openRoleSwitcher);
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
-document.getElementById('bta').addEventListener('click',()=>{state.activeRoleId='admin';state.tab='dashboard';state.view='list';render();});
-['callings','agendas'].forEach(tab=>{
-  document.getElementById('nav-'+tab).addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
+document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;state.tab='callings';state.view='list';render();});
+['callings','agendas','users'].forEach(tab=>{
+  const el=document.getElementById('nav-'+tab);
+  if(el) el.addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
 });
 
 function forceNavWhite(){
@@ -885,15 +1053,22 @@ function forceNavWhite(){
 
 function updateChrome(){
   const role=getRole();
-  ['dashboard','callings'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
+  ['callings','agendas','users'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
+  // Show Users nav only for admin/stake/bishop roles
+  const canManageUsers=role.scope==='admin'||role.scope==='stake'||role.scope==='ward';
+  const usersNav=document.getElementById('nav-users');
+  if(usersNav) usersNav.style.display=canManageUsers?'':'none';
 
-  const init=role.label.charAt(0).toUpperCase();
+  // Avatar: use user initials if logged in
+  const displayName=currentProfile?.full_name||currentProfile?.email||role.label;
+  const init=displayName.charAt(0).toUpperCase();
   ['sidebar-avatar','topbar-avatar'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=init;el.style.background=role.color;}});
-  document.getElementById('sidebar-role-name').textContent=role.label;
-  const titles={callings:'Callings',agendas:'Agendas'};
+  document.getElementById('sidebar-role-name').textContent=isSuperAdmin()&&devModeRole?role.label:(currentProfile?.full_name||role.label);
+  const titles={callings:'Callings',agendas:'Agendas',users:'User Management'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
+  // Dev mode banner for superadmin previewing a role
   const banner=document.getElementById('preview-banner');
-  if(state.activeRoleId!=='admin'){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
+  if(isSuperAdmin()&&devModeRole){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
   else banner.classList.add('hidden');
   applySidebarState();
   forceNavWhite();
@@ -1527,16 +1702,23 @@ function openCallingEditModal(c,role){
 }
 
 function openRoleSwitcher(){
+  // Only superadmin can switch roles (dev mode)
+  if(!isSuperAdmin()) return;
   const root=document.getElementById('modal-root');root.innerHTML='';
   const overlay=document.createElement('div');overlay.className='modal-overlay';
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
   const modal=document.createElement('div');modal.className='modal';modal.innerHTML='<div class="modal-handle"></div>';
-  const title=document.createElement('div');title.className='modal-title';title.textContent='Switch Role';modal.appendChild(title);
-  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:16px;';sub.textContent='Preview the app as a different user type';modal.appendChild(sub);
+  const title=document.createElement('div');title.className='modal-title';title.textContent='Dev Mode — Switch Role';modal.appendChild(title);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:16px;';sub.textContent='Preview the app as a different user type (superadmin only)';modal.appendChild(sub);
+  const currentId=getEffectiveRoleId();
   ROLES.forEach(r=>{
-    const card=document.createElement('div');card.className='role-card'+(state.activeRoleId===r.id?' selected':'');
-    card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#1c2537">${r.label}</div><div style="font-size:12px;color:#888;margin-top:1px">${r.desc}</div></div>${state.activeRoleId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
-    card.addEventListener('click',()=>{state.activeRoleId=r.id;state.tab='dashboard';state.view='list';state.filterLevel='All';closeModal();render();});
+    const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
+    card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#1c2537">${r.label}</div><div style="font-size:12px;color:#888;margin-top:1px">${r.desc}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
+    card.addEventListener('click',()=>{
+      devModeRole=r.id==='admin'?null:r.id;
+      state.tab='callings';state.view='list';state.filterLevel='All';
+      closeModal();render();
+    });
     modal.appendChild(card);
   });
   overlay.appendChild(modal);root.appendChild(overlay);
@@ -2958,24 +3140,195 @@ function render(){
   }
   if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
   else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
+  if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
+  else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
+  else if(state.tab==='users'){renderUsers(el,role);}
 }
 
-// ── Boot: load all data from Supabase, then render ────────────────────────
-(async()=>{
-  render(); // show loading spinner immediately
-  try{
-    const{callings,agendas}=await dbLoadAll();
-    state.callings=callings;
-    state.agendas=agendas;
-  }catch(e){
-    console.error('Failed to load from Supabase:',e);
-    // Fall back to empty state rather than crashing
-    state.callings=[];
-    state.agendas=[];
+// ── User Management ───────────────────────────────────────────────────────────
+async function renderUsers(el,role){
+  const isStake=role.scope==='admin'||role.scope==='stake';
+  const isWardRole=role.scope==='ward';
+
+  el.innerHTML=`<div class="page-title">User Management</div><div class="page-sub">${isStake?'Manage all users across the stake':'Manage users in '+role.ward}</div>`;
+
+  // Loading indicator
+  const loadWrap=document.createElement('div');loadWrap.style.cssText='text-align:center;padding:32px;color:#aaa;font-size:13px;';loadWrap.textContent='Loading users…';
+  el.appendChild(loadWrap);
+
+  // Load profiles from Supabase
+  let query=sb.from('profiles').select('*').order('full_name',{ascending:true});
+  if(isWardRole) query=query.eq('ward',role.ward);
+  const{data:profiles,error}=await query;
+  if(error){loadWrap.textContent='Error loading users.';console.error(error);return;}
+  loadWrap.remove();
+
+  // Header with invite button
+  const hdr=document.createElement('div');hdr.className='section-header';
+  hdr.innerHTML='<span class="section-title">Users</span>';
+  const inviteBtn=document.createElement('button');inviteBtn.className='btn-primary';inviteBtn.textContent='+ Invite User';
+  inviteBtn.addEventListener('click',()=>openInviteModal(role,()=>{state.tab='users';render();}));
+  hdr.appendChild(inviteBtn);
+  el.appendChild(hdr);
+
+  if(!profiles||profiles.length===0){
+    const empty=document.createElement('div');empty.className='empty-state';empty.textContent='No users yet. Invite someone to get started.';
+    el.appendChild(empty);return;
   }
-  state.loading=false;
-  render();
-})();
+
+  // Role color/label helpers
+  const roleInfo=(rid)=>{const r=ROLES.find(x=>x.id===rid);return r||{label:rid,color:'#aaa'};};
+
+  // Table
+  const wrap=document.createElement('div');wrap.style.cssText='background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);';
+  const tbl=document.createElement('table');tbl.className='user-table';
+  tbl.innerHTML=`<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Ward</th><th></th></tr></thead>`;
+  const tbody=document.createElement('tbody');
+
+  profiles.forEach(p=>{
+    const ri=roleInfo(p.role_id);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="font-weight:600;">${p.full_name||'—'}</td>
+      <td style="color:#666;">${p.email}</td>
+      <td><span class="user-badge" style="background:${ri.color}22;color:${ri.color};">${ri.label}</span></td>
+      <td style="color:#666;">${p.ward||'—'}</td>
+      <td style="text-align:right;"></td>
+    `;
+    // Edit button
+    const editTd=tr.querySelector('td:last-child');
+    const editBtn=document.createElement('button');
+    editBtn.style.cssText='background:transparent;border:1px solid rgba(0,0,0,0.12);color:#1c2537;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
+    editBtn.textContent='Edit';
+    editBtn.addEventListener('click',()=>openEditUserModal(p,role,()=>{state.tab='users';render();}));
+    editTd.appendChild(editBtn);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.appendChild(tbl);
+  el.appendChild(wrap);
+}
+
+function openInviteModal(callerRole,onDone){
+  const root=document.getElementById('modal-root');root.innerHTML='';
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  const modal=document.createElement('div');modal.className='modal';
+  modal.innerHTML='<div class="modal-handle"></div>';
+
+  const title=document.createElement('div');title.className='modal-title';title.textContent='Invite New User';modal.appendChild(title);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#888;margin-bottom:20px;';
+  sub.textContent='They\'ll receive an email to set their password.';modal.appendChild(sub);
+
+  const errEl=document.createElement('div');errEl.className='auth-error';modal.appendChild(errEl);
+
+  // Fields
+  function fg(lbl,el){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;g.appendChild(l);g.appendChild(el);modal.appendChild(g);return el;}
+
+  const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='Full name';fg('Full Name<span class="req">*</span>',nameInp);
+  const emailInp=document.createElement('input');emailInp.type='email';emailInp.placeholder='email@example.com';fg('Email<span class="req">*</span>',emailInp);
+
+  // Role selector — stake can assign any role; bishop can only assign ward roles
+  const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
+  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'&&(r.ward===callerRole.ward||!r.ward));
+  const roleSel=document.createElement('select');
+  availableRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;roleSel.appendChild(o);});
+  fg('Role<span class="req">*</span>',roleSel);
+
+  // Ward selector
+  const wardSel=document.createElement('select');
+  const wardOpts=isStake?['','Stake',...WARDS_ONLY]:['',callerRole.ward];
+  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward —';wardSel.appendChild(o);});
+  if(!isStake&&callerRole.ward){wardSel.value=callerRole.ward;}
+  fg('Ward',wardSel);
+
+  // Temp password
+  const passInp=document.createElement('input');passInp.type='password';passInp.placeholder='Temporary password';fg('Temporary Password<span class="req">*</span>',passInp);
+
+  const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
+  saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
+  saveBtn.textContent='Create User';
+  saveBtn.addEventListener('click',async()=>{
+    const name=nameInp.value.trim();
+    const email=emailInp.value.trim();
+    const password=passInp.value;
+    const role_id=roleSel.value;
+    const ward=wardSel.value||null;
+    errEl.classList.remove('visible');
+    if(!name||!email||!password){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
+    saveBtn.disabled=true;saveBtn.textContent='Creating…';
+
+    // Use Supabase admin API via service role — but we only have anon key in frontend.
+    // Instead: create user via signUp (with autoconfirm), then upsert their profile.
+    const{data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name}}});
+    if(error){errEl.textContent=error.message;errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Create User';return;}
+
+    // Upsert profile
+    if(data.user){
+      await sb.from('profiles').upsert({id:data.user.id,email,full_name:name,role_id,ward},{ onConflict:'id'});
+    }
+    closeModal();onDone();
+  });
+  modal.appendChild(saveBtn);
+  overlay.appendChild(modal);root.appendChild(overlay);
+}
+
+function openEditUserModal(profile,callerRole,onDone){
+  const root=document.getElementById('modal-root');root.innerHTML='';
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  const modal=document.createElement('div');modal.className='modal';
+  modal.innerHTML='<div class="modal-handle"></div>';
+
+  const title=document.createElement('div');title.className='modal-title';title.textContent='Edit User';modal.appendChild(title);
+  const errEl=document.createElement('div');errEl.className='auth-error';modal.appendChild(errEl);
+
+  function fg(lbl,el){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;g.appendChild(l);g.appendChild(el);modal.appendChild(g);return el;}
+
+  const nameInp=document.createElement('input');nameInp.type='text';nameInp.value=profile.full_name||'';fg('Full Name',nameInp);
+
+  const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
+  const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward');
+  const roleSel=document.createElement('select');
+  availableRoles.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.label;if(r.id===profile.role_id)o.selected=true;roleSel.appendChild(o);});
+  fg('Role',roleSel);
+
+  const wardSel=document.createElement('select');
+  const wardOpts=isStake?['','Stake',...WARDS_ONLY]:['',callerRole.ward];
+  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— No ward —';wardSel.appendChild(o);});
+  wardSel.value=profile.ward||'';
+  fg('Ward',wardSel);
+
+  const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
+  saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
+  saveBtn.textContent='Save Changes';
+  saveBtn.addEventListener('click',async()=>{
+    saveBtn.disabled=true;saveBtn.textContent='Saving…';
+    const{error}=await sb.from('profiles').update({
+      full_name:nameInp.value.trim(),
+      role_id:roleSel.value,
+      ward:wardSel.value||null,
+    }).eq('id',profile.id);
+    if(error){errEl.textContent=error.message;errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Save Changes';return;}
+    closeModal();onDone();
+  });
+  modal.appendChild(saveBtn);
+
+  // Delete user (superadmin only)
+  if(isSuperAdmin()&&profile.id!==currentUser?.id){
+    const delBtn=document.createElement('button');
+    delBtn.style.cssText='width:100%;margin-top:8px;background:transparent;border:1px solid #e57373;color:#c62828;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;';
+    delBtn.textContent='Remove User';
+    delBtn.addEventListener('click',async()=>{
+      if(!confirm(`Remove ${profile.full_name||profile.email}? This will delete their profile (not their login).`))return;
+      await sb.from('profiles').delete().eq('id',profile.id);
+      closeModal();onDone();
+    });
+    modal.appendChild(delBtn);
+  }
+
+  overlay.appendChild(modal);root.appendChild(overlay);
+}
 </script>
 </body>
 </html>
