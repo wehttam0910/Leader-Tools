@@ -3437,10 +3437,10 @@ function openInviteModal(callerRole,onDone){
   });
   fg('Role<span class="req">*</span>',roleSel);
   const wardSel=document.createElement('select');
-  const wardOpts=isStake?['',...WARDS]:['',callerRole.ward].filter((v,i,a)=>a.indexOf(v)===i);
+  const wardOpts=isStake?['',...WARDS_ONLY]:['',callerRole.ward].filter((v,i,a)=>a.indexOf(v)===i);
   wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward (if applicable) —';wardSel.appendChild(o);});
   if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
-  fg('Ward',wardSel);
+  fg('Ward<span class="req">*</span>',wardSel);
   const passInp=document.createElement('input');passInp.type='text';
   // Auto-generate a temp password
   const tempPass = 'LT-' + Math.random().toString(36).slice(2,6).toUpperCase() + Math.floor(1000+Math.random()*9000);
@@ -3457,7 +3457,7 @@ function openInviteModal(callerRole,onDone){
   saveBtn.addEventListener('click',async()=>{
     const name=nameInp.value.trim(),email=emailInp.value.trim(),password=passInp.value,role_id=roleSel.value,ward=wardSel.value||null;
     errEl.classList.remove('visible');
-    if(!name||!email||!password){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
+    if(!name||!email||!password||!ward){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
     if(password.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('visible');return;}
     saveBtn.disabled=true;saveBtn.textContent='Creating…';
     try{
@@ -3547,7 +3547,7 @@ function openEditUserModal(profile,callerRole,onDone){
   fg('Role',roleSel);
 
   const wardSel=document.createElement('select');
-  const wardOpts=isStake?['','Stake',...WARDS_ONLY]:['',callerRole.ward];
+  const wardOpts=isStake?['',...WARDS_ONLY]:['',callerRole.ward];
   wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— No ward —';wardSel.appendChild(o);});
   wardSel.value=profile.ward||'';
   fg('Ward',wardSel);
