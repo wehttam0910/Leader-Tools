@@ -716,7 +716,7 @@ async function loadOrCreateProfile(user){
   try{
     // Race the profile fetch against a 5s timeout
     const profilePromise = sb.from('profiles').select('*').eq('id',user.id).single();
-    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('Profile fetch timeout')),5000));
+    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('Profile fetch timeout')),10000));
     const{data,error} = await Promise.race([profilePromise, timeoutPromise]);
     if(data) return data;
     // No profile found — create one
@@ -838,7 +838,11 @@ async function handleSession(session){
 }
 
 // Boot: check existing session
-sb.auth.getSession().then(({data:{session}})=>handleSession(session)).catch(e=>{
+sb.auth.getSession().then(async({data:{session}})=>{
+  // Explicitly set session so client uses it for all subsequent queries
+  if(session) await sb.auth.setSession({access_token:session.access_token, refresh_token:session.refresh_token});
+  handleSession(session);
+}).catch(e=>{
   console.error('getSession error:',e);
   showAuthScreen();
 });
@@ -865,7 +869,7 @@ setTimeout(()=>{
     console.warn('Fallback triggered — showing auth screen');
     showAuthScreen();
   }
-},5000);
+},15000);
 
 
 // ── Field name mapping: JS camelCase <-> Supabase snake_case ─────────────
