@@ -740,7 +740,7 @@ function showAuthScreen(){
 }
 
 function showAppShell(){
-  document.getElementById('auth-screen').classList.remove('visible');
+  document.getElementById('auth-screen').style.display='none';
   document.getElementById('app-shell').style.display='flex';
   // Wire logout button
   const logoutBtn=document.getElementById('sidebar-logout-btn');
@@ -748,8 +748,7 @@ function showAppShell(){
   logoutBtn.onclick=()=>{if(confirm('Sign out?'))signOut();};
   // Wire role hint for superadmin
   const hint=document.getElementById('sidebar-role-hint');
-  if(isSuperAdmin()) hint.textContent='Dev mode — click to switch';
-  else hint.textContent='';
+  if(hint) hint.textContent=isSuperAdmin()?'Dev mode — click to switch':'';
 }
 
 // ── Login form ────────────────────────────────────────────────────────────
@@ -783,19 +782,21 @@ document.getElementById('auth-forgot-link').addEventListener('click',async e=>{
 });
 
 // ── Auth state listener ───────────────────────────────────────────────────
-let authResolved = false;
+let authBooted = false;
 
 async function handleSession(session){
-  if(authResolved) return;
-  authResolved = true;
+  // Always hide init screen first
   const initEl = document.getElementById('init-screen');
   if(initEl) initEl.style.display = 'none';
+
+  if(authBooted && !session) return;
+  authBooted = true;
 
   try{
     if(session?.user){
       currentUser = session.user;
       currentProfile = await loadOrCreateProfile(currentUser);
-      state.activeRoleId = currentProfile?.role_id || 'admin';
+      state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
       devModeRole = null;
       showAppShell();
       state.loading = true;
@@ -819,24 +820,39 @@ async function handleSession(session){
     }
   }catch(e){
     console.error('handleSession error:', e);
-    // Always fall back to auth screen if something goes wrong
     showAuthScreen();
   }
 }
 
-// Check session immediately on load
-sb.auth.getSession().then(({data:{session}})=>handleSession(session)).catch(()=>showAuthScreen());
+// Boot: check existing session
+sb.auth.getSession().then(({data:{session}})=>handleSession(session)).catch(e=>{
+  console.error('getSession error:',e);
+  showAuthScreen();
+});
 
-// Listen for login/logout events
+// Auth state changes (login/logout)
 sb.auth.onAuthStateChange(async(event, session)=>{
   if(event==='SIGNED_IN'){
-    authResolved = false;
+    authBooted = false;
     await handleSession(session);
   } else if(event==='SIGNED_OUT'){
-    authResolved = false;
-    await handleSession(null);
+    authBooted = false;
+    currentUser=null;currentProfile=null;devModeRole=null;
+    showAuthScreen();
   }
 });
+
+// Nuclear fallback — if still blank after 5s, show auth screen
+setTimeout(()=>{
+  const appEl=document.getElementById('app-shell');
+  const authEl=document.getElementById('auth-screen');
+  const initEl=document.getElementById('init-screen');
+  if(initEl) initEl.style.display='none';
+  if(appEl?.style.display==='none' && authEl?.style.display==='none'){
+    console.warn('Fallback triggered — showing auth screen');
+    showAuthScreen();
+  }
+},5000);
 
 
 // ── Field name mapping: JS camelCase <-> Supabase snake_case ─────────────
