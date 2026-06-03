@@ -3494,7 +3494,7 @@ function openInviteModal(callerRole,onDone){
       const closeBtn=document.createElement('button');closeBtn.className='btn-primary';
       closeBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;';
       closeBtn.textContent='Done';
-      closeBtn.addEventListener('click',()=>{closeModal();onDone();});
+      closeBtn.addEventListener('click',()=>{closeModal();setTimeout(()=>onDone(),300);});
       m2.appendChild(closeBtn);
       ov2.appendChild(m2);root2.appendChild(ov2);
     }catch(e){
