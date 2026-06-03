@@ -714,15 +714,19 @@ function getEffectiveRoleId(){
 
 async function loadOrCreateProfile(user){
   try{
-    const{data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+    // Race the profile fetch against a 5s timeout
+    const profilePromise = sb.from('profiles').select('*').eq('id',user.id).single();
+    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('Profile fetch timeout')),5000));
+    const{data,error} = await Promise.race([profilePromise, timeoutPromise]);
     if(data) return data;
+    // No profile found — create one
     const role_id=user.email===SUPERADMIN_EMAIL?'admin':'ward_member';
     const newProfile={id:user.id,email:user.email,full_name:user.user_metadata?.full_name||'',role_id,ward:null};
     const{data:created}=await sb.from('profiles').insert(newProfile).select().single();
     return created||newProfile;
   }catch(e){
-    console.error('loadOrCreateProfile error:',e);
-    // Return a minimal profile so the app can still boot
+    console.error('loadOrCreateProfile error:',e.message);
+    // Return minimal fallback so app can still boot
     return{id:user.id,email:user.email,full_name:'',role_id:user.email===SUPERADMIN_EMAIL?'admin':'ward_member',ward:null};
   }
 }
