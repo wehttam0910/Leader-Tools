@@ -781,11 +781,11 @@ document.getElementById('auth-forgot-link').addEventListener('click',async e=>{
 // ── Auth state listener ───────────────────────────────────────────────────
 let authResolved = false;
 
-sb.auth.onAuthStateChange(async(event, session)=>{
-  // Hide init screen once auth state is known
+async function handleSession(session){
+  if(authResolved) return; // prevent double-boot
+  authResolved = true;
   const initEl = document.getElementById('init-screen');
   if(initEl) initEl.style.display = 'none';
-  authResolved = true;
 
   if(session?.user){
     currentUser = session.user;
@@ -811,6 +811,20 @@ sb.auth.onAuthStateChange(async(event, session)=>{
     currentProfile = null;
     devModeRole = null;
     showAuthScreen();
+  }
+}
+
+// Check session immediately on load
+sb.auth.getSession().then(({data:{session}})=>handleSession(session));
+
+// Also listen for auth changes (login/logout)
+sb.auth.onAuthStateChange(async(event, session)=>{
+  if(event==='SIGNED_IN'){
+    authResolved = false; // allow handleSession to run on login
+    await handleSession(session);
+  } else if(event==='SIGNED_OUT'){
+    authResolved = false;
+    await handleSession(null);
   }
 });
 
