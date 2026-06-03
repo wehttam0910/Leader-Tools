@@ -311,8 +311,7 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 .currently-filled-box{background:#fff8e6;border:1px solid #fcd97a;border-radius:8px;padding:12px;margin-top:8px;}
 
 /* ── Auth / Login screen ── */
-#auth-screen{display:none;min-height:100vh;background:#f0f2f5;align-items:center;justify-content:center;padding:20px;}
-#auth-screen.visible{display:flex;}
+#auth-screen{min-height:100vh;background:#f0f2f5;align-items:center;justify-content:center;padding:20px;}
 .auth-card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);padding:36px 32px;width:100%;max-width:400px;}
 .auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
 .auth-logo-text{font-size:20px;font-weight:700;color:#1c2537;}
@@ -361,8 +360,13 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 </style>
 </head>
 <body>
-<!-- ── Auth Screen ── -->
-<div id="auth-screen">
+<!-- ── Initial loading screen (shown until auth state resolves) ── -->
+<div id="init-screen" style="min-height:100vh;background:#f0f2f5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="width:48px;height:48px;border:3px solid #e0e0e0;border-top-color:#1c2537;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div style="font-size:13px;color:#aaa;font-weight:500;">Loading LeaderTools…</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
+<div id="auth-screen" style="display:none;min-height:100vh;background:#f0f2f5;align-items:center;justify-content:center;padding:20px;">
   <div class="auth-card">
         <div style="font-size:13px;color:#aaa;margin-bottom:6px;">Welcome to</div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
@@ -445,6 +449,7 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
 
 <script>
 const WARDS_ONLY=['Pecan Creek 1st Ward','Pecan Creek 2nd Ward','Pecan Creek 3rd Ward','Meadows Ward','Parks Ward','Pecan Grove Ward','Pecan Ranch Ward'];
+const WARDS=['Stake',...WARDS_ONLY];
 const ALL_WARDS=['Stake',...WARDS_ONLY];
 const ROLES=[
   // ── Superadmin ──────────────────────────────────────────────────────────
@@ -726,7 +731,7 @@ async function signOut(){
 
 // ── Auth UI ───────────────────────────────────────────────────────────────
 function showAuthScreen(){
-  document.getElementById('auth-screen').classList.add('visible');
+  document.getElementById('auth-screen').style.display='flex';
   document.getElementById('app-shell').style.display='none';
 }
 
@@ -774,22 +779,37 @@ document.getElementById('auth-forgot-link').addEventListener('click',async e=>{
 });
 
 // ── Auth state listener ───────────────────────────────────────────────────
-sb.auth.onAuthStateChange(async(event,session)=>{
+let authResolved = false;
+
+sb.auth.onAuthStateChange(async(event, session)=>{
+  // Hide init screen once auth state is known
+  const initEl = document.getElementById('init-screen');
+  if(initEl) initEl.style.display = 'none';
+  authResolved = true;
+
   if(session?.user){
-    currentUser=session.user;
-    currentProfile=await loadOrCreateProfile(currentUser);
-    // Sync role to state
-    state.activeRoleId=currentProfile.role_id;
-    devModeRole=null;
+    currentUser = session.user;
+    currentProfile = await loadOrCreateProfile(currentUser);
+    state.activeRoleId = currentProfile.role_id;
+    devModeRole = null;
     showAppShell();
-    // Boot data load
-    state.loading=true;
+    state.loading = true;
     render();
-    const{callings,agendas}=await dbLoadAll();
-    state.callings=callings;state.agendas=agendas;
-    state.loading=false;
+    try{
+      const{callings, agendas} = await dbLoadAll();
+      state.callings = callings;
+      state.agendas = agendas;
+    }catch(e){
+      console.error('Failed to load data:', e);
+      state.callings = [];
+      state.agendas = [];
+    }
+    state.loading = false;
     render();
   } else {
+    currentUser = null;
+    currentProfile = null;
+    devModeRole = null;
     showAuthScreen();
   }
 });
@@ -3196,9 +3216,63 @@ function render(){
   }
   if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
   else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
-  if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
-  else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
   else if(state.tab==='users'){renderUsers(el,role);}
+}
+
+// ── Service role key (stored locally, never in code) ─────────────────────
+function getServiceKey(){return localStorage.getItem('leadertools_srk')||'';}
+function setServiceKey(k){localStorage.setItem('leadertools_srk',k);}
+function clearServiceKey(){localStorage.removeItem('leadertools_srk');}
+
+function promptForServiceKey(onSuccess){
+  const root=document.getElementById('modal-root');root.innerHTML='';
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  const modal=document.createElement('div');modal.className='modal';
+  modal.innerHTML='<div class="modal-handle"></div>';
+  const title=document.createElement('div');title.className='modal-title';title.textContent='One-Time Setup';modal.appendChild(title);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#666;margin-bottom:16px;line-height:1.5;';
+  sub.innerHTML='To create users, paste your Supabase <strong>service role key</strong> below. It\'s saved only in this browser and never uploaded to GitHub.<br><br>Find it at: <em>Supabase → Settings → API Keys → Legacy → service_role → Reveal</em>';
+  modal.appendChild(sub);
+  const errEl=document.createElement('div');errEl.className='auth-error';modal.appendChild(errEl);
+  const inp=document.createElement('input');inp.type='password';
+  inp.placeholder='sb_secret_...';
+  inp.style.cssText='width:100%;padding:10px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:9px;font-size:13px;margin-bottom:12px;box-sizing:border-box;';
+  modal.appendChild(inp);
+  const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
+  saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;';
+  saveBtn.textContent='Save & Continue';
+  saveBtn.addEventListener('click',()=>{
+    const val=inp.value.trim();
+    if(!val){errEl.textContent='Please paste your service role key.';errEl.classList.add('visible');return;}
+    setServiceKey(val);
+    closeModal();
+    onSuccess();
+  });
+  modal.appendChild(saveBtn);
+  overlay.appendChild(modal);root.appendChild(overlay);
+}
+
+async function adminCreateUser(email, password, fullName){
+  const srk=getServiceKey();
+  if(!srk) throw new Error('NO_SERVICE_KEY');
+  // Use Supabase Admin API directly
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/admin/users`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey': srk,
+      'Authorization': `Bearer ${srk}`,
+    },
+    body:JSON.stringify({
+      email,
+      password,
+      email_confirm: true, // skip confirmation email
+      user_metadata:{full_name:fullName},
+    }),
+  });
+  const data=await res.json();
+  if(!res.ok) throw new Error(data.message||data.msg||'Failed to create user');
+  return data;
 }
 
 // ── User Management ───────────────────────────────────────────────────────────
@@ -3266,34 +3340,23 @@ async function renderUsers(el,role){
 }
 
 function openInviteModal(callerRole,onDone){
+  if(!getServiceKey()){promptForServiceKey(()=>openInviteModal(callerRole,onDone));return;}
   const root=document.getElementById('modal-root');root.innerHTML='';
   const overlay=document.createElement('div');overlay.className='modal-overlay';
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
   const modal=document.createElement('div');modal.className='modal';
   modal.innerHTML='<div class="modal-handle"></div>';
-
   const title=document.createElement('div');title.className='modal-title';title.textContent='Invite New User';modal.appendChild(title);
   const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#888;margin-bottom:20px;';
-  sub.textContent='They\'ll receive an email to set their password.';modal.appendChild(sub);
-
+  sub.textContent='User can log in immediately with the password you set.';modal.appendChild(sub);
   const errEl=document.createElement('div');errEl.className='auth-error';modal.appendChild(errEl);
-
-  // Fields
   function fg(lbl,el){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;g.appendChild(l);g.appendChild(el);modal.appendChild(g);return el;}
-
   const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='Full name';fg('Full Name<span class="req">*</span>',nameInp);
   const emailInp=document.createElement('input');emailInp.type='email';emailInp.placeholder='email@example.com';fg('Email<span class="req">*</span>',emailInp);
-
-  // Role selector — stake can assign any role; bishop can only assign ward roles
   const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
   const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'||r.scope==='ward_org');
   const roleSel=document.createElement('select');
-  const scopeGroups=[
-    {label:'System',scopes:['admin']},
-    {label:'Stake',scopes:['stake']},
-    {label:'Bishopric / Ward',scopes:['ward']},
-    {label:'Ward Organizations',scopes:['ward_org']},
-  ];
+  const scopeGroups=[{label:'System',scopes:['admin']},{label:'Stake',scopes:['stake']},{label:'Bishopric / Ward',scopes:['ward']},{label:'Ward Organizations',scopes:['ward_org']}];
   scopeGroups.forEach(sg=>{
     const groupRoles=availableRoles.filter(r=>sg.scopes.includes(r.scope));
     if(!groupRoles.length)return;
@@ -3302,42 +3365,39 @@ function openInviteModal(callerRole,onDone){
     roleSel.appendChild(og);
   });
   fg('Role<span class="req">*</span>',roleSel);
-
-  // Ward selector
   const wardSel=document.createElement('select');
-  const wardOpts=isStake?['','Stake',...WARDS_ONLY]:['',callerRole.ward];
-  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward —';wardSel.appendChild(o);});
-  if(!isStake&&callerRole.ward){wardSel.value=callerRole.ward;}
+  const wardOpts=isStake?['',...WARDS]:['',callerRole.ward].filter((v,i,a)=>a.indexOf(v)===i);
+  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward (if applicable) —';wardSel.appendChild(o);});
+  if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
   fg('Ward',wardSel);
-
-  // Temp password
-  const passInp=document.createElement('input');passInp.type='password';passInp.placeholder='Temporary password';fg('Temporary Password<span class="req">*</span>',passInp);
-
+  const passInp=document.createElement('input');passInp.type='password';passInp.placeholder='Min. 6 characters';fg('Temporary Password<span class="req">*</span>',passInp);
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
   saveBtn.textContent='Create User';
   saveBtn.addEventListener('click',async()=>{
-    const name=nameInp.value.trim();
-    const email=emailInp.value.trim();
-    const password=passInp.value;
-    const role_id=roleSel.value;
-    const ward=wardSel.value||null;
+    const name=nameInp.value.trim(),email=emailInp.value.trim(),password=passInp.value,role_id=roleSel.value,ward=wardSel.value||null;
     errEl.classList.remove('visible');
     if(!name||!email||!password){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
+    if(password.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('visible');return;}
     saveBtn.disabled=true;saveBtn.textContent='Creating…';
-
-    // Use Supabase admin API via service role — but we only have anon key in frontend.
-    // Instead: create user via signUp (with autoconfirm), then upsert their profile.
-    const{data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name}}});
-    if(error){errEl.textContent=error.message;errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Create User';return;}
-
-    // Upsert profile
-    if(data.user){
-      await sb.from('profiles').upsert({id:data.user.id,email,full_name:name,role_id,ward},{ onConflict:'id'});
+    try{
+      const newUser=await adminCreateUser(email,password,name);
+      if(newUser?.id){await sb.from('profiles').upsert({id:newUser.id,email,full_name:name,role_id,ward},{onConflict:'id'});}
+      closeModal();onDone();
+    }catch(e){
+      if(e.message==='NO_SERVICE_KEY'){closeModal();promptForServiceKey(()=>openInviteModal(callerRole,onDone));return;}
+      if(e.message.toLowerCase().includes('invalid')||e.message.includes('403')){clearServiceKey();errEl.textContent='Service key rejected — cleared. Try again to re-enter it.';}
+      else errEl.textContent='Error: '+e.message;
+      errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Create User';
     }
-    closeModal();onDone();
   });
   modal.appendChild(saveBtn);
+  if(isSuperAdmin()){
+    const rekey=document.createElement('div');rekey.style.cssText='text-align:center;margin-top:12px;font-size:12px;';
+    rekey.innerHTML='<a href="#" style="color:#aaa;">Re-enter service key</a>';
+    rekey.querySelector('a').addEventListener('click',e=>{e.preventDefault();clearServiceKey();closeModal();promptForServiceKey(()=>openInviteModal(callerRole,onDone));});
+    modal.appendChild(rekey);
+  }
   overlay.appendChild(modal);root.appendChild(overlay);
 }
 
