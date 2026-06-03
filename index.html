@@ -837,15 +837,24 @@ async function handleSession(session){
   }
 }
 
-// Boot: check existing session
-sb.auth.getSession().then(async({data:{session}})=>{
-  // Explicitly set session so client uses it for all subsequent queries
-  if(session) await sb.auth.setSession({access_token:session.access_token, refresh_token:session.refresh_token});
+async function waitForSession(){
+  // Give Supabase up to 8 seconds to recover/refresh the session token
+  for(let i=0;i<16;i++){
+    const{data:{session}}=await sb.auth.getSession();
+    if(session?.access_token) return session;
+    await new Promise(r=>setTimeout(r,500));
+  }
+  return null;
+}
+
+// Boot: wait for session to be fully ready before querying
+(async()=>{
+  const session = await waitForSession();
+  if(session){
+    await sb.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});
+  }
   handleSession(session);
-}).catch(e=>{
-  console.error('getSession error:',e);
-  showAuthScreen();
-});
+})().catch(e=>{console.error('Boot error:',e);showAuthScreen();});
 
 // Auth state changes (login/logout)
 sb.auth.onAuthStateChange(async(event, session)=>{
@@ -1007,10 +1016,12 @@ function agendaFromDb(r) {
 
 // ── Supabase CRUD helpers ─────────────────────────────────────────────────
 async function dbLoadAll() {
-  const [{ data: callings, error: ce }, { data: agendas, error: ae }] = await Promise.all([
+  const timeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('dbLoadAll timeout')),10000));
+  const load = Promise.all([
     sb.from('callings').select('*').order('id', { ascending: true }),
     sb.from('agendas').select('*').order('date', { ascending: false }),
   ]);
+  const [{ data: callings, error: ce }, { data: agendas, error: ae }] = await Promise.race([load, timeout]);
   if (ce) console.error('Error loading callings:', ce);
   if (ae) console.error('Error loading agendas:', ae);
   return {
