@@ -3423,7 +3423,16 @@ function openInviteModal(callerRole,onDone){
   wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward (if applicable) —';wardSel.appendChild(o);});
   if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
   fg('Ward',wardSel);
-  const passInp=document.createElement('input');passInp.type='password';passInp.placeholder='Min. 6 characters';fg('Temporary Password<span class="req">*</span>',passInp);
+  const passInp=document.createElement('input');passInp.type='text';
+  // Auto-generate a temp password
+  const tempPass = 'LT-' + Math.random().toString(36).slice(2,6).toUpperCase() + Math.floor(1000+Math.random()*9000);
+  passInp.value = tempPass;
+  passInp.style.cssText='font-family:monospace;letter-spacing:0.05em;';
+  const passField=fg('Temporary Password<span class="req">*</span>',passInp);
+  const passHint=document.createElement('div');
+  passHint.style.cssText='font-size:11px;color:#888;margin-top:4px;';
+  passHint.textContent='Auto-generated — edit if you prefer a different one. Share this with the user.';
+  passField.parentNode.appendChild(passHint);
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
   saveBtn.textContent='Create User';
@@ -3436,7 +3445,27 @@ function openInviteModal(callerRole,onDone){
     try{
       const newUser=await adminCreateUser(email,password,name);
       if(newUser?.id){await sb.from('profiles').upsert({id:newUser.id,email,full_name:name,role_id,ward},{onConflict:'id'});}
-      closeModal();onDone();
+      closeModal();
+      // Show credentials summary
+      const root2=document.getElementById('modal-root');root2.innerHTML='';
+      const ov2=document.createElement('div');ov2.className='modal-overlay';
+      const m2=document.createElement('div');m2.className='modal';
+      m2.innerHTML='<div class="modal-handle"></div>';
+      const t2=document.createElement('div');t2.className='modal-title';t2.textContent='User Created ✓';m2.appendChild(t2);
+      const s2=document.createElement('div');s2.style.cssText='font-size:13px;color:#555;margin-bottom:20px;line-height:1.6;';
+      s2.innerHTML=`<strong>${name}</strong> has been created. Share these credentials:<br><br>
+        <div style="background:#f5f5f5;border-radius:8px;padding:12px 14px;font-family:monospace;font-size:13px;">
+          <div>📧 ${email}</div>
+          <div>🔑 ${password}</div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:#e67e22;font-weight:500;">⚠ Ask them to change their password after first login.</div>`;
+      m2.appendChild(s2);
+      const closeBtn=document.createElement('button');closeBtn.className='btn-primary';
+      closeBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;';
+      closeBtn.textContent='Done';
+      closeBtn.addEventListener('click',()=>{closeModal();onDone();});
+      m2.appendChild(closeBtn);
+      ov2.appendChild(m2);root2.appendChild(ov2);
     }catch(e){
       if(e.message==='NO_SERVICE_KEY'){closeModal();promptForServiceKey(()=>openInviteModal(callerRole,onDone));return;}
       if(e.message.toLowerCase().includes('invalid')||e.message.includes('403')){clearServiceKey();errEl.textContent='Service key rejected — cleared. Try again to re-enter it.';}
