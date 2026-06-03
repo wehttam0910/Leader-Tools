@@ -853,11 +853,14 @@ async function waitForSession(){
   if(session){
     await sb.auth.setSession({access_token:session.access_token,refresh_token:session.refresh_token});
   }
-  handleSession(session);
-})().catch(e=>{console.error('Boot error:',e);showAuthScreen();});
+  await handleSession(session);
+  bootComplete = true; // now allow onAuthStateChange to handle login/logout
+})().catch(e=>{console.error('Boot error:',e);showAuthScreen();bootComplete=true;});
 
-// Auth state changes (login/logout)
+// Auth state changes (login/logout only — not initial boot)
+let bootComplete = false;
 sb.auth.onAuthStateChange(async(event, session)=>{
+  if(!bootComplete) return; // ignore events during initial boot sequence
   if(event==='SIGNED_IN'){
     authBooted = false;
     await handleSession(session);
