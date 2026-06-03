@@ -794,17 +794,24 @@ async function handleSession(session){
 
   try{
     if(session?.user){
+      console.log('Session found for:', session.user.email);
       currentUser = session.user;
+      console.log('Loading profile...');
       currentProfile = await loadOrCreateProfile(currentUser);
+      console.log('Profile loaded:', currentProfile?.role_id);
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
       devModeRole = null;
+      console.log('Showing app shell...');
       showAppShell();
+      console.log('App shell shown, rendering...');
       state.loading = true;
       render();
+      console.log('Loading data from Supabase...');
       try{
         const{callings, agendas} = await dbLoadAll();
         state.callings = callings;
         state.agendas = agendas;
+        console.log('Data loaded:', callings.length, 'callings,', agendas.length, 'agendas');
       }catch(e){
         console.error('Failed to load data:', e);
         state.callings = [];
@@ -812,14 +819,16 @@ async function handleSession(session){
       }
       state.loading = false;
       render();
+      console.log('Boot complete.');
     } else {
+      console.log('No session — showing auth screen');
       currentUser = null;
       currentProfile = null;
       devModeRole = null;
       showAuthScreen();
     }
   }catch(e){
-    console.error('handleSession error:', e);
+    console.error('handleSession error:', e, e.stack);
     showAuthScreen();
   }
 }
