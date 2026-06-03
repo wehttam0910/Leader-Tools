@@ -3462,7 +3462,20 @@ function openInviteModal(callerRole,onDone){
     saveBtn.disabled=true;saveBtn.textContent='Creating…';
     try{
       const newUser=await adminCreateUser(email,password,name);
-      if(newUser?.id){await sb.from('profiles').upsert({id:newUser.id,email,full_name:name,role_id,ward},{onConflict:'id'});}
+      if(newUser?.id){
+        // Use service role key for profile insert (bypasses RLS)
+        const srk=getServiceKey();
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles`,{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'apikey':srk,
+            'Authorization':`Bearer ${srk}`,
+            'Prefer':'resolution=merge-duplicates',
+          },
+          body:JSON.stringify({id:newUser.id,email,full_name:name,role_id,ward}),
+        });
+      }
       closeModal();
       // Show credentials summary
       const root2=document.getElementById('modal-root');root2.innerHTML='';
