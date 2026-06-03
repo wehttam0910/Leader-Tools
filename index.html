@@ -3438,7 +3438,7 @@ function openInviteModal(callerRole,onDone){
   fg('Role<span class="req">*</span>',roleSel);
   const wardSel=document.createElement('select');
   const wardOpts=isStake?['',...WARDS_ONLY]:['',callerRole.ward].filter((v,i,a)=>a.indexOf(v)===i);
-  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— Select ward (if applicable) —';wardSel.appendChild(o);});
+  wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'Select ward';wardSel.appendChild(o);});
   if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
   fg('Ward<span class="req">*</span>',wardSel);
   const passInp=document.createElement('input');passInp.type='text';
