@@ -713,14 +713,18 @@ function getEffectiveRoleId(){
 }
 
 async function loadOrCreateProfile(user){
-  // Try to load existing profile
-  const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
-  if(data) return data;
-  // Create profile — superadmin gets admin role, everyone else gets ward_member
-  const role_id = user.email===SUPERADMIN_EMAIL ? 'admin' : 'ward_member';
-  const newProfile={id:user.id,email:user.email,full_name:user.user_metadata?.full_name||'',role_id,ward:null};
-  const {data:created}=await sb.from('profiles').insert(newProfile).select().single();
-  return created||newProfile;
+  try{
+    const{data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
+    if(data) return data;
+    const role_id=user.email===SUPERADMIN_EMAIL?'admin':'ward_member';
+    const newProfile={id:user.id,email:user.email,full_name:user.user_metadata?.full_name||'',role_id,ward:null};
+    const{data:created}=await sb.from('profiles').insert(newProfile).select().single();
+    return created||newProfile;
+  }catch(e){
+    console.error('loadOrCreateProfile error:',e);
+    // Return a minimal profile so the app can still boot
+    return{id:user.id,email:user.email,full_name:'',role_id:user.email===SUPERADMIN_EMAIL?'admin':'ward_member',ward:null};
+  }
 }
 
 async function signOut(){
@@ -782,45 +786,51 @@ document.getElementById('auth-forgot-link').addEventListener('click',async e=>{
 let authResolved = false;
 
 async function handleSession(session){
-  if(authResolved) return; // prevent double-boot
+  if(authResolved) return;
   authResolved = true;
   const initEl = document.getElementById('init-screen');
   if(initEl) initEl.style.display = 'none';
 
-  if(session?.user){
-    currentUser = session.user;
-    currentProfile = await loadOrCreateProfile(currentUser);
-    state.activeRoleId = currentProfile.role_id;
-    devModeRole = null;
-    showAppShell();
-    state.loading = true;
-    render();
-    try{
-      const{callings, agendas} = await dbLoadAll();
-      state.callings = callings;
-      state.agendas = agendas;
-    }catch(e){
-      console.error('Failed to load data:', e);
-      state.callings = [];
-      state.agendas = [];
+  try{
+    if(session?.user){
+      currentUser = session.user;
+      currentProfile = await loadOrCreateProfile(currentUser);
+      state.activeRoleId = currentProfile?.role_id || 'admin';
+      devModeRole = null;
+      showAppShell();
+      state.loading = true;
+      render();
+      try{
+        const{callings, agendas} = await dbLoadAll();
+        state.callings = callings;
+        state.agendas = agendas;
+      }catch(e){
+        console.error('Failed to load data:', e);
+        state.callings = [];
+        state.agendas = [];
+      }
+      state.loading = false;
+      render();
+    } else {
+      currentUser = null;
+      currentProfile = null;
+      devModeRole = null;
+      showAuthScreen();
     }
-    state.loading = false;
-    render();
-  } else {
-    currentUser = null;
-    currentProfile = null;
-    devModeRole = null;
+  }catch(e){
+    console.error('handleSession error:', e);
+    // Always fall back to auth screen if something goes wrong
     showAuthScreen();
   }
 }
 
 // Check session immediately on load
-sb.auth.getSession().then(({data:{session}})=>handleSession(session));
+sb.auth.getSession().then(({data:{session}})=>handleSession(session)).catch(()=>showAuthScreen());
 
-// Also listen for auth changes (login/logout)
+// Listen for login/logout events
 sb.auth.onAuthStateChange(async(event, session)=>{
   if(event==='SIGNED_IN'){
-    authResolved = false; // allow handleSession to run on login
+    authResolved = false;
     await handleSession(session);
   } else if(event==='SIGNED_OUT'){
     authResolved = false;
