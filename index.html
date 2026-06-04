@@ -900,6 +900,54 @@ setTimeout(()=>{
   }
 },15000);
 
+// Handle invite/password reset links — Supabase puts token in URL hash
+(()=>{
+  const hash=window.location.hash||'';
+  const isInvite=hash.includes('type=invite')||hash.includes('type=recovery');
+  if(!isInvite) return;
+
+  // Hide init screen, show password setup UI
+  document.getElementById('init-screen').style.display='none';
+  const setupDiv=document.createElement('div');
+  setupDiv.style.cssText='min-height:100vh;background:#f0f2f5;display:flex;align-items:center;justify-content:center;padding:20px;position:fixed;inset:0;z-index:9999;';
+  setupDiv.innerHTML=`
+    <div class="auth-card">
+      <div style="font-size:13px;color:#aaa;margin-bottom:6px;">Welcome to</div>
+      <div class="auth-title" style="margin-bottom:6px;">LeaderTools</div>
+      <div class="auth-sub">Set your password to get started</div>
+      <div class="auth-error" id="setup-error"></div>
+      <div class="auth-field">
+        <label>New Password</label>
+        <input type="password" id="setup-password" placeholder="Min. 8 characters" autocomplete="new-password"/>
+      </div>
+      <div class="auth-field">
+        <label>Confirm Password</label>
+        <input type="password" id="setup-confirm" placeholder="Repeat password" autocomplete="new-password"/>
+      </div>
+      <button class="auth-btn" id="setup-btn">Set Password &amp; Sign In</button>
+    </div>`;
+  document.body.appendChild(setupDiv);
+
+  document.getElementById('setup-btn').addEventListener('click',async()=>{
+    const pw=document.getElementById('setup-password').value;
+    const pw2=document.getElementById('setup-confirm').value;
+    const errEl=document.getElementById('setup-error');
+    const btn=document.getElementById('setup-btn');
+    errEl.classList.remove('visible');
+    if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';errEl.classList.add('visible');return;}
+    if(pw!==pw2){errEl.textContent='Passwords do not match.';errEl.classList.add('visible');return;}
+    btn.disabled=true;btn.textContent='Setting password…';
+    const{error}=await sb.auth.updateUser({password:pw});
+    if(error){errEl.textContent=error.message;errEl.classList.add('visible');btn.disabled=false;btn.textContent='Set Password & Sign In';return;}
+    // Boot into app
+    window.location.hash='';
+    setupDiv.remove();
+    bootComplete=false;authBooted=false;
+    const{data:{session}}=await sb.auth.getSession();
+    handleSession(session);
+  });
+})();
+
 
 // ── Field name mapping: JS camelCase <-> Supabase snake_case ─────────────
 function callingToDb(c) {
@@ -3389,11 +3437,10 @@ function promptForServiceKey(onSuccess){
   applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
 }
 
-async function adminCreateUser(email, password, fullName){
+async function adminInviteUser(email, fullName){
   const srk=getServiceKey();
   if(!srk) throw new Error('NO_SERVICE_KEY');
-  // Use Supabase Admin API directly
-  const res=await fetch(`${SUPABASE_URL}/auth/v1/admin/users`,{
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/invite`,{
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -3402,13 +3449,11 @@ async function adminCreateUser(email, password, fullName){
     },
     body:JSON.stringify({
       email,
-      password,
-      email_confirm: true, // skip confirmation email
-      user_metadata:{full_name:fullName},
+      data:{full_name:fullName},
     }),
   });
   const data=await res.json();
-  if(!res.ok) throw new Error(data.message||data.msg||'Failed to create user');
+  if(!res.ok) throw new Error(data.message||data.msg||'Failed to invite user');
   return data;
 }
 
@@ -3485,7 +3530,7 @@ function openInviteModal(callerRole,onDone){
   modal.innerHTML='<div class="modal-handle"></div>';
   const title=document.createElement('div');title.className='modal-title';title.textContent='Invite New User';modal.appendChild(title);
   const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#888;margin-bottom:20px;';
-  sub.textContent='User can log in immediately with the password you set.';modal.appendChild(sub);
+  sub.textContent='They\'ll receive an email invitation to set their password and log in.';modal.appendChild(sub);
   const errEl=document.createElement('div');errEl.className='auth-error';modal.appendChild(errEl);
   function fg(lbl,el){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.innerHTML=lbl;g.appendChild(l);g.appendChild(el);modal.appendChild(g);return el;}
   const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='Full name';fg('Full Name<span class="req">*</span>',nameInp);
@@ -3508,28 +3553,17 @@ function openInviteModal(callerRole,onDone){
   if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
   fg('Ward<span class="req">*</span>',wardSel);
   const passInp=document.createElement('input');passInp.type='text';
-  // Auto-generate a temp password
-  const tempPass = 'LT-' + Math.random().toString(36).slice(2,6).toUpperCase() + Math.floor(1000+Math.random()*9000);
-  passInp.value = tempPass;
-  passInp.style.cssText='font-family:monospace;letter-spacing:0.05em;';
-  const passField=fg('Temporary Password<span class="req">*</span>',passInp);
-  const passHint=document.createElement('div');
-  passHint.style.cssText='font-size:11px;color:#888;margin-top:4px;';
-  passHint.textContent='Auto-generated — edit if you prefer a different one. Share this with the user.';
-  passField.parentNode.appendChild(passHint);
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
-  saveBtn.textContent='Create User';
+  saveBtn.textContent='Send Invitation';
   saveBtn.addEventListener('click',async()=>{
-    const name=nameInp.value.trim(),email=emailInp.value.trim(),password=passInp.value,role_id=roleSel.value,ward=wardSel.value||null;
+    const name=nameInp.value.trim(),email=emailInp.value.trim(),role_id=roleSel.value,ward=wardSel.value||null;
     errEl.classList.remove('visible');
-    if(!name||!email||!password||!ward){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
-    if(password.length<6){errEl.textContent='Password must be at least 6 characters.';errEl.classList.add('visible');return;}
-    saveBtn.disabled=true;saveBtn.textContent='Creating…';
+    if(!name||!email||!ward){errEl.textContent='Please fill in all required fields.';errEl.classList.add('visible');return;}
+    saveBtn.disabled=true;saveBtn.textContent='Sending invite…';
     try{
-      const newUser=await adminCreateUser(email,password,name);
+      const newUser=await adminInviteUser(email,name);
       if(newUser?.id){
-        // Use service role key for profile insert (bypasses RLS)
         const srk=getServiceKey();
         await fetch(`${SUPABASE_URL}/rest/v1/profiles`,{
           method:'POST',
@@ -3543,31 +3577,30 @@ function openInviteModal(callerRole,onDone){
         });
       }
       closeModal();
-      // Show credentials summary
+      // Show success summary
       const root2=document.getElementById('modal-root');root2.innerHTML='';
       const ov2=document.createElement('div');ov2.className='modal-overlay';
       const m2=document.createElement('div');m2.className='modal';
       m2.innerHTML='<div class="modal-handle"></div>';
-      const t2=document.createElement('div');t2.className='modal-title';t2.textContent='User Created ✓';m2.appendChild(t2);
+      const t2=document.createElement('div');t2.className='modal-title';t2.textContent='Invitation Sent ✓';m2.appendChild(t2);
       const s2=document.createElement('div');s2.style.cssText='font-size:13px;color:#555;margin-bottom:20px;line-height:1.6;';
-      s2.innerHTML=`<strong>${name}</strong> has been created. Share these credentials:<br><br>
-        <div style="background:#f5f5f5;border-radius:8px;padding:12px 14px;font-family:monospace;font-size:13px;">
-          <div>📧 ${email}</div>
-          <div>🔑 ${password}</div>
+      s2.innerHTML=`An invitation email has been sent to <strong>${email}</strong>.<br><br>
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 14px;font-size:13px;color:#166534;">
+          ${name} will receive a link to set their own password and log in.
         </div>
-        <div style="margin-top:10px;font-size:12px;color:#e67e22;font-weight:500;">⚠ Ask them to change their password after first login.</div>`;
+        <div style="margin-top:10px;font-size:12px;color:#888;">Their role and ward are already configured — they just need to click the link.</div>`;
       m2.appendChild(s2);
       const closeBtn=document.createElement('button');closeBtn.className='btn-primary';
       closeBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;';
       closeBtn.textContent='Done';
       closeBtn.addEventListener('click',()=>{closeModal();setTimeout(()=>onDone(),300);});
       m2.appendChild(closeBtn);
-      ov2.appendChild(m2);root2.appendChild(ov2);
+      applyMobileModal(ov2,m2);ov2.appendChild(m2);root2.appendChild(ov2);
     }catch(e){
       if(e.message==='NO_SERVICE_KEY'){closeModal();promptForServiceKey(()=>openInviteModal(callerRole,onDone));return;}
       if(e.message.toLowerCase().includes('invalid')||e.message.includes('403')){clearServiceKey();errEl.textContent='Service key rejected — cleared. Try again to re-enter it.';}
       else errEl.textContent='Error: '+e.message;
-      errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Create User';
+      errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Send Invitation';
     }
   });
   modal.appendChild(saveBtn);
