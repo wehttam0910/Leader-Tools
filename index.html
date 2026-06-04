@@ -239,8 +239,6 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .modal{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;padding:20px 18px 32px;}
 @media(min-width:600px){.modal{border-radius:16px;}}
 @media(max-width:599px){
-  .modal-overlay{align-items:flex-start!important;padding:0!important;}
-  .modal{max-height:100vh!important;height:100vh!important;border-radius:0!important;padding:20px 16px 40px!important;overflow-y:auto!important;}
   .content{padding:16px 14px!important;}
   .form-group input,.form-group select,.form-group textarea{font-size:16px!important;}
   .form-label{font-size:13px;}
@@ -252,7 +250,6 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .page-title{font-size:17px;}
   .section-header{flex-wrap:wrap;gap:8px;}
   .user-table th,.user-table td{padding:8px 8px;font-size:12px;}
-  .modal-handle{display:none;}
 }
 .modal-handle{width:36px;height:4px;background:rgba(0,0,0,0.15);border-radius:2px;margin:0 auto 20px;}
 @media(min-width:600px){.modal-handle{display:none;}}
@@ -1149,6 +1146,12 @@ function getRole(){
   const ward = (isSuperAdmin()&&devModeRole) ? (base.ward||null) : (currentProfile?.ward||null);
   return {...base, ward};
 }
+function applyMobileModal(overlay, modal){
+  if(window.innerWidth > 599) return;
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:flex-start;z-index:300;';
+  modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;max-height:100vh;border-radius:0;overflow-y:auto;padding:20px 16px 40px;background:#fff;box-sizing:border-box;z-index:301;';
+}
+
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
 // ── Sidebar collapse ─────────────────────────────────────────────────────────
@@ -1325,8 +1328,8 @@ function openCallingModal(role){
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
-  // Attach overlay to DOM immediately so it's always present
   root.innerHTML='';
+  applyMobileModal(overlay,modal);
   root.appendChild(overlay);
 
   function renderWizard(){
@@ -1665,6 +1668,7 @@ function openCallingEditModal(c,role){
   const overlay=document.createElement('div');overlay.className='modal-overlay';
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
   const modal=document.createElement('div');modal.className='modal';
+  applyMobileModal(overlay,modal);
   overlay.appendChild(modal);
   root.appendChild(overlay);
 
@@ -1885,7 +1889,7 @@ function openRoleSwitcher(){
       modal.appendChild(card);
     });
   });
-  overlay.appendChild(modal);root.appendChild(overlay);
+  applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
@@ -3337,7 +3341,7 @@ function promptForServiceKey(onSuccess){
     onSuccess();
   });
   modal.appendChild(saveBtn);
-  overlay.appendChild(modal);root.appendChild(overlay);
+  applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
 }
 
 async function adminCreateUser(email, password, fullName){
@@ -3528,7 +3532,7 @@ function openInviteModal(callerRole,onDone){
     rekey.querySelector('a').addEventListener('click',e=>{e.preventDefault();clearServiceKey();closeModal();promptForServiceKey(()=>openInviteModal(callerRole,onDone));});
     modal.appendChild(rekey);
   }
-  overlay.appendChild(modal);root.appendChild(overlay);
+  applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
 }
 
 function openEditUserModal(profile,callerRole,onDone){
@@ -3597,7 +3601,7 @@ function openEditUserModal(profile,callerRole,onDone){
     modal.appendChild(delBtn);
   }
 
-  overlay.appendChild(modal);root.appendChild(overlay);
+  applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
 }
 </script>
 </body>
