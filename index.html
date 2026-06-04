@@ -712,6 +712,7 @@ const SUPERADMIN_EMAIL = 'wehttam0910@gmail.com'; // your email — only this ac
 let currentUser = null;      // Supabase auth user
 let currentProfile = null;   // row from profiles table
 let devModeRole = null;      // when superadmin is previewing another role
+let devModeWard = null;      // when superadmin is previewing a specific ward
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
 function isSuperAdmin(){
@@ -1141,8 +1142,10 @@ if(prefs){
 function getRole(){
   const roleId=getEffectiveRoleId();
   const base=ROLES.find(r=>r.id===roleId)||ROLES[0];
-  // Inject ward from the logged-in user's profile (unless superadmin in dev mode picked a role)
-  const ward = (isSuperAdmin()&&devModeRole) ? (base.ward||null) : (currentProfile?.ward||null);
+  // Ward priority: devModeWard > profile ward
+  const ward = (isSuperAdmin()&&devModeRole)
+    ? (devModeWard || currentProfile?.ward || null)
+    : (currentProfile?.ward||null);
   return {...base, ward};
 }
 function applyMobileModal(overlay, modal){
@@ -1185,7 +1188,33 @@ mqDesktop.addEventListener('change',handleMq);
 
 document.getElementById('topbar-avatar').addEventListener('click',openRoleSwitcher);
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
-document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;state.tab='callings';state.view='list';render();});
+document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;devModeWard=null;state.tab='callings';state.view='list';render();});
+
+function openDevWardPicker(){
+  const root=document.getElementById('modal-root');root.innerHTML='';
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  const modal=document.createElement('div');modal.className='modal';
+  modal.innerHTML='<div class="modal-handle"></div>';
+  const title=document.createElement('div');title.className='modal-title';title.textContent='Pick a Ward to Preview';modal.appendChild(title);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#888;margin-bottom:16px;';
+  sub.textContent='Which ward should this role see?';modal.appendChild(sub);
+
+  // Default to current profile ward
+  const currentWard=devModeWard||currentProfile?.ward||'';
+
+  WARDS_ONLY.forEach(w=>{
+    const card=document.createElement('div');card.className='role-card'+(currentWard===w?' selected':'');
+    card.innerHTML=`<div style="flex:1;font-size:14px;font-weight:600;color:#1c2537;">${w}</div>${currentWard===w?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
+    card.addEventListener('click',()=>{
+      devModeWard=w;
+      closeModal();render();
+    });
+    modal.appendChild(card);
+  });
+
+  applyMobileModal(overlay,modal);
+  overlay.appendChild(modal);root.appendChild(overlay);
+}
 ['callings','agendas','users'].forEach(tab=>{
   const el=document.getElementById('nav-'+tab);
   if(el) el.addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
@@ -1222,7 +1251,11 @@ function updateChrome(){
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   // Dev mode banner for superadmin previewing a role
   const banner=document.getElementById('preview-banner');
-  if(isSuperAdmin()&&devModeRole){banner.classList.remove('hidden');document.getElementById('banner-role-name').textContent=role.label;}
+  if(isSuperAdmin()&&devModeRole){
+    banner.classList.remove('hidden');
+    const wardLabel=devModeWard?` · ${devModeWard}`:'';
+    document.getElementById('banner-role-name').textContent=role.label+wardLabel;
+  }
   else banner.classList.add('hidden');
   applySidebarState();
   forceNavWhite();
@@ -1885,8 +1918,15 @@ function openRoleSwitcher(){
       card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
       card.addEventListener('click',()=>{
         devModeRole=r.id==='admin'?null:r.id;
+        if(r.id==='admin') devModeWard=null;
         state.tab='callings';state.view='list';state.filterLevel='All';
-        closeModal();render();
+        closeModal();
+        // If switching to a ward-scoped role, show ward picker
+        if(devModeRole && (r.scope==='ward'||r.scope==='ward_org')){
+          openDevWardPicker();
+        } else {
+          render();
+        }
       });
       modal.appendChild(card);
     });
