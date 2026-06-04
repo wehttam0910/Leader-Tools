@@ -814,9 +814,12 @@ async function handleSession(session){
     if(session?.user){
       console.log('Session found for:', session.user.email);
       currentUser = session.user;
-      console.log('Loading profile...');
-      currentProfile = await loadOrCreateProfile(currentUser);
-      console.log('Profile loaded:', currentProfile?.role_id);
+      // Skip profile reload if we already have it for the same user
+      if(!currentProfile || currentProfile.id !== session.user.id){
+        console.log('Loading profile...');
+        currentProfile = await loadOrCreateProfile(currentUser);
+        console.log('Profile loaded:', currentProfile?.role_id);
+      }
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
       devModeRole = null;
       console.log('Showing app shell...');
@@ -3636,9 +3639,24 @@ function openEditUserModal(profile,callerRole,onDone){
     delBtn.style.cssText='width:100%;margin-top:8px;background:transparent;border:1px solid #e57373;color:#c62828;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;';
     delBtn.textContent='Remove User';
     delBtn.addEventListener('click',async()=>{
-      if(!confirm(`Remove ${profile.full_name||profile.email}? This will delete their profile (not their login).`))return;
-      await sb.from('profiles').delete().eq('id',profile.id);
-      closeModal();onDone();
+      if(!confirm(`Remove ${profile.full_name||profile.email}? This will permanently delete their account.`))return;
+      delBtn.disabled=true;delBtn.textContent='Removing…';
+      try{
+        // Delete auth user via admin API (requires service role key)
+        const srk=getServiceKey();
+        if(srk){
+          await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${profile.id}`,{
+            method:'DELETE',
+            headers:{'apikey':srk,'Authorization':`Bearer ${srk}`},
+          });
+        }
+        // Also delete profile row
+        await sb.from('profiles').delete().eq('id',profile.id);
+        closeModal();onDone();
+      }catch(e){
+        console.error('Remove user error:',e);
+        delBtn.disabled=false;delBtn.textContent='Remove User';
+      }
     });
     modal.appendChild(delBtn);
   }
