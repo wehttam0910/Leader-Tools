@@ -124,6 +124,10 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .agenda-doc{border:none!important;border-radius:0!important;padding:24px 40px!important;max-width:100%!important;box-shadow:none!important;}
 }
 .user-status-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:#f0f0f0;color:#888;}
+.assigned-group-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;}
+.assign-to-wrap{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.assign-to-select{font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:7px;background:#fff;color:#1c2537;cursor:pointer;min-width:160px;}
+.assign-to-select:focus{outline:none;border-color:#185fa5;}
 .user-status-badge.status-active{background:#d1fae5;color:#065f46;}
 .user-status-badge.status-invited{background:#fef3c7;color:#92400e;}
 .user-status-badge.status-pending{background:#f3f4f6;color:#9ca3af;}
@@ -651,6 +655,94 @@ function getSteps(c){
 }
 function isStakePresidency(r){return r.scope==='stake'&&r.id!=='high_council';}
 function isBishopric(r){return r.scope==='ward';}
+
+// ── Step → Assigned Group ────────────────────────────────────────────────────
+// Returns {group, roleIds} where group is a display label and roleIds is the
+// list of ROLES ids whose profile names populate the "Assign to" dropdown.
+function getStepAssignmentDef(step, callingLevel){
+  const isStakeCalling=callingLevel==='Stake'||callingLevel==='Stake Issued';
+  const STAKE_PRES_IDS=['stake_president','stake_1c','stake_2c'];
+  const HC_IDS=['high_council'];
+  const SP_HC_IDS=['stake_president','stake_1c','stake_2c','high_council']; // SP or HC
+  const BISHOPRIC_IDS=['bishop','ward_1c','ward_2c'];
+  const STAKE_CLERK_IDS=['stake_clerk','stake_asst_clerk'];
+  const WARD_CLERK_IDS=['ward_clerk','ward_asst_clerk'];
+  // Exec secs included in appt-setting dropdowns
+  const STAKE_APPT_IDS=['stake_president','stake_1c','stake_2c','stake_exec_sec'];
+  const WARD_APPT_IDS=['bishop','ward_1c','ward_2c','ward_exec_sec'];
+
+  const map={
+    // ── Approval steps ────────────────────────────────────────────────────────
+    'Stake Presidency Approval': {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
+    'Q12 Approval':              {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
+    'Presidency Approval':       {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
+    "Bishop's Approval":         {group:'Bishopric',         roleIds:BISHOPRIC_IDS},  // same for stake & ward callings
+    'Sustain in HC':             {group:'High Council',      roleIds:HC_IDS},
+
+    // ── Appt-setting steps — exec sec included in dropdown ───────────────────
+    'Set Appt to Extend': isStakeCalling
+      ? {group:'Stake Presidency', roleIds:STAKE_APPT_IDS}
+      : {group:'Bishopric',        roleIds:WARD_APPT_IDS},
+    'Set Appt to Release': isStakeCalling
+      ? {group:'Stake Presidency', roleIds:STAKE_APPT_IDS}
+      : {group:'Bishopric',        roleIds:WARD_APPT_IDS},
+    'Set Appts to Extend & Release Current': isStakeCalling
+      ? {group:'Stake Presidency', roleIds:STAKE_APPT_IDS}
+      : {group:'Bishopric',        roleIds:WARD_APPT_IDS},
+
+    // ── Extend / Release steps — SP or HC for stake callings ─────────────────
+    'Extend Calling': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+    'Extend Release': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+    'Release Current': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+
+    // ── Pulpit steps — SP or HC for stake callings ────────────────────────────
+    'Sustain over Pulpit': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+    'Sustain & Release over Pulpit': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+    'Release over Pulpit': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+
+    // ── Set Apart — SP or HC for stake callings ───────────────────────────────
+    'Set Apart': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+
+    // ── Clerk / Completed ─────────────────────────────────────────────────────
+    'Record in LCR': isStakeCalling
+      ? {group:'Clerk', roleIds:STAKE_CLERK_IDS}
+      : {group:'Clerk', roleIds:WARD_CLERK_IDS},
+    'Completed': {group:'', roleIds:[]},
+  };
+  return map[step]||{group:'',roleIds:[]};
+}
+
+// Get the current step's assignment def for a calling
+function getCurrentAssignment(c){
+  const steps=getSteps(c);
+  const stepName=steps[Math.min(c.currentStep,steps.length-1)]||'Completed';
+  return getStepAssignmentDef(stepName,c.level);
+}
+
+// Get list of profiles matching certain role IDs (optionally filtered to a ward)
+function getAssignableProfiles(roleIds, ward){
+  return (state.profiles||[]).filter(p=>{
+    if(!roleIds.includes(p.role_id)) return false;
+    // Ward-scoped roles: only show that ward's members
+    const rDef=ROLES.find(r=>r.id===p.role_id);
+    if(rDef&&(rDef.scope==='ward'||rDef.scope==='ward_org')&&ward&&p.ward!==ward) return false;
+    return true;
+  });
+}
 function filterCallings(cs,role){
   const isBishopCalling=c=>(c.calling||'').toLowerCase()==='bishop';
   const canSeeBishop=role.scope==='admin'||isStakePresidency(role);
@@ -829,13 +921,15 @@ async function handleSession(session){
       state.loading = true;
       render();
       try{
-        const{callings, agendas} = await dbLoadAll();
+        const{callings, agendas, profiles} = await dbLoadAll();
         state.callings = callings;
         state.agendas = agendas;
+        state.profiles = profiles;
       }catch(e){
         console.error('Failed to load data:', e);
         state.callings = [];
         state.agendas = [];
+        state.profiles = [];
       }
       state.loading = false;
       render();
@@ -1084,13 +1178,16 @@ async function dbLoadAll() {
   const load = Promise.all([
     sb.from('callings').select('*').order('id', { ascending: true }),
     sb.from('agendas').select('*').order('date', { ascending: false }),
+    sb.from('profiles').select('id,full_name,role_id,ward').order('full_name',{ascending:true}),
   ]);
-  const [{ data: callings, error: ce }, { data: agendas, error: ae }] = await Promise.race([load, timeout]);
+  const [{ data: callings, error: ce }, { data: agendas, error: ae }, { data: profiles, error: pe }] = await Promise.race([load, timeout]);
   if (ce) console.error('Error loading callings:', ce);
   if (ae) console.error('Error loading agendas:', ae);
+  if (pe) console.error('Error loading profiles:', pe);
   return {
     callings: (callings || []).map(callingFromDb),
     agendas: (agendas || []).map(agendaFromDb),
+    profiles: profiles || [],
   };
 }
 
@@ -1163,6 +1260,7 @@ let state={
   selectedCallingIds:new Set(),
   callings:[],
   agendas:[],
+  profiles:[],
   loading:true,
 };
 
@@ -2875,7 +2973,12 @@ function renderCallingDetail(el,role){
 
   // ── Info grid ─────────────────────────────────────────────────────────────
   const info=document.createElement('div');info.className='info-grid';
-  info.innerHTML=`<div><div class="info-cell-label">Ward</div><div class="info-cell-value">${c.ward}</div></div><div><div class="info-cell-label">Organization</div><div class="info-cell-value">${c.org}</div></div><div><div class="info-cell-label">Level</div><div class="info-cell-value">${c.level}</div></div><div><div class="info-cell-label">Action</div><div class="info-cell-value">${c.action}</div></div><div><div class="info-cell-label">Status</div><div class="info-cell-value"><span class="badge ${status.cls}">${status.label}</span></div></div><div><div class="info-cell-label">Submitted</div><div class="info-cell-value">${fmt(c.submittedDate)}</div></div>`;
+  const assignDef=getCurrentAssignment(c);
+  const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
+  const assignedGroupHTML=assignDef.group
+    ?`<span class="assigned-group-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${assignDef.group}${assignedToName?' · '+assignedToName:''}</span>`
+    :'<span style="color:#aaa;font-size:12px;">—</span>';
+  info.innerHTML=`<div><div class="info-cell-label">Ward</div><div class="info-cell-value">${c.ward}</div></div><div><div class="info-cell-label">Organization</div><div class="info-cell-value">${c.org}</div></div><div><div class="info-cell-label">Level</div><div class="info-cell-value">${c.level}</div></div><div><div class="info-cell-label">Action</div><div class="info-cell-value">${c.action}</div></div><div><div class="info-cell-label">Status</div><div class="info-cell-value"><span class="badge ${status.cls}">${status.label}</span></div></div><div><div class="info-cell-label">Submitted</div><div class="info-cell-value">${fmt(c.submittedDate)}</div></div><div><div class="info-cell-label">Assigned To</div><div class="info-cell-value">${assignedGroupHTML}</div></div>`;
   el.appendChild(info);
 
   // Member extra info
@@ -2909,6 +3012,40 @@ function renderCallingDetail(el,role){
   const sl=document.createElement('div');sl.className='step-list';
 
   const allPrevDone=c.currentStep>=steps.length-1||c.stepDates[steps.length-1]!=null;
+
+  // Steps that get an individual "Assign to" person dropdown
+  const ASSIGN_DROPDOWN_STEPS=new Set([
+    'Set Appt to Extend','Set Appt to Release','Set Appts to Extend & Release Current',
+    'Extend Calling','Extend Release','Release Current','Set Apart',
+  ]);
+
+  // Build the assign-to dropdown for a given step index
+  function buildAssignDropdown(stepName, stepIdx){
+    const def=getStepAssignmentDef(stepName,c.level);
+    if(!def.group||!def.roleIds.length) return null;
+    const profiles=getAssignableProfiles(def.roleIds, c.ward);
+    if(!profiles.length) return null;
+
+    const wrap=document.createElement('div');wrap.className='assign-to-wrap';
+    const lbl=document.createElement('span');lbl.style.cssText='font-size:11px;color:#666;white-space:nowrap;';lbl.textContent='Assign to:';
+    wrap.appendChild(lbl);
+
+    const sel=document.createElement('select');sel.className='assign-to-select';
+    const blankOpt=document.createElement('option');blankOpt.value='';blankOpt.textContent='— '+def.group+' —';
+    sel.appendChild(blankOpt);
+    profiles.forEach(p=>{
+      const opt=document.createElement('option');opt.value=p.full_name||p.email;opt.textContent=p.full_name||p.email;
+      if((c.stepMeta[stepIdx]?.assignedTo||'')===(p.full_name||p.email)) opt.selected=true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change',()=>{
+      if(!c.stepMeta[stepIdx])c.stepMeta[stepIdx]={};
+      c.stepMeta[stepIdx].assignedTo=sel.value||null;
+      render();dbSaveCalling(c);
+    });
+    wrap.appendChild(sel);
+    return wrap;
+  }
 
   steps.forEach((step,i)=>{
     if(step==='Completed'){
@@ -3014,6 +3151,24 @@ function renderCallingDetail(el,role){
     const body=document.createElement('div');body.className='step-body';
     const nameEl=document.createElement('div');nameEl.className='step-name';nameEl.textContent=step;
     body.appendChild(nameEl);
+
+    // ── Assign-to dropdown (active steps) or read-only label (completed steps) ──
+    if(ASSIGN_DROPDOWN_STEPS.has(step)&&canEdit){
+      if(prevChecked&&!isChecked&&!isAfterDeclined){
+        // Active step — show editable dropdown
+        const dd=buildAssignDropdown(step,i);
+        if(dd) body.appendChild(dd);
+      } else if(isChecked){
+        // Completed step — show who was assigned, if set
+        const assignedName=c.stepMeta[i]?.assignedTo||'';
+        if(assignedName){
+          const chip=document.createElement('div');
+          chip.style.cssText='font-size:11px;color:#3730a3;background:#eef2ff;border:1px solid #c7d2fe;border-radius:20px;padding:2px 8px;display:inline-block;margin-top:3px;';
+          chip.textContent='↳ '+assignedName;
+          body.appendChild(chip);
+        }
+      }
+    }
 
     // For dual step that is upcoming: show compact date pre-entry fields (optional, auto-filled on check)
     // ── SET APPT TO EXTEND (single) — date input ─────────────────────────────
