@@ -135,6 +135,14 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .handbook-tips[open] summary::after{transform:rotate(270deg);}
 .handbook-tips summary .tips-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;}
 .handbook-tips .tips-body{padding:0 14px 12px;}
+.step-section{border:1px solid rgba(0,0,0,0.1);border-radius:10px;margin-top:12px;overflow:hidden;}
+.step-section-header{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;font-weight:700;}
+.step-section-header svg{flex-shrink:0;}
+.step-section-body{padding:10px 14px 14px;border-top:1px solid rgba(0,0,0,0.07);}
+.step-section.release .step-section-header{background:#fef9ed;color:#92400e;}
+.step-section.release{border-color:#f5c842;}
+.step-section.calling .step-section-header{background:#f0faf4;color:#065f46;}
+.step-section.calling{border-color:#6ee7b7;}
 .user-status-badge.status-active{background:#d1fae5;color:#065f46;}
 .user-status-badge.status-invited{background:#fef3c7;color:#92400e;}
 .user-status-badge.status-pending{background:#f3f4f6;color:#9ca3af;}
@@ -3355,45 +3363,72 @@ function renderCallingDetail(el,role){
     if((step==='Release Current/Call to New'||step==='Extend Calling')&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const response=c.stepMeta[i].response;
-      const isCR=step==='Release Current/Call to New'; // Calling & Release flow
+      const isCR=step==='Release Current/Call to New';
 
-      // ── 1. Release badge + release tips (C&R only, when member has prior calling) ──
+      // ── SECTION 1: Release (C&R only, when member has a prior calling to leave) ──
       if(isCR&&c.memberNeedsRelease&&(c.memberCurrentCalling||(c.memberCallings&&c.memberCallings.length))){
         const releaseNames=(c.memberCallings&&c.memberCallings.filter(Boolean).length)
           ? c.memberCallings.filter(Boolean)
           : [c.memberCurrentCalling];
 
+        const relSection=document.createElement('div');
+        relSection.className='step-section release';
+
+        const relHeader=document.createElement('div');
+        relHeader.className='step-section-header';
+        relHeader.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Release`;
+        relSection.appendChild(relHeader);
+
+        const relBody=document.createElement('div');
+        relBody.className='step-section-body';
+
         releaseNames.forEach(callingName=>{
-          const relBadge=document.createElement('div');
-          relBadge.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:8px;display:inline-flex;align-items:center;gap:5px;';
-          relBadge.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Release <strong>${c.name}</strong> from ${callingName}</span>`;
-          body.appendChild(relBadge);
+          const pill=document.createElement('div');
+          pill.style.cssText='font-size:12px;color:#92400e;margin-bottom:8px;';
+          pill.innerHTML=`Releasing <strong>${c.name}</strong> from <strong>${callingName}</strong>`;
+          relBody.appendChild(pill);
         });
 
+        // Release tips inside the release section
         const relTips=document.createElement('details');relTips.className='handbook-tips';
+        relTips.style.marginTop='4px';
         relTips.innerHTML=`
           <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.6 Extending a Release</span></summary>
-        <div class="tips-body">
+          <div class="tips-body">
           <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
             <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
             <li>Express sincere <strong>gratitude</strong> for their service.</li>
             <li>Acknowledge <strong>God's hand</strong> in their service — this is a spiritual moment, not just administrative.</li>
             <li>Inform <strong>only those who need to know</strong> prior to the public announcement.</li>
-            <li>The release is announced in the same setting where the member was sustained (typically sacrament meeting).</li>
-            <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
+            <li>The release is announced in the same setting where the member was sustained.</li>
+            <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks may show it by the uplifted hand."</em></li>
           </ul>
           <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
-        </div>`;
-        body.appendChild(relTips);
+          </div>`;
+        relBody.appendChild(relTips);
+        relSection.appendChild(relBody);
+        body.appendChild(relSection);
       }
 
-      // ── 2. Appointment date (editable) ───────────────────────────────────────
+      // ── SECTION 2: New Calling ─────────────────────────────────────────────
+      const callSection=document.createElement('div');
+      callSection.className='step-section calling';
+
+      const callHeader=document.createElement('div');
+      callHeader.className='step-section-header';
+      callHeader.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#065f46" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>New Calling — <span style="font-weight:400;margin-left:2px;">${c.calling}${c.org?' · '+c.org:''}</span>`;
+      callSection.appendChild(callHeader);
+
+      const callBody=document.createElement('div');
+      callBody.className='step-section-body';
+
+      // Appointment date (editable)
       const apptStepIdx=steps.indexOf('Set Appt to Extend');
       if(apptStepIdx>=0){
         const apptDate=c.stepMeta[apptStepIdx]?.apptDate||c.stepDates[apptStepIdx]||'';
         const calIcon=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`;
         const apptRow=document.createElement('div');
-        apptRow.style.cssText='display:flex;align-items:center;gap:7px;margin-top:10px;margin-bottom:2px;font-size:12px;color:#555;';
+        apptRow.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:10px;font-size:12px;color:#555;';
         const labelSpan=document.createElement('span');
         labelSpan.style.cssText='display:inline-flex;align-items:center;gap:4px;';
         labelSpan.innerHTML=calIcon+`<span>Appointment: <strong>${apptDate?fmt(apptDate):'Not set'}</strong></span>`;
@@ -3413,17 +3448,11 @@ function renderCallingDetail(el,role){
           inp.addEventListener('blur',saveAppt);inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
         });
         apptRow.appendChild(pencil);
-        body.appendChild(apptRow);
+        callBody.appendChild(apptRow);
       }
 
-      // ── 3. New calling yellow badge ───────────────────────────────────────────
-      const newCallingBadge=document.createElement('div');
-      newCallingBadge.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:8px;display:inline-flex;align-items:center;gap:5px;';
-      newCallingBadge.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg><span>Calling: <strong>${c.calling}</strong>${c.org?' — '+c.org:''}</span>`;
-      body.appendChild(newCallingBadge);
-
-      // ── 4. Accepted / Declined buttons ────────────────────────────────────────
-      const toggleRow=document.createElement('div');toggleRow.style.cssText='display:flex;gap:8px;margin-top:8px;';
+      // Accepted / Declined buttons
+      const toggleRow=document.createElement('div');toggleRow.style.cssText='display:flex;gap:8px;margin-bottom:10px;';
       ['Accepted','Declined'].forEach(opt=>{
         const btn=document.createElement('button');
         const isSel=response===opt;
@@ -3453,9 +3482,9 @@ function renderCallingDetail(el,role){
         });
         toggleRow.appendChild(btn);
       });
-      body.appendChild(toggleRow);
+      callBody.appendChild(toggleRow);
 
-      // ── 5. Handbook tips for extending a calling ──────────────────────────────
+      // Calling tips inside the calling section
       const extendTips=document.createElement('details');extendTips.className='handbook-tips';
       extendTips.innerHTML=`
         <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.2 Extending a Calling</span></summary><div class="tips-body">
@@ -3469,7 +3498,9 @@ function renderCallingDetail(el,role){
         </ul>
         <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>
         </div>`;
-      body.appendChild(extendTips);
+      callBody.appendChild(extendTips);
+      callSection.appendChild(callBody);
+      body.appendChild(callSection);
     }
 
     // Old memberNeedsRelease note — no longer shown (merged into Release Current/Call to New block above)
