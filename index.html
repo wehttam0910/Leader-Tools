@@ -269,21 +269,25 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 /* Every direct child and descendant respects box-sizing */
 .modal *{box-sizing:border-box;}
 
-/* Mobile: full-screen, anchored to bottom of overlay */
+/* Mobile: full-screen fixed modal, no flex layout needed */
 @media(max-width:599px){
   .modal-overlay{
-    align-items:flex-end;
-    background:rgba(0,0,0,0); /* modal fills screen so scrim is invisible */
+    background:rgba(0,0,0,0);
+    pointer-events:all;
   }
   .modal{
-    /* Fill entire screen — handle bar at top lets user know it's dismissible */
-    height:100dvh;
-    height:100vh;
-    height:-webkit-fill-available;
-    max-height:none;
-    border-radius:0;
-    padding-top:16px;
-    padding-bottom:max(24px, env(safe-area-inset-bottom, 24px));
+    position:fixed !important;
+    inset:0 !important;
+    width:100% !important;
+    max-width:100% !important;
+    height:100% !important;
+    max-height:none !important;
+    border-radius:0 !important;
+    padding:16px 16px max(24px, env(safe-area-inset-bottom, 24px)) 16px !important;
+    overflow-x:hidden !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling:touch;
+    box-sizing:border-box !important;
   }
 }
 
@@ -3681,6 +3685,51 @@ function renderCallings(el,role){
     }
   }
 
+  // ── Mobile cards ────────────────────────────────────────────────────────────
+  const mobileCards=document.createElement('div');mobileCards.className='mobile-cards';
+  list.forEach(c=>{
+    const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level);
+    const pct=Math.round((c.currentStep/(steps.length-1))*100);
+    const nextStep=c.currentStep<steps.length?steps[c.currentStep]:'—';
+    const assignGroup=getCurrentAssignment(c).group;
+    const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
+    const steps_=getSteps(c);
+    const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
+    const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
+    const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
+      ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
+
+    const card=document.createElement('div');
+    card.style.cssText='background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07);cursor:pointer;';
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:#1c2537;">${c.calling}${holderBadge}</div>
+          <div style="font-size:13px;color:#555;margin-top:1px;">${c.name}</div>
+        </div>
+        <span class="badge ${status.cls}" style="flex-shrink:0;margin-top:2px;">${status.label}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;">
+        <span class="badge ${lvl.cls}" style="font-size:10px;">${lvl.label}</span>
+        <span style="font-size:11px;color:#888;">${c.action}</span>
+        ${assignGroup?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`:''}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#aaa;margin-bottom:3px;">Next: <strong style="color:#1c2537;">${nextStep}</strong></div>
+          <div style="height:4px;background:rgba(0,0,0,0.07);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:#1c2537;border-radius:2px;"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#aaa;flex-shrink:0;">${c.currentStep}/${steps.length-1}</div>
+      </div>`;
+    card.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
+    mobileCards.appendChild(card);
+  });
+  el.appendChild(mobileCards);
+
+  // ── Desktop table ────────────────────────────────────────────────────────────
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
   const table=document.createElement('table');table.className='callings-table';
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
@@ -3705,7 +3754,6 @@ function renderCallings(el,role){
   list.forEach(c=>{
     const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level),pct=Math.round((c.currentStep/(steps.length-1))*100);
     const tr=document.createElement('tr');
-    // Badge disappears once Extend Release / Release Current step is checked
     const steps_=getSteps(c);
     const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
     const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
@@ -3734,7 +3782,8 @@ function renderCallings(el,role){
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  el.appendChild(table);
+  tableWrap.appendChild(table);
+  el.appendChild(tableWrap);
 }
 
 
