@@ -430,6 +430,10 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         <span class="nav-label">Users</span>
       </button>
+      <button class="nav-item" id="nav-profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span class="nav-label">My Profile</span>
+      </button>
 
     </div>
     <div class="sidebar-footer">
@@ -812,27 +816,20 @@ async function handleSession(session){
 
   try{
     if(session?.user){
-      console.log('Session found for:', session.user.email);
       currentUser = session.user;
       // Skip profile reload if we already have it for the same user
       if(!currentProfile || currentProfile.id !== session.user.id){
-        console.log('Loading profile...');
         currentProfile = await loadOrCreateProfile(currentUser);
-        console.log('Profile loaded:', currentProfile?.role_id);
       }
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
       devModeRole = null;
-      console.log('Showing app shell...');
       showAppShell();
-      console.log('App shell shown, rendering...');
       state.loading = true;
       render();
-      console.log('Loading data from Supabase...');
       try{
         const{callings, agendas} = await dbLoadAll();
         state.callings = callings;
         state.agendas = agendas;
-        console.log('Data loaded:', callings.length, 'callings,', agendas.length, 'agendas');
       }catch(e){
         console.error('Failed to load data:', e);
         state.callings = [];
@@ -840,9 +837,7 @@ async function handleSession(session){
       }
       state.loading = false;
       render();
-      console.log('Boot complete.');
     } else {
-      console.log('No session — showing auth screen');
       currentUser = null;
       currentProfile = null;
       devModeRole = null;
@@ -895,7 +890,6 @@ setTimeout(()=>{
   const initEl=document.getElementById('init-screen');
   if(initEl) initEl.style.display='none';
   if(appEl?.style.display==='none' && authEl?.style.display==='none'){
-    console.warn('Fallback triggered — showing auth screen');
     showAuthScreen();
   }
 },15000);
@@ -1141,16 +1135,6 @@ async function dbDeleteAgenda(id) {
 }
 
 // ── Persistence via localStorage (sidebar/role prefs only) ───────────────
-const DEFAULT_CALLINGS=[
-    {id:1,name:'James Thornton',calling:'Bishop',org:'Bishopric',ward:'Meadows Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-01',currentStep:2,stepDates:['2025-05-02','2025-05-08'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:2,name:'Sarah Mitchell',calling:'Relief Society President',org:'Ward Relief Society',ward:'Parks Ward',level:'Ward',action:'Calling & Release',submittedDate:'2025-05-05',currentStep:2,stepDates:['2025-05-06','2025-05-09'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:3,name:'David Okafor',calling:'Stake High Councilor',org:'Stake High Council',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-04-20',currentStep:8,stepDates:['2025-04-21','2025-04-22','2025-04-25','2025-04-28','2025-05-01','2025-05-04','2025-05-08','2025-05-10'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:4,name:'Emily Nguyen',calling:'Young Women President',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-12',currentStep:1,stepDates:['2025-05-13'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:5,name:'Carlos Rivera',calling:'Primary President',org:'Ward Primary',ward:'Pecan Grove Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-15',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:6,name:'Linda Sorensen',calling:'Elders Quorum President',org:"Elder's Quorum",ward:'Parks Ward',level:'Stake Issued',action:'Calling Only',submittedDate:'2025-05-18',currentStep:1,stepDates:['2025-05-19'],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:7,name:'Marcus Webb',calling:'Stake Relief Society President',org:'Stake Relief Society',ward:'Stake',level:'Stake',action:'Calling Only',submittedDate:'2025-05-20',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:false,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-    {id:8,name:'Priya Kapoor',calling:'Youth Retreat Coordinator',org:'Ward Young Women',ward:'Meadows Ward',level:'Ward',action:'Calling Only',submittedDate:'2025-05-22',currentStep:0,stepDates:[],stepMeta:{},notes:'',custom:true,memberCurrentCalling:'',memberCallings:[],memberNeedsRelease:false,spouseName:'',spouseCalling:'',releaseName:'',currentlyFilled:false},
-];
 
 function loadPrefs(){
   try{const p=localStorage.getItem('leadertools_prefs');if(p)return JSON.parse(p);}catch(e){}
@@ -1266,7 +1250,7 @@ function openDevWardPicker(){
   applyMobileModal(overlay,modal);
   overlay.appendChild(modal);root.appendChild(overlay);
 }
-['callings','agendas','users'].forEach(tab=>{
+['callings','agendas','users','profile'].forEach(tab=>{
   const el=document.getElementById('nav-'+tab);
   if(el) el.addEventListener('click',()=>{state.tab=tab;state.view='list';state.detailId=null;closeSidebar();render();});
 });
@@ -1287,7 +1271,7 @@ function forceNavWhite(){
 
 function updateChrome(){
   const role=getRole();
-  ['callings','agendas','users'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
+  ['callings','agendas','users','profile'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
   // Show Users nav only for admin/stake/bishop roles
   const canManageUsers=role.scope==='admin'||role.scope==='stake'||role.scope==='ward';
   const usersNav=document.getElementById('nav-users');
@@ -1298,7 +1282,7 @@ function updateChrome(){
   const init=displayName.charAt(0).toUpperCase();
   ['sidebar-avatar','topbar-avatar'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=init;el.style.background=role.color;}});
   document.getElementById('sidebar-role-name').textContent=isSuperAdmin()&&devModeRole?role.label:(currentProfile?.full_name||role.label);
-  const titles={callings:'Callings',agendas:'Agendas',users:'User Management'};
+  const titles={callings:'Callings',agendas:'Agendas',users:'User Management',profile:'My Profile'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   // Dev mode banner for superadmin previewing a role
   const banner=document.getElementById('preview-banner');
@@ -3402,6 +3386,7 @@ function render(){
   if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
   else if(state.tab==='agendas'){if(state.view==='detail')renderAgendaDetail(el,role);else if(state.view==='new'){const editingA=state.detailId&&window._agendaDraft?state.agendas.find(a=>a.id===state.detailId):null;renderAgendaWizard(el,role,editingA);}else renderAgendas(el,role);}
   else if(state.tab==='users'){renderUsers(el,role);}
+  else if(state.tab==='profile'){renderMyProfile(el);}
 }
 
 // ── Service role key (stored locally, never in code) ─────────────────────
@@ -3455,6 +3440,119 @@ async function adminInviteUser(email, fullName){
   const data=await res.json();
   if(!res.ok) throw new Error(data.message||data.msg||'Failed to invite user');
   return data;
+}
+
+// ── My Profile ───────────────────────────────────────────────────────────────
+async function renderMyProfile(el){
+  el.innerHTML=`<div class="page-title">My Profile</div><div class="page-sub">Update your name or password</div>`;
+
+  const card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.07);padding:24px;max-width:480px;margin-top:16px;';
+
+  // Status message element
+  const statusEl=document.createElement('div');
+  statusEl.className='auth-error';
+  statusEl.style.cssText='margin-bottom:16px;border-radius:8px;font-size:13px;padding:10px 14px;display:none;';
+  card.appendChild(statusEl);
+
+  function showStatus(msg,isError=false){
+    statusEl.textContent=msg;
+    statusEl.style.display='block';
+    statusEl.style.background=isError?'#ffeaea':'#eaffea';
+    statusEl.style.color=isError?'#c62828':'#1a6b35';
+    statusEl.style.border=isError?'1px solid #fca5a5':'1px solid #86efac';
+  }
+
+  // ── Section: Name ─────────────────────────────────────────────────────────
+  const nameSection=document.createElement('div');
+  nameSection.style.cssText='margin-bottom:24px;';
+  nameSection.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:14px;">Display Name</div>`;
+
+  const nameFg=document.createElement('div');nameFg.className='agenda-field';
+  nameFg.innerHTML=`<label>Full Name</label>`;
+  const nameInp=document.createElement('input');
+  nameInp.type='text';
+  nameInp.value=currentProfile?.full_name||'';
+  nameInp.placeholder='Your full name';
+  nameFg.appendChild(nameInp);
+  nameSection.appendChild(nameFg);
+
+  const emailRow=document.createElement('div');
+  emailRow.style.cssText='font-size:12px;color:#aaa;margin-bottom:14px;margin-top:-4px;';
+  emailRow.textContent='Account email: '+(currentUser?.email||'');
+  nameSection.appendChild(emailRow);
+
+  const saveNameBtn=document.createElement('button');
+  saveNameBtn.className='btn-primary';
+  saveNameBtn.style.cssText='padding:10px 22px;font-size:13px;border-radius:9px;';
+  saveNameBtn.textContent='Save Name';
+  saveNameBtn.addEventListener('click',async()=>{
+    const newName=nameInp.value.trim();
+    if(!newName){showStatus('Name cannot be empty.',true);return;}
+    saveNameBtn.disabled=true;saveNameBtn.textContent='Saving…';
+    try{
+      const{error}=await sb.from('profiles').update({full_name:newName}).eq('id',currentUser.id);
+      if(error) throw error;
+      currentProfile={...currentProfile,full_name:newName};
+      // Refresh sidebar display name
+      const nameEl=document.getElementById('sidebar-role-name');
+      if(nameEl) nameEl.textContent=newName;
+      showStatus('Name updated successfully.');
+    }catch(e){
+      showStatus('Error: '+e.message,true);
+    }finally{
+      saveNameBtn.disabled=false;saveNameBtn.textContent='Save Name';
+    }
+  });
+  nameSection.appendChild(saveNameBtn);
+  card.appendChild(nameSection);
+
+  // Divider
+  const div=document.createElement('div');
+  div.style.cssText='border-top:1px solid rgba(0,0,0,0.08);margin-bottom:24px;';
+  card.appendChild(div);
+
+  // ── Section: Change Password ───────────────────────────────────────────────
+  const pwSection=document.createElement('div');
+  pwSection.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:14px;">Change Password</div>`;
+
+  function mkPwField(labelText,placeholder,id){
+    const fg=document.createElement('div');fg.className='agenda-field';
+    fg.innerHTML=`<label>${labelText}</label>`;
+    const inp=document.createElement('input');
+    inp.type='password';inp.placeholder=placeholder;inp.id='profile-'+id;
+    fg.appendChild(inp);
+    return fg;
+  }
+  pwSection.appendChild(mkPwField('New Password','Min. 8 characters','pw1'));
+  pwSection.appendChild(mkPwField('Confirm New Password','Repeat password','pw2'));
+
+  const savePwBtn=document.createElement('button');
+  savePwBtn.className='btn-primary';
+  savePwBtn.style.cssText='padding:10px 22px;font-size:13px;border-radius:9px;';
+  savePwBtn.textContent='Update Password';
+  savePwBtn.addEventListener('click',async()=>{
+    const pw1=document.getElementById('profile-pw1').value;
+    const pw2=document.getElementById('profile-pw2').value;
+    if(pw1.length<8){showStatus('Password must be at least 8 characters.',true);return;}
+    if(pw1!==pw2){showStatus('Passwords do not match.',true);return;}
+    savePwBtn.disabled=true;savePwBtn.textContent='Updating…';
+    try{
+      const{error}=await sb.auth.updateUser({password:pw1});
+      if(error) throw error;
+      document.getElementById('profile-pw1').value='';
+      document.getElementById('profile-pw2').value='';
+      showStatus('Password updated successfully.');
+    }catch(e){
+      showStatus('Error: '+e.message,true);
+    }finally{
+      savePwBtn.disabled=false;savePwBtn.textContent='Update Password';
+    }
+  });
+  pwSection.appendChild(savePwBtn);
+  card.appendChild(pwSection);
+
+  el.appendChild(card);
 }
 
 // ── User Management ───────────────────────────────────────────────────────────
