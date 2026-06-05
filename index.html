@@ -626,10 +626,10 @@ const WORKFLOWS={
   ],
   'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
   'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Extend Calling','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Stake-Release Only':['Presidency Approval','Set Appt to Release','Release Current','Release over Pulpit','Record in LCR','Completed'],
+  'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
   'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
   'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Extend Calling','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Release Current','Release over Pulpit','Record in LCR','Completed'],
+  'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
 };
 const DUAL_STEP='Set Appts to Extend & Release Current';
 
@@ -2726,7 +2726,7 @@ function renderAgendaDetail(el,role){
           const linkedC=state.callings.find(c=>c.id===r._callingId);
           if(linkedC){
             const steps=getSteps(linkedC);
-            const relIdx=Math.max(steps.indexOf('Release Current'),steps.indexOf('Release over Pulpit'));
+            const relIdx=Math.max(steps.indexOf('Extend Release'),steps.indexOf('Release Current'),steps.indexOf('Release over Pulpit'));
             const alreadyDone=relIdx>=0&&linkedC.currentStep>relIdx;
             const cb=document.createElement('input');cb.type='checkbox';cb.checked=alreadyDone;
             cb.title='Mark Release as complete in Callings';
@@ -2988,7 +2988,7 @@ function renderCallingDetail(el,role){
       // Steps a High Councilor can complete when assigned
       const hcSteps=["Set Appt to Extend","Extend Calling","Sustain over Pulpit","Set Apart",
                      "Set Appts to Extend & Release Current","Sustain & Release over Pulpit",
-                     "Set Appt to Release","Release Current","Release over Pulpit"];
+                     "Set Appt to Release","Extend Release","Release Current","Release over Pulpit"];
       if(step==="Bishop's Approval"||step==="Stake Presidency Approval"){
         canCheckStep=isStake||isWardBishopric;
       } else if(step==='Q12 Approval'){
@@ -3109,12 +3109,44 @@ function renderCallingDetail(el,role){
       body.appendChild(note);
     }
 
-    // Note on Release Current step showing who is being released
+    // Note on Release Current step (Calling & Release workflows) showing who is being released
     if(step==='Release Current'&&c.currentlyFilled&&c.releaseName){
       const note=document.createElement('div');
       note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border-radius:6px;padding:4px 8px;margin-top:4px;display:inline-block;';
       note.textContent=`${c.releaseName} as ${c.calling}`;
       body.appendChild(note);
+    }
+
+    // ── EXTEND RELEASE step (Release Only workflows) ─────────────────────────
+    if(step==='Extend Release'){
+      // Amber badge showing who is being released — always visible
+      const releasedName=c.releaseName||c.name;
+      const badge=document.createElement('div');
+      badge.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:6px;display:inline-flex;align-items:center;gap:5px;';
+      badge.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><strong>${releasedName}</strong> — releasing from ${c.calling}</span>`;
+      body.appendChild(badge);
+
+      // Helpful tips — shown once previous step is complete (i.e. this step is now active)
+      if(prevChecked&&!isChecked){
+        const tips=document.createElement('div');
+        tips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+        tips.innerHTML=`
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
+          </div>
+          <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
+            <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
+            <li>Express sincere <strong>gratitude</strong> for their service.</li>
+            <li>Acknowledge <strong>God's hand</strong> in their service — this is a spiritual moment, not just administrative.</li>
+            <li>Inform <strong>only those who need to know</strong> prior to the public announcement.</li>
+            <li>The release is announced in the same setting where the member was sustained (typically sacrament meeting).</li>
+            <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
+          </ul>
+          <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
+        `;
+        body.appendChild(tips);
+      }
     }
 
     // Date info under completed step — with pencil to edit
@@ -3305,9 +3337,9 @@ function renderCallings(el,role){
   list.forEach(c=>{
     const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level),pct=Math.round((c.currentStep/(steps.length-1))*100);
     const tr=document.createElement('tr');
-    // Badge disappears once Release Current step is checked
+    // Badge disappears once Extend Release / Release Current step is checked
     const steps_=getSteps(c);
-    const releaseStepIdx=steps_.indexOf('Release Current');
+    const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
     const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
       ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
