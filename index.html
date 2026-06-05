@@ -128,7 +128,13 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .assign-to-wrap{display:flex;align-items:center;gap:6px;margin-top:6px;}
 .assign-to-select{font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:7px;background:#fff;color:#1c2537;cursor:pointer;min-width:160px;max-width:280px;width:auto;}
 .assign-to-select:focus{outline:none;border-color:#185fa5;}
-.handbook-tips{margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;max-width:560px;}
+.handbook-tips{margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;max-width:560px;overflow:hidden;}
+.handbook-tips summary{display:flex;align-items:center;gap:7px;padding:9px 14px;cursor:pointer;list-style:none;user-select:none;}
+.handbook-tips summary::-webkit-details-marker{display:none;}
+.handbook-tips summary::after{content:'›';font-size:16px;color:#5a7fa8;margin-left:auto;transform:rotate(90deg);transition:transform 0.18s;}
+.handbook-tips[open] summary::after{transform:rotate(270deg);}
+.handbook-tips summary .tips-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;}
+.handbook-tips .tips-body{padding:0 14px 12px;}
 .user-status-badge.status-active{background:#d1fae5;color:#065f46;}
 .user-status-badge.status-invited{background:#fef3c7;color:#92400e;}
 .user-status-badge.status-pending{background:#f3f4f6;color:#9ca3af;}
@@ -3364,12 +3370,10 @@ function renderCallingDetail(el,role){
           body.appendChild(relBadge);
         });
 
-        const relTips=document.createElement('div');relTips.className='handbook-tips';
+        const relTips=document.createElement('details');relTips.className='handbook-tips';
         relTips.innerHTML=`
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
-          </div>
+          <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.6 Extending a Release</span></summary>
+        <div class="tips-body">
           <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
             <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
             <li>Express sincere <strong>gratitude</strong> for their service.</li>
@@ -3378,7 +3382,8 @@ function renderCallingDetail(el,role){
             <li>The release is announced in the same setting where the member was sustained (typically sacrament meeting).</li>
             <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
           </ul>
-          <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>`;
+          <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
+        </div>`;
         body.appendChild(relTips);
       }
 
@@ -3451,12 +3456,9 @@ function renderCallingDetail(el,role){
       body.appendChild(toggleRow);
 
       // ── 5. Handbook tips for extending a calling ──────────────────────────────
-      const extendTips=document.createElement('div');extendTips.className='handbook-tips';
+      const extendTips=document.createElement('details');extendTips.className='handbook-tips';
       extendTips.innerHTML=`
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.2 Extending a Calling</span>
-        </div>
+        <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.2 Extending a Calling</span></summary><div class="tips-body">
         <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
           <li>Explain that the calling has come <strong>from the Lord</strong>.</li>
           <li>Describe the <strong>purpose, importance, and responsibilities</strong> of the calling.</li>
@@ -3465,7 +3467,8 @@ function renderCallingDetail(el,role){
           <li>Tell them who will provide <strong>training and support</strong>, and what meetings to attend.</li>
           <li>If married, the <strong>spouse should be present</strong> or at least aware and supportive.</li>
         </ul>
-        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>`;
+        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>
+        </div>`;
       body.appendChild(extendTips);
     }
 
@@ -3479,13 +3482,10 @@ function renderCallingDetail(el,role){
       body.appendChild(note);
     }
     if(step==='Release Current'&&prevChecked&&!isChecked){
-      const relTips=document.createElement('div');
+      const relTips=document.createElement('details');
       relTips.className='handbook-tips';
       relTips.innerHTML=`
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
-        </div>
+        <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.6 Extending a Release</span></summary><div class="tips-body">
         <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
           <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
           <li>Express sincere <strong>gratitude</strong> for their service.</li>
@@ -3495,7 +3495,7 @@ function renderCallingDetail(el,role){
           <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
         </ul>
         <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
-      `;
+        </div>`;
       body.appendChild(relTips);
     }
 
@@ -3510,13 +3510,11 @@ function renderCallingDetail(el,role){
 
       // Helpful tips — shown once previous step is complete (i.e. this step is now active)
       if(prevChecked&&!isChecked){
-        const tips=document.createElement('div');
+        const tips=document.createElement('details');
         tips.className='handbook-tips';
         tips.innerHTML=`
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
-          </div>
+          <summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="tips-label">Handbook Tips — §30.6 Extending a Release</span></summary>
+        <div class="tips-body">
           <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
             <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
             <li>Express sincere <strong>gratitude</strong> for their service.</li>
@@ -3526,7 +3524,7 @@ function renderCallingDetail(el,role){
             <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
           </ul>
           <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
-        `;
+        </div>`;
         body.appendChild(tips);
       }
     }
