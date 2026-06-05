@@ -250,8 +250,6 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   display:flex;align-items:flex-end;justify-content:center;
   z-index:900;
   pointer-events:all;
-  /* Prevent body scroll bleed on iOS */
-  -webkit-overflow-scrolling:touch;
 }
 @media(min-width:600px){
   .modal-overlay{align-items:center;}
@@ -262,30 +260,37 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   position:relative;
   background:#fff;
   width:100%;
-  /* Bottom-sheet on mobile: up to 92% of dynamic viewport height */
-  max-height:92dvh;
-  max-height:92vh; /* fallback */
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   padding:20px 18px 32px;
-  border-radius:16px 16px 0 0;
-  /* Respect home-bar / notch on iOS */
-  padding-bottom:max(32px, env(safe-area-inset-bottom, 32px));
   box-sizing:border-box;
 }
+
+/* Mobile: full-screen, anchored to bottom of overlay */
+@media(max-width:599px){
+  .modal-overlay{
+    align-items:flex-end;
+    background:rgba(0,0,0,0); /* modal fills screen so scrim is invisible */
+  }
+  .modal{
+    /* Fill entire screen — handle bar at top lets user know it's dismissible */
+    height:100dvh;
+    height:100vh;
+    height:-webkit-fill-available;
+    max-height:none;
+    border-radius:0;
+    padding-top:16px;
+    padding-bottom:max(24px, env(safe-area-inset-bottom, 24px));
+  }
+}
+
+/* Desktop: centered card */
 @media(min-width:600px){
   .modal{
     border-radius:16px;
     max-width:500px;
     max-height:90dvh;
     max-height:90vh;
-  }
-}
-/* On very small screens, let the sheet go nearly full screen */
-@media(max-width:599px){
-  .modal{
-    max-height:96dvh;
-    max-height:96vh;
   }
 }
 @media(max-width:599px){
