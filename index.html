@@ -689,10 +689,10 @@ const WORKFLOWS={
     'Completed'
   ],
   'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Extend Calling','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
   'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
   'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Extend Calling','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
   'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
 };
 const DUAL_STEP='Set Appts to Extend & Release Current';
@@ -752,6 +752,9 @@ function getStepAssignmentDef(step, callingLevel){
 
     // ── Extend / Release steps — SP or HC for stake callings ─────────────────
     'Extend Calling': isStakeCalling
+      ? {group:'SP / High Council', roleIds:SP_HC_IDS}
+      : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
+    'Release Current/Call to New': isStakeCalling
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
     'Extend Release': isStakeCalling
@@ -3132,7 +3135,7 @@ function renderCallingDetail(el,role){
   // Steps that get an individual "Assign to" person dropdown
   const ASSIGN_DROPDOWN_STEPS=new Set([
     'Set Appt to Extend','Set Appt to Release','Set Appts to Extend & Release Current',
-    'Extend Calling','Extend Release','Release Current','Set Apart',
+    'Extend Calling','Release Current/Call to New','Extend Release','Release Current','Set Apart',
   ]);
 
   // Build the assign-to dropdown for a given step index
@@ -3239,7 +3242,7 @@ function renderCallingDetail(el,role){
       const isWardBishopric=role.scope==='ward'&&role.org==='Bishopric';
       const isHighCouncilor=role.id==='high_council';
       // Steps a High Councilor can complete when assigned
-      const hcSteps=["Set Appt to Extend","Extend Calling","Sustain over Pulpit","Set Apart",
+      const hcSteps=["Set Appt to Extend","Extend Calling","Release Current/Call to New","Sustain over Pulpit","Set Apart",
                      "Set Appts to Extend & Release Current","Sustain & Release over Pulpit",
                      "Set Appt to Release","Extend Release","Release Current","Release over Pulpit"];
       if(step==="Bishop's Approval"||step==="Stake Presidency Approval"){
@@ -3254,7 +3257,7 @@ function renderCallingDetail(el,role){
     }
     const canCheck=canCheckStep;
 
-    const extendIdx=steps.indexOf('Extend Calling');
+    const extendIdx=Math.max(steps.indexOf('Extend Calling'),steps.indexOf('Release Current/Call to New'));
     const isAfterDeclined=c.declined&&extendIdx>=0&&i>extendIdx;
     const item=document.createElement('div');item.className='step-item';
     if(isAfterDeclined)item.style.opacity='0.35';
@@ -3342,68 +3345,84 @@ function renderCallingDetail(el,role){
       body.appendChild(makeApptDateRow('Release Current Holder Appt','releaseDate'));
     }
 
-    // ── EXTEND CALLING — Accepted/Declined toggle ────────────────────────────
-    if(step==='Extend Calling'&&prevChecked&&canCheck&&!isChecked){
+    // ── RELEASE CURRENT / CALL TO NEW (Calling & Release workflows) ──────────
+    if((step==='Release Current/Call to New'||step==='Extend Calling')&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const response=c.stepMeta[i].response;
+      const isCR=step==='Release Current/Call to New'; // Calling & Release flow
 
-      // Show the appointment date from the previous "Set Appt to Extend" step — editable
+      // ── 1. Release badge + release tips (C&R only, when member has prior calling) ──
+      if(isCR&&c.memberNeedsRelease&&(c.memberCurrentCalling||(c.memberCallings&&c.memberCallings.length))){
+        const releaseNames=(c.memberCallings&&c.memberCallings.filter(Boolean).length)
+          ? c.memberCallings.filter(Boolean)
+          : [c.memberCurrentCalling];
+
+        releaseNames.forEach(callingName=>{
+          const relBadge=document.createElement('div');
+          relBadge.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:8px;display:inline-flex;align-items:center;gap:5px;';
+          relBadge.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Release <strong>${c.name}</strong> from ${callingName}</span>`;
+          body.appendChild(relBadge);
+        });
+
+        const relTips=document.createElement('div');relTips.className='handbook-tips';
+        relTips.innerHTML=`
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
+          </div>
+          <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
+            <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
+            <li>Express sincere <strong>gratitude</strong> for their service.</li>
+            <li>Acknowledge <strong>God's hand</strong> in their service — this is a spiritual moment, not just administrative.</li>
+            <li>Inform <strong>only those who need to know</strong> prior to the public announcement.</li>
+            <li>The release is announced in the same setting where the member was sustained (typically sacrament meeting).</li>
+            <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
+          </ul>
+          <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>`;
+        body.appendChild(relTips);
+      }
+
+      // ── 2. Appointment date (editable) ───────────────────────────────────────
       const apptStepIdx=steps.indexOf('Set Appt to Extend');
-      const apptDate=apptStepIdx>=0?(c.stepMeta[apptStepIdx]?.apptDate||c.stepDates[apptStepIdx]||''):'';
       if(apptStepIdx>=0){
-        const apptRow=document.createElement('div');
-        apptRow.style.cssText='display:flex;align-items:center;gap:7px;margin-top:8px;margin-bottom:2px;font-size:12px;color:#555;';
-
+        const apptDate=c.stepMeta[apptStepIdx]?.apptDate||c.stepDates[apptStepIdx]||'';
         const calIcon=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`;
-
+        const apptRow=document.createElement('div');
+        apptRow.style.cssText='display:flex;align-items:center;gap:7px;margin-top:10px;margin-bottom:2px;font-size:12px;color:#555;';
         const labelSpan=document.createElement('span');
-        labelSpan.innerHTML=calIcon;
         labelSpan.style.cssText='display:inline-flex;align-items:center;gap:4px;';
-        const labelTxt=document.createElement('span');
-        labelTxt.innerHTML=`Appointment: <strong>${apptDate?fmt(apptDate):'Not set'}</strong>`;
-        labelSpan.appendChild(labelTxt);
+        labelSpan.innerHTML=calIcon+`<span>Appointment: <strong>${apptDate?fmt(apptDate):'Not set'}</strong></span>`;
         apptRow.appendChild(labelSpan);
-
-        // Pencil button to edit
         const pencil=document.createElement('span');
-        pencil.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-        pencil.title='Reschedule appointment';
-        pencil.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid rgba(0,0,0,0.18);border-radius:4px;cursor:pointer;color:#666;background:#fff;flex-shrink:0;transition:background 0.15s,border-color 0.15s;';
-        pencil.addEventListener('mouseenter',()=>{pencil.style.background='#f0f4ff';pencil.style.borderColor='#1c2537';pencil.style.color='#1c2537';});
-        pencil.addEventListener('mouseleave',()=>{pencil.style.background='#fff';pencil.style.borderColor='rgba(0,0,0,0.18)';pencil.style.color='#666';});
+        pencil.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        pencil.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid rgba(0,0,0,0.18);border-radius:4px;cursor:pointer;color:#666;background:#fff;flex-shrink:0;';
         pencil.addEventListener('click',e=>{
           e.stopPropagation();
-          // Replace the row with an inline date input
-          const inp=document.createElement('input');inp.type='date';
-          inp.value=apptDate||today();
-          inp.style.cssText='font-size:12px;padding:3px 8px;border:1px solid rgba(0,0,0,0.2);border-radius:6px;color:#1c2537;cursor:pointer;';
+          const inp=document.createElement('input');inp.type='date';inp.value=apptDate||today();
+          inp.style.cssText='font-size:12px;padding:3px 8px;border:1px solid rgba(0,0,0,0.2);border-radius:6px;color:#1c2537;';
           apptRow.innerHTML='';
           const lbl2=document.createElement('span');lbl2.style.cssText='display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#555;';
           lbl2.innerHTML=calIcon+'<span>Appointment:</span>';
-          apptRow.appendChild(lbl2);
-          apptRow.appendChild(inp);
-          inp.focus();
-          function saveAppt(){
-            const newDate=inp.value;
-            if(!newDate) return;
-            if(!c.stepMeta[apptStepIdx])c.stepMeta[apptStepIdx]={};
-            c.stepMeta[apptStepIdx].apptDate=newDate;
-            c.stepDates[apptStepIdx]=newDate;
-            render();dbSaveCalling(c);
-          }
-          inp.addEventListener('blur',saveAppt);
-          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){inp.blur();}});
+          apptRow.appendChild(lbl2);apptRow.appendChild(inp);inp.focus();
+          function saveAppt(){const nd=inp.value;if(!nd)return;if(!c.stepMeta[apptStepIdx])c.stepMeta[apptStepIdx]={};c.stepMeta[apptStepIdx].apptDate=nd;c.stepDates[apptStepIdx]=nd;render();dbSaveCalling(c);}
+          inp.addEventListener('blur',saveAppt);inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
         });
         apptRow.appendChild(pencil);
         body.appendChild(apptRow);
       }
 
+      // ── 3. New calling yellow badge ───────────────────────────────────────────
+      const newCallingBadge=document.createElement('div');
+      newCallingBadge.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:8px;display:inline-flex;align-items:center;gap:5px;';
+      newCallingBadge.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg><span>Calling: <strong>${c.calling}</strong>${c.org?' — '+c.org:''}</span>`;
+      body.appendChild(newCallingBadge);
+
+      // ── 4. Accepted / Declined buttons ────────────────────────────────────────
       const toggleRow=document.createElement('div');toggleRow.style.cssText='display:flex;gap:8px;margin-top:8px;';
       ['Accepted','Declined'].forEach(opt=>{
         const btn=document.createElement('button');
         const isSel=response===opt;
         const isAccept=opt==='Accepted';
-        // Always show color — selected = filled, unselected = light tint with colored border
         const selBg=isAccept?'#e6f7ee':'#fdecea';
         const selBorder=isAccept?'#1c7a45':'#c62828';
         const selColor=isAccept?'#1c7a45':'#c62828';
@@ -3431,9 +3450,8 @@ function renderCallingDetail(el,role){
       });
       body.appendChild(toggleRow);
 
-      // Handbook tips for extending a calling
-      const extendTips=document.createElement('div');
-      extendTips.className='handbook-tips';
+      // ── 5. Handbook tips for extending a calling ──────────────────────────────
+      const extendTips=document.createElement('div');extendTips.className='handbook-tips';
       extendTips.innerHTML=`
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -3447,18 +3465,11 @@ function renderCallingDetail(el,role){
           <li>Tell them who will provide <strong>training and support</strong>, and what meetings to attend.</li>
           <li>If married, the <strong>spouse should be present</strong> or at least aware and supportive.</li>
         </ul>
-        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>
-      `;
+        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>`;
       body.appendChild(extendTips);
     }
 
-    // Note on Extend Calling step if member needs release from prior calling
-    if(step==='Extend Calling'&&c.memberNeedsRelease&&c.memberCurrentCalling){
-      const note=document.createElement('div');
-      note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border-radius:6px;padding:4px 8px;margin-top:4px;display:inline-block;';
-      note.textContent=`Also release ${c.name} from ${c.memberCurrentCalling}`;
-      body.appendChild(note);
-    }
+    // Old memberNeedsRelease note — no longer shown (merged into Release Current/Call to New block above)
 
     // Note on Release Current step (Calling & Release workflows) showing who is being released + tips
     if(step==='Release Current'&&c.currentlyFilled&&c.releaseName){
