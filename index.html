@@ -123,7 +123,11 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .content{padding:0!important;max-width:100%!important;}
   .agenda-doc{border:none!important;border-radius:0!important;padding:24px 40px!important;max-width:100%!important;box-shadow:none!important;}
 }
-.bulk-toolbar{
+.user-status-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:#f0f0f0;color:#888;}
+.user-status-badge.status-active{background:#d1fae5;color:#065f46;}
+.user-status-badge.status-invited{background:#fef3c7;color:#92400e;}
+.user-status-badge.status-pending{background:#f3f4f6;color:#9ca3af;}
+
   display:flex;align-items:center;gap:10px;
   margin-bottom:8px;font-size:13px;
 }
@@ -3557,6 +3561,7 @@ async function renderMyProfile(el){
 
 // ── User Management ───────────────────────────────────────────────────────────
 async function renderUsers(el,role){
+  const isAdmin=role.scope==='admin';
   const isStake=role.scope==='admin'||role.scope==='stake';
   const isWardRole=role.scope==='ward';
 
@@ -3567,10 +3572,40 @@ async function renderUsers(el,role){
   el.appendChild(loadWrap);
 
   // Load profiles from Supabase
+  // Ward-level managers see only ward/ward_org roles in their ward — never admin or stake roles
   let query=sb.from('profiles').select('*').order('full_name',{ascending:true});
-  if(isWardRole) query=query.eq('ward',role.ward);
-  const{data:profiles,error}=await query;
+  if(isWardRole){
+    query=query.eq('ward',role.ward);
+  }
+  const{data:allProfiles,error}=await query;
   if(error){loadWrap.textContent='Error loading users.';console.error(error);return;}
+
+  // Filter out admin/stake roles from ward managers' view
+  const WARD_VISIBLE_SCOPES=['ward','ward_org'];
+  const profiles=isAdmin
+    ? allProfiles
+    : isStake
+      ? allProfiles.filter(p=>{const r=ROLES.find(x=>x.id===p.role_id);return r&&r.scope!=='admin';})
+      : allProfiles.filter(p=>{const r=ROLES.find(x=>x.id===p.role_id);return r&&WARD_VISIBLE_SCOPES.includes(r.scope);});
+
+  // Try to fetch auth user list for invite-status (requires service role key)
+  let authUsersById={};
+  const srk=getServiceKey();
+  if(srk){
+    try{
+      const res=await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=1000`,{
+        headers:{'apikey':srk,'Authorization':`Bearer ${srk}`},
+      });
+      if(res.ok){
+        const json=await res.json();
+        const users=json.users||json;
+        if(Array.isArray(users)){
+          users.forEach(u=>{authUsersById[u.id]=u;});
+        }
+      }
+    }catch(e){/* no-op — status column will show — */}
+  }
+
   loadWrap.remove();
 
   // Header with invite button
@@ -3589,20 +3624,35 @@ async function renderUsers(el,role){
   // Role color/label helpers
   const roleInfo=(rid)=>{const r=ROLES.find(x=>x.id===rid);return r||{label:rid,color:'#aaa'};};
 
+  // Invite status helper — returns {label, color} based on auth user data
+  const hasSrk=Object.keys(authUsersById).length>0;
+  function inviteStatus(p){
+    if(!hasSrk) return{label:'—',cls:'',title:'Service key required to check status'};
+    const u=authUsersById[p.id];
+    if(!u) return{label:'—',cls:'',title:'Not found in auth'};
+    const confirmed=!!(u.email_confirmed_at||u.confirmed_at);
+    const invited=!!(u.invited_at);
+    if(confirmed) return{label:'Active',cls:'status-active',title:'Has set password and signed in'};
+    if(invited) return{label:'Invited',cls:'status-invited',title:'Invite sent — awaiting password setup'};
+    return{label:'Pending',cls:'status-pending',title:'No invite sent yet'};
+  }
+
   // Table
   const wrap=document.createElement('div');wrap.style.cssText='background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);';
   const tbl=document.createElement('table');tbl.className='user-table';
-  tbl.innerHTML=`<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Ward</th><th></th></tr></thead>`;
+  tbl.innerHTML=`<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Ward</th><th>Status</th><th></th></tr></thead>`;
   const tbody=document.createElement('tbody');
 
   profiles.forEach(p=>{
     const ri=roleInfo(p.role_id);
+    const st=inviteStatus(p);
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td style="font-weight:600;">${p.full_name||'—'}</td>
       <td style="color:#666;">${p.email}</td>
       <td><span class="user-badge" style="background:${ri.color}22;color:${ri.color};">${ri.label}</span></td>
       <td style="color:#666;">${p.ward||'—'}</td>
+      <td><span class="user-status-badge ${st.cls}" title="${st.title}">${st.label}</span></td>
       <td style="text-align:right;"></td>
     `;
     // Edit button
@@ -3617,6 +3667,14 @@ async function renderUsers(el,role){
   tbl.appendChild(tbody);
   wrap.appendChild(tbl);
   el.appendChild(wrap);
+
+  // Note if SRK is missing
+  if(!hasSrk){
+    const note=document.createElement('div');
+    note.style.cssText='font-size:11px;color:#aaa;margin-top:8px;padding:0 2px;';
+    note.textContent='ℹ️ Invite status unavailable — enter your service key via Invite User to enable it.';
+    el.appendChild(note);
+  }
 }
 
 function openInviteModal(callerRole,onDone){
