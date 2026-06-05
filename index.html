@@ -3075,12 +3075,31 @@ function renderCallingDetail(el,role){
     if(step==='Extend Calling'&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const response=c.stepMeta[i].response;
+
+      // Show the appointment date from the previous "Set Appt to Extend" step
+      const apptStepIdx=steps.indexOf('Set Appt to Extend');
+      const apptDate=apptStepIdx>=0?(c.stepMeta[apptStepIdx]?.apptDate||c.stepDates[apptStepIdx]||''):'';
+      if(apptDate){
+        const apptRow=document.createElement('div');
+        apptRow.style.cssText='font-size:12px;color:#555;margin-top:8px;margin-bottom:2px;display:flex;align-items:center;gap:5px;';
+        apptRow.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Appointment: <strong>${fmt(apptDate)}</strong></span>`;
+        body.appendChild(apptRow);
+      }
+
       const toggleRow=document.createElement('div');toggleRow.style.cssText='display:flex;gap:8px;margin-top:8px;';
       ['Accepted','Declined'].forEach(opt=>{
         const btn=document.createElement('button');
         const isSel=response===opt;
-        btn.textContent=(opt==='Accepted'?'✓ ':'✗ ')+opt;
-        btn.style.cssText=`padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${isSel?(opt==='Accepted'?'#1c7a45':'#c62828'):'#ddd'};background:${isSel?(opt==='Accepted'?'#e6f7ee':'#fdecea'):'#fff'};color:${isSel?(opt==='Accepted'?'#1c7a45':'#c62828'):'#888'};`;
+        const isAccept=opt==='Accepted';
+        // Always show color — selected = filled, unselected = light tint with colored border
+        const selBg=isAccept?'#e6f7ee':'#fdecea';
+        const selBorder=isAccept?'#1c7a45':'#c62828';
+        const selColor=isAccept?'#1c7a45':'#c62828';
+        const unselBg=isAccept?'#f3fdf6':'#fff8f7';
+        const unselBorder=isAccept?'#a3d9b8':'#f5a9a9';
+        const unselColor=isAccept?'#3a8a5a':'#c06060';
+        btn.textContent=(isAccept?'✓ ':'✗ ')+opt;
+        btn.style.cssText=`padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${isSel?selBorder:unselBorder};background:${isSel?selBg:unselBg};color:${isSel?selColor:unselColor};`;
         btn.addEventListener('click',()=>{
           c.stepMeta[i].response=opt;
           c.stepDates[i]=today();
@@ -3099,6 +3118,26 @@ function renderCallingDetail(el,role){
         toggleRow.appendChild(btn);
       });
       body.appendChild(toggleRow);
+
+      // Handbook tips for extending a calling
+      const extendTips=document.createElement('div');
+      extendTips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+      extendTips.innerHTML=`
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.2 Extending a Calling</span>
+        </div>
+        <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
+          <li>Explain that the calling has come <strong>from the Lord</strong>.</li>
+          <li>Describe the <strong>purpose, importance, and responsibilities</strong> of the calling.</li>
+          <li>Encourage the member to <strong>seek the Spirit</strong> of the Lord in fulfilling the calling.</li>
+          <li>Testify that the Lord will <strong>help and bless</strong> them for serving faithfully.</li>
+          <li>Tell them who will provide <strong>training and support</strong>, and what meetings to attend.</li>
+          <li>If married, the <strong>spouse should be present</strong> or at least aware and supportive.</li>
+        </ul>
+        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.2</div>
+      `;
+      body.appendChild(extendTips);
     }
 
     // Note on Extend Calling step if member needs release from prior calling
@@ -3109,12 +3148,32 @@ function renderCallingDetail(el,role){
       body.appendChild(note);
     }
 
-    // Note on Release Current step (Calling & Release workflows) showing who is being released
+    // Note on Release Current step (Calling & Release workflows) showing who is being released + tips
     if(step==='Release Current'&&c.currentlyFilled&&c.releaseName){
       const note=document.createElement('div');
-      note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border-radius:6px;padding:4px 8px;margin-top:4px;display:inline-block;';
-      note.textContent=`${c.releaseName} as ${c.calling}`;
+      note.style.cssText='font-size:11px;color:#a05c00;background:#fef3e2;border:1px solid #f5c842;border-radius:6px;padding:5px 10px;margin-top:6px;display:inline-flex;align-items:center;gap:5px;';
+      note.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><strong>${c.releaseName}</strong> — releasing from ${c.calling}</span>`;
       body.appendChild(note);
+    }
+    if(step==='Release Current'&&prevChecked&&!isChecked){
+      const relTips=document.createElement('div');
+      relTips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+      relTips.innerHTML=`
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#185fa5;">Handbook Tips — §30.6 Extending a Release</span>
+        </div>
+        <ul style="margin:0;padding-left:16px;font-size:12px;color:#1c2537;line-height:1.75;">
+          <li>Meet with the member <strong>personally</strong> before the release is announced publicly.</li>
+          <li>Express sincere <strong>gratitude</strong> for their service.</li>
+          <li>Acknowledge <strong>God's hand</strong> in their service — this is a spiritual moment, not just administrative.</li>
+          <li>Inform <strong>only those who need to know</strong> prior to the public announcement.</li>
+          <li>The release is announced in the same setting where the member was sustained (typically sacrament meeting).</li>
+          <li>Suggested wording: <em>"[Name] has been released as [position]. Those who would like to express thanks for [his/her] service may show it by the uplifted hand."</em></li>
+        </ul>
+        <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
+      `;
+      body.appendChild(relTips);
     }
 
     // ── EXTEND RELEASE step (Release Only workflows) ─────────────────────────
