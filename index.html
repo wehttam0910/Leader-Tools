@@ -3675,19 +3675,24 @@ function openEditUserModal(profile,callerRole,onDone){
       if(!confirm(`Remove ${profile.full_name||profile.email}? This will permanently delete their account.`))return;
       delBtn.disabled=true;delBtn.textContent='Removing…';
       try{
-        // Delete auth user via admin API (requires service role key)
         const srk=getServiceKey();
-        if(srk){
-          await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${profile.id}`,{
-            method:'DELETE',
-            headers:{'apikey':srk,'Authorization':`Bearer ${srk}`},
-          });
+        if(!srk){errEl.textContent='Service key required to delete users. Use the Re-enter service key link in Invite User.';errEl.classList.add('visible');delBtn.disabled=false;delBtn.textContent='Remove User';return;}
+        // Delete auth user
+        const res=await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${profile.id}`,{
+          method:'DELETE',
+          headers:{'apikey':srk,'Authorization':`Bearer ${srk}`},
+        });
+        if(!res.ok){
+          const err=await res.json();
+          throw new Error(err.message||'Auth delete failed');
         }
-        // Also delete profile row
+        // Delete profile (may already be cascade deleted)
         await sb.from('profiles').delete().eq('id',profile.id);
         closeModal();onDone();
       }catch(e){
         console.error('Remove user error:',e);
+        errEl.textContent='Error: '+e.message;
+        errEl.classList.add('visible');
         delBtn.disabled=false;delBtn.textContent='Remove User';
       }
     });
