@@ -126,8 +126,9 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .user-status-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:#f0f0f0;color:#888;}
 .assigned-group-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;}
 .assign-to-wrap{display:flex;align-items:center;gap:6px;margin-top:6px;}
-.assign-to-select{font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:7px;background:#fff;color:#1c2537;cursor:pointer;min-width:160px;}
+.assign-to-select{font-size:12px;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:7px;background:#fff;color:#1c2537;cursor:pointer;min-width:160px;max-width:280px;width:auto;}
 .assign-to-select:focus{outline:none;border-color:#185fa5;}
+.handbook-tips{margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;max-width:560px;}
 .user-status-badge.status-active{background:#d1fae5;color:#065f46;}
 .user-status-badge.status-invited{background:#fef3c7;color:#92400e;}
 .user-status-badge.status-pending{background:#f3f4f6;color:#9ca3af;}
@@ -3317,7 +3318,7 @@ function renderCallingDetail(el,role){
 
       // Handbook tips for extending a calling
       const extendTips=document.createElement('div');
-      extendTips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+      extendTips.className='handbook-tips';
       extendTips.innerHTML=`
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -3353,7 +3354,7 @@ function renderCallingDetail(el,role){
     }
     if(step==='Release Current'&&prevChecked&&!isChecked){
       const relTips=document.createElement('div');
-      relTips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+      relTips.className='handbook-tips';
       relTips.innerHTML=`
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -3384,7 +3385,7 @@ function renderCallingDetail(el,role){
       // Helpful tips — shown once previous step is complete (i.e. this step is now active)
       if(prevChecked&&!isChecked){
         const tips=document.createElement('div');
-        tips.style.cssText='margin-top:12px;background:#f0f6ff;border:1px solid #c3d9f7;border-radius:8px;padding:12px 14px;';
+        tips.className='handbook-tips';
         tips.innerHTML=`
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -3551,6 +3552,7 @@ function renderCallings(el,role){
     {key:'level',   label:'Level',    val:c=>c.level},
     {key:'action',  label:'Action',   val:c=>c.action},
     {key:'status',  label:'Status',   val:c=>getStatusBadge(c).label},
+    {key:'assigned',label:'Assigned', val:c=>getCurrentAssignment(c).group},
     {key:'progress',label:'Progress', val:c=>c.currentStep/(getSteps(c).length-1)},
     {key:'next',    label:'Next Step',val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
   ];
@@ -3599,6 +3601,11 @@ function renderCallings(el,role){
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
       ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
     const declinedBadge=c.declined?`<span class="badge" style="font-size:10px;margin-left:4px;background:#fdecea;color:#c62828;">✗ Declined</span>`:'';
+    const assignGroup=getCurrentAssignment(c).group;
+    const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
+    const assignCell=assignGroup
+      ?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`
+      :'<span style="color:#ccc;font-size:11px;">—</span>';
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
       <td>${c.name}</td>
@@ -3606,6 +3613,7 @@ function renderCallings(el,role){
       <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
       <td class="td-sub">${c.action}</td>
       <td><span class="badge ${status.cls}">${status.label}</span></td>
+      <td class="td-sub">${assignCell}</td>
       <td class="progress-cell">
         <div style="font-size:11px;color:#aaa;">${c.currentStep} / ${steps.length-1}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
