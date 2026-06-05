@@ -1103,8 +1103,8 @@ function agendaToDb(a) {
     ward: a.ward,
     date: a.date || null,
     meeting_type: a.meetingType || 'Regular',
-    conducting: a.conducting || '',
-    presiding: a.presiding || '',
+    conducting: (a.conductingTitle&&a.conductingTitle!=='Counselor/Other'?a.conductingTitle+'\t':a.conductingTitle==='Counselor/Other'?'Counselor/Other\t':'')+(a.conducting||''),
+    presiding: (a.presidingTitle?a.presidingTitle+'\t':'')+(a.presiding||''),
     high_counselor: a.highCounselor || '',
     stake_visiting: !!a.stakeVisiting,
     chorister: a.chorister || '',
@@ -1141,8 +1141,10 @@ function agendaFromDb(r) {
     ward: r.ward,
     date: r.date || '',
     meetingType: r.meeting_type || 'Regular',
-    conducting: r.conducting || '',
-    presiding: r.presiding || '',
+    conducting: r.conducting?r.conducting.split('\t').slice(-1)[0]:'',
+    conductingTitle: r.conducting&&r.conducting.includes('\t')?r.conducting.split('\t')[0]:'Counselor/Other',
+    presiding: r.presiding?r.presiding.split('\t').slice(-1)[0]:'',
+    presidingTitle: r.presiding&&r.presiding.includes('\t')?r.presiding.split('\t')[0]:'Bishop',
     highCounselor: r.high_counselor || '',
     stakeVisiting: !!r.stake_visiting,
     chorister: r.chorister || '',
@@ -2219,6 +2221,9 @@ function renderAgendaWizard(el,role,editingAgenda){
         const steps=getSteps(c);
         const sustainIdx=steps.indexOf('Sustain over Pulpit');
         const sustainAltIdx=steps.indexOf('Sustain & Release over Pulpit');
+        const releaseOverPulpitIdx=steps.indexOf('Release over Pulpit');
+
+        // Callings ready to be sustained over the pulpit
         const isSustainReady=(sustainIdx>=0&&c.currentStep===sustainIdx)||
                              (sustainAltIdx>=0&&c.currentStep===sustainAltIdx);
         if(isSustainReady){
@@ -2233,15 +2238,21 @@ function renderAgendaWizard(el,role,editingAgenda){
               autoRelease.push({member:c.name,calling:mc,_callingId:c.id,_auto:true});
             });
           } else if(c.memberNeedsRelease&&c.memberCurrentCalling){
-            // Fallback to single memberCurrentCalling field
             autoRelease.push({member:c.name,calling:c.memberCurrentCalling,_callingId:c.id,_auto:true});
           }
+        }
+
+        // Release Only callings ready to be released over the pulpit
+        const isReleaseReady=releaseOverPulpitIdx>=0&&c.currentStep===releaseOverPulpitIdx&&c.action==='Release Only';
+        if(isReleaseReady){
+          autoRelease.push({member:c.releaseName||c.name,calling:c.calling,_callingId:c.id,_auto:true});
         }
       });
 
       window._agendaDraft={
         date:'',ward,meetingType:'Regular',
-        conducting:'',presiding:'',highCounselor:'',stakeVisiting:false,
+        conducting:'',conductingTitle:'Counselor/Other',
+        presiding:'',presidingTitle:'Bishop',highCounselor:'',stakeVisiting:false,
         chorister:'',accompanist:'',
         openingPrayer:'',closingPrayer:'',
         openingHymnNum:'',openingHymnTitle:'',
@@ -2347,8 +2358,41 @@ function renderAgendaWizard(el,role,editingAgenda){
     body.appendChild(field('Ward',wardDisplay));
 
     body.appendChild(field('Meeting Type',selInp(['Regular','Fast & Testimony'],d.meetingType,'meetingType')));
-    body.appendChild(field('Conducting<span class="req">*</span>',inp(d.conducting,'conducting','Full name')));
-    body.appendChild(field('Presiding<span class="req">*</span>',inp(d.presiding,'presiding','Full name')));
+    // Conducting — title dropdown + name field
+    const conductingWrap=document.createElement('div');conductingWrap.className='agenda-field';
+    conductingWrap.innerHTML='<label>Conducting<span class="req">*</span></label>';
+    const conductingRow=document.createElement('div');conductingRow.style.cssText='display:flex;gap:8px;align-items:center;';
+    const conductingTitleSel=document.createElement('select');
+    conductingTitleSel.style.cssText='font-size:14px;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;background:#fff;color:#1a1a1a;flex-shrink:0;width:auto;';
+    ['Elder','President','Bishop','Counselor/Other'].forEach(t=>{
+      const o=document.createElement('option');o.value=t;o.textContent=t;
+      if((d.conductingTitle||'Counselor/Other')===t)o.selected=true;
+      conductingTitleSel.appendChild(o);
+    });
+    conductingTitleSel.addEventListener('change',()=>{d.conductingTitle=conductingTitleSel.value;});
+    if(!d.conductingTitle)d.conductingTitle='Counselor/Other';
+    const conductingNameInp=inp(d.conducting,'conducting','Full name');
+    conductingNameInp.style.flex='1';
+    conductingRow.appendChild(conductingTitleSel);conductingRow.appendChild(conductingNameInp);
+    conductingWrap.appendChild(conductingRow);body.appendChild(conductingWrap);
+
+    // Presiding — title dropdown + name field
+    const presidingWrap=document.createElement('div');presidingWrap.className='agenda-field';
+    presidingWrap.innerHTML='<label>Presiding<span class="req">*</span></label>';
+    const presidingRow=document.createElement('div');presidingRow.style.cssText='display:flex;gap:8px;align-items:center;';
+    const presidingTitleSel=document.createElement('select');
+    presidingTitleSel.style.cssText='font-size:14px;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;background:#fff;color:#1a1a1a;flex-shrink:0;width:auto;';
+    ['Elder','President','Bishop','Counselor/Other'].forEach(t=>{
+      const o=document.createElement('option');o.value=t;o.textContent=t;
+      if((d.presidingTitle||'Bishop')===t)o.selected=true;
+      presidingTitleSel.appendChild(o);
+    });
+    presidingTitleSel.addEventListener('change',()=>{d.presidingTitle=presidingTitleSel.value;});
+    if(!d.presidingTitle)d.presidingTitle='Bishop';
+    const presidingNameInp=inp(d.presiding,'presiding','Full name');
+    presidingNameInp.style.flex='1';
+    presidingRow.appendChild(presidingTitleSel);presidingRow.appendChild(presidingNameInp);
+    presidingWrap.appendChild(presidingRow);body.appendChild(presidingWrap);
 
     const hcRow=document.createElement('div');hcRow.style.cssText='display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:start;';
     const hcField=document.createElement('div');hcField.className='agenda-field';hcField.style.marginBottom='0';
@@ -2541,6 +2585,17 @@ function renderAgendaWizard(el,role,editingAgenda){
 // ── Build Script ──────────────────────────────────────────────────────────────
 function buildScript(a){
   const blocks=[];
+  // Helper: format "Title Name" — Counselor/Other → "Brother Name"
+  function titledName(name,title){
+    if(!name)return'[Name]';
+    const t=title||'';
+    if(t==='Counselor/Other')return`Brother ${name}`;
+    if(t==='Elder'||t==='President'||t==='Bishop')return`${t} ${name}`;
+    return name;
+  }
+  const conductingFull=titledName(a.conducting,a.conductingTitle);
+  const presidingFull=a.presiding?titledName(a.presiding,a.presidingTitle):'';
+
   const ward=a.ward||'the ward';
   const date=fmtDate(a.date);
   const isFast=a.meetingType==='Fast & Testimony';
@@ -2549,7 +2604,7 @@ function buildScript(a){
   blocks.push({step:'Welcome',text:`Good ${date&&new Date(a.date+'T12:00:00').getHours()<12?'morning':'afternoon'} brothers and sisters.\nWe welcome you to the Church of Jesus Christ of Latter-day Saints!\n\nThis is the ${isFast?'Fast and Testimony Meeting':'Sacrament Meeting'} for the ${ward} on ${date}.`});
 
   // 2 — Introduction
-  let intro=`My name is ${a.conducting||'[Conducting]'}. ${a.presiding?`${a.presiding}, who presides at today's meeting, has asked that I conduct.`:''}`;
+  let intro=`My name is ${conductingFull}. ${presidingFull?`${presidingFull}, who presides at today's meeting, has asked that I conduct.`:''}`;
   if(a.highCounselor) intro+=`\n\nWe welcome ${a.highCounselor} from the stake high council who is visiting with us today${a.stakeVisiting?' to conduct stake business.':'.'}`;
   if(a.chorister||a.accompanist){
     intro+=`\n\nWe'd like to extend a special thank you to our Chorister ${a.chorister||'[Chorister]'} and our Accompanist ${a.accompanist||'[Accompanist]'} who will provide the music for today's meeting.`;
@@ -2768,7 +2823,10 @@ function renderAgendaDetail(el,role){
   scriptPara(`Good afternoon brothers and sisters. We welcome you to the ${isFast?'Fast and Testimony Meeting':'Sacrament Meeting'} for the ${a.ward} of the Church of Jesus Christ of Latter-day Saints.`);
 
   // Introduction
-  let intro=`My name is ${a.conducting||'[Conducting]'}. ${a.presiding?`${a.presiding}, who presides at today's meeting, has asked that I conduct.`:''}`;
+  function titledName2(name,title){if(!name)return'[Name]';const t=title||'';if(t==='Counselor/Other')return`Brother ${name}`;if(t==='Elder'||t==='President'||t==='Bishop')return`${t} ${name}`;return name;}
+  const conductingFull2=titledName2(a.conducting,a.conductingTitle);
+  const presidingFull2=a.presiding?titledName2(a.presiding,a.presidingTitle):'';
+  let intro=`My name is ${conductingFull2}. ${presidingFull2?`${presidingFull2}, who presides at today's meeting, has asked that I conduct.`:''}`;
   if(a.highCounselor)intro+=`\n\nWe welcome ${a.highCounselor} from the Stake High Council on the stand with us today.`;
   if(a.chorister||a.accompanist)intro+=`\n\nWe'd like to extend a special thank you to our Chorister ${a.chorister||'[Chorister]'} and our Accompanist ${a.accompanist||'[Accompanist]'} who will provide the music for today's meeting.`;
   scriptPara(intro.trim());
