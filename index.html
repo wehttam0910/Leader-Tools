@@ -3076,13 +3076,54 @@ function renderCallingDetail(el,role){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const response=c.stepMeta[i].response;
 
-      // Show the appointment date from the previous "Set Appt to Extend" step
+      // Show the appointment date from the previous "Set Appt to Extend" step — editable
       const apptStepIdx=steps.indexOf('Set Appt to Extend');
       const apptDate=apptStepIdx>=0?(c.stepMeta[apptStepIdx]?.apptDate||c.stepDates[apptStepIdx]||''):'';
-      if(apptDate){
+      if(apptStepIdx>=0){
         const apptRow=document.createElement('div');
-        apptRow.style.cssText='font-size:12px;color:#555;margin-top:8px;margin-bottom:2px;display:flex;align-items:center;gap:5px;';
-        apptRow.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Appointment: <strong>${fmt(apptDate)}</strong></span>`;
+        apptRow.style.cssText='display:flex;align-items:center;gap:7px;margin-top:8px;margin-bottom:2px;font-size:12px;color:#555;';
+
+        const calIcon=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`;
+
+        const labelSpan=document.createElement('span');
+        labelSpan.innerHTML=calIcon;
+        labelSpan.style.cssText='display:inline-flex;align-items:center;gap:4px;';
+        const labelTxt=document.createElement('span');
+        labelTxt.innerHTML=`Appointment: <strong>${apptDate?fmt(apptDate):'Not set'}</strong>`;
+        labelSpan.appendChild(labelTxt);
+        apptRow.appendChild(labelSpan);
+
+        // Pencil button to edit
+        const pencil=document.createElement('span');
+        pencil.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        pencil.title='Reschedule appointment';
+        pencil.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid rgba(0,0,0,0.18);border-radius:4px;cursor:pointer;color:#666;background:#fff;flex-shrink:0;transition:background 0.15s,border-color 0.15s;';
+        pencil.addEventListener('mouseenter',()=>{pencil.style.background='#f0f4ff';pencil.style.borderColor='#1c2537';pencil.style.color='#1c2537';});
+        pencil.addEventListener('mouseleave',()=>{pencil.style.background='#fff';pencil.style.borderColor='rgba(0,0,0,0.18)';pencil.style.color='#666';});
+        pencil.addEventListener('click',e=>{
+          e.stopPropagation();
+          // Replace the row with an inline date input
+          const inp=document.createElement('input');inp.type='date';
+          inp.value=apptDate||today();
+          inp.style.cssText='font-size:12px;padding:3px 8px;border:1px solid rgba(0,0,0,0.2);border-radius:6px;color:#1c2537;cursor:pointer;';
+          apptRow.innerHTML='';
+          const lbl2=document.createElement('span');lbl2.style.cssText='display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#555;';
+          lbl2.innerHTML=calIcon+'<span>Appointment:</span>';
+          apptRow.appendChild(lbl2);
+          apptRow.appendChild(inp);
+          inp.focus();
+          function saveAppt(){
+            const newDate=inp.value;
+            if(!newDate) return;
+            if(!c.stepMeta[apptStepIdx])c.stepMeta[apptStepIdx]={};
+            c.stepMeta[apptStepIdx].apptDate=newDate;
+            c.stepDates[apptStepIdx]=newDate;
+            render();dbSaveCalling(c);
+          }
+          inp.addEventListener('blur',saveAppt);
+          inp.addEventListener('keydown',e=>{if(e.key==='Enter'){inp.blur();}});
+        });
+        apptRow.appendChild(pencil);
         body.appendChild(apptRow);
       }
 
