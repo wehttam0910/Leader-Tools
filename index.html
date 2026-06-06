@@ -4820,7 +4820,15 @@ function render(){
     el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:300px;flex-direction:column;gap:14px;color:#aaa;"><div style="font-size:28px;">⏳</div><div style="font-size:14px;font-weight:500;">Loading from Supabase...</div></div>';
     return;
   }
-  if(state.tab==='callings'){if(state.view==='detail')renderCallingDetail(el,role);else if(state.view==='archive')renderArchive(el,role);else renderCallings(el,role);}
+  if(state.tab==='callings'){
+    if(state.view==='detail'){
+      // Guard: if callings haven't loaded yet, show list instead of crashing
+      if(!state.callings.length&&state.loading){renderCallings(el,role);}
+      else renderCallingDetail(el,role);
+    }
+    else if(state.view==='archive')renderArchive(el,role);
+    else renderCallings(el,role);
+  }
   else if(state.tab==='agendas'){
     if(state.view==='detail') renderAgendaDetail(el,role);
     else if(state.view==='new'){
