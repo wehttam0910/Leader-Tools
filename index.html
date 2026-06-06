@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="LeaderTools">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <title>LeaderTools</title>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -108,6 +109,15 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .agenda-table tbody tr:hover{background:#f5f7ff;}
 .agenda-table td{padding:12px 14px;font-size:13px;color:#1c2537;vertical-align:middle;}
 .agenda-table .td-date{font-weight:700;font-size:14px;}
+.bulk-bar{display:flex;align-items:center;gap:10px;background:#1c2537;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;}
+.bulk-bar-count{font-weight:600;flex:1;}
+.bulk-bar-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
+.bulk-bar-btn:hover{background:rgba(255,255,255,0.25);}
+.bulk-bar-btn.danger{background:rgba(220,50,50,0.7);}
+.bulk-bar-btn.danger:hover{background:rgba(220,50,50,0.9);}
+.agenda-row-cb{width:15px;height:15px;accent-color:#1c2537;cursor:pointer;flex-shrink:0;}
+.agenda-trash{background:none;border:none;cursor:pointer;color:#ccc;padding:4px 6px;border-radius:5px;font-size:14px;line-height:1;transition:color 0.15s,background 0.15s;}
+.agenda-trash:hover{color:#c62828;background:#fdecea;}
 .agenda-type-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#e6f1fb;color:#185fa5;}
 .agenda-type-badge.fast{background:#f0eeff;color:#5b47d6;}
 .live-notes-panel{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:20px 24px;max-width:760px;margin-top:16px;}
@@ -2453,7 +2463,110 @@ function renderAgendas(el,role){
   el.appendChild(hub);
 }
 
-// ── Agenda category list (meeting type sub-page) ───────────────────────────
+// ── PDF generation ────────────────────────────────────────────────────────────
+async function generateAgendaPDF(a, role){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'letter'});
+  const pw = doc.internal.pageSize.getWidth();
+  const lm=18, rm=18, tm=18;
+  let y = tm;
+
+  // Get favicon base64 for the Christus logo
+  const faviconEl=document.querySelector('link[rel="icon"]');
+  const faviconB64=faviconEl?faviconEl.href.split(',')[1]||'':'';
+
+  // Header: Christus image left, title center
+  if(faviconB64){
+    try{doc.addImage('data:image/png;base64,'+faviconB64,'PNG',lm,y,18,18);}catch(e){}
+  }
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  const types=getMeetingTypes(role);
+  const mt=types.find(t=>t.key===a.meetingCategory)||{label:a.meetingCategory||'Meeting'};
+  doc.text(mt.label, pw/2, y+7, {align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`${a.ward} · ${fmtDate(a.date)}`, pw/2, y+13, {align:'center'});
+  doc.setTextColor(0);
+  y+=24;
+
+  // Divider
+  doc.setDrawColor(28,37,55);doc.setLineWidth(0.5);
+  doc.line(lm,y,pw-rm,y);
+  y+=6;
+
+  // Field rows
+  doc.setFontSize(11);
+  function pdfRow(label, value){
+    if(!value) return;
+    doc.setFont('helvetica','bold');
+    doc.text(label+':', lm, y);
+    doc.setFont('helvetica','normal');
+    const wrapped=doc.splitTextToSize(value, pw-rm-lm-36);
+    doc.text(wrapped, lm+38, y);
+    y+=(wrapped.length*5.5)+2;
+    if(y>260){doc.addPage();y=tm;}
+  }
+
+  pdfRow('Conducting', a.conducting);
+  pdfRow('Opening Prayer', a.openingPrayer);
+  if(a.openingHymnNum||a.openingHymnTitle)
+    pdfRow('Opening Hymn', `#${a.openingHymnNum||'—'}${a.openingHymnTitle?' — '+a.openingHymnTitle:''}`);
+
+  const thoughtLabel=a.meetingType&&['Spiritual Thought','Handbook Moment','Devotional'].includes(a.meetingType)?a.meetingType:'Spiritual Thought';
+  pdfRow(thoughtLabel, a.spiritualThought);
+
+  // Minutes from last meeting
+  if(a.finalSpeakerTopic){
+    y+=2;
+    doc.setDrawColor(200);doc.setLineWidth(0.3);doc.line(lm,y,pw-rm,y);y+=5;
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
+    doc.text('MINUTES FROM LAST MEETING',lm,y);
+    doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
+    // Strip HTML tags
+    const minText=a.finalSpeakerTopic.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    const minLines=doc.splitTextToSize(minText,pw-lm-rm);
+    minLines.forEach(line=>{
+      if(y>260){doc.addPage();y=tm;}
+      doc.text(line,lm,y);y+=5.5;
+    });
+    y+=3;
+    doc.setDrawColor(200);doc.line(lm,y,pw-rm,y);y+=5;
+  }
+
+  // Agenda items
+  if(a.announcementList&&a.announcementList.filter(Boolean).length){
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
+    doc.text('AGENDA ITEMS',lm,y);
+    doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
+    a.announcementList.filter(Boolean).forEach((item,i)=>{
+      if(y>260){doc.addPage();y=tm;}
+      const lines=doc.splitTextToSize(`${i+1}. ${item}`,pw-lm-rm);
+      lines.forEach(l=>{doc.text(l,lm,y);y+=5.5;});
+    });
+    y+=3;
+  }
+
+  pdfRow('Closing Prayer', a.closingPrayer);
+  if(a.closingHymnNum||a.closingHymnTitle)
+    pdfRow('Closing Hymn', `#${a.closingHymnNum||'—'}${a.closingHymnTitle?' — '+a.closingHymnTitle:''}`);
+
+  // Footer on each page
+  const totalPages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPages;p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(160);
+    doc.text('LeaderTools · leadertools.app',lm,doc.internal.pageSize.getHeight()-8);
+    doc.text(`${p} / ${totalPages}`,pw-rm,doc.internal.pageSize.getHeight()-8,{align:'right'});
+    doc.setTextColor(0);
+  }
+
+  const filename=`${a.ward.replace(/\s+/g,'-')}-${mt.label.replace(/\s+/g,'-')}-${a.date}.pdf`;
+  doc.save(filename);
+}
+
+// ── Agenda category list ───────────────────────────────────────────────────────
 function renderAgendaCategory(el,role,categoryKey){
   const types=getMeetingTypes(role);
   const mt=types.find(t=>t.key===categoryKey)||{label:categoryKey,icon:'📋'};
@@ -2491,36 +2604,110 @@ function renderAgendaCategory(el,role,categoryKey){
     el.appendChild(es);return;
   }
 
-  // Build summary columns depending on meeting type
   const isSacrament=categoryKey==='sacrament';
+
+  // Checkbox selection state
+  const selected=new Set();
+
+  function renderBulkBar(){
+    const existing=el.querySelector('.bulk-bar');if(existing)existing.remove();
+    if(!selected.size) return;
+    const bar=document.createElement('div');bar.className='bulk-bar';
+    const count=document.createElement('div');count.className='bulk-bar-count';
+    count.textContent=`${selected.size} selected`;bar.appendChild(count);
+    const dlBtn=document.createElement('button');dlBtn.className='bulk-bar-btn';dlBtn.textContent='⬇ Download PDF';
+    dlBtn.addEventListener('click',async()=>{
+      for(const id of selected){
+        const ag=filtered.find(x=>x.id===id);if(ag) await generateAgendaPDF(ag,role);
+      }
+    });
+    bar.appendChild(dlBtn);
+    const delBtn=document.createElement('button');delBtn.className='bulk-bar-btn danger';delBtn.textContent='🗑 Delete Selected';
+    delBtn.addEventListener('click',async()=>{
+      if(!confirm(`Delete ${selected.size} agenda(s)? This cannot be undone.`)) return;
+      for(const id of selected){
+        await sb.from('agendas').delete().eq('id',id);
+        state.agendas=state.agendas.filter(x=>x.id!==id);
+      }
+      selected.clear();state.agendaCategory=categoryKey;render();
+    });
+    bar.appendChild(delBtn);
+    const cancelBtn=document.createElement('button');cancelBtn.className='bulk-bar-btn';cancelBtn.textContent='✕';
+    cancelBtn.addEventListener('click',()=>{selected.clear();renderBulkBar();updateCheckboxes();});
+    bar.appendChild(cancelBtn);
+    // Insert after the hdr
+    hdr.after(bar);
+  }
+
+  function updateCheckboxes(){
+    table.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.checked=selected.has(Number(cb.dataset.id)||cb.dataset.id);
+    });
+  }
+
   const table=document.createElement('table');table.className='agenda-table';
   const thead=document.createElement('thead');
+  // Checkbox col + action col
   if(isSacrament){
-    thead.innerHTML='<tr><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Speakers</th></tr>';
+    thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Speakers</th><th style="width:70px;"></th></tr>';
   } else {
-    thead.innerHTML='<tr><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th></tr>';
+    thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th><th style="width:70px;"></th></tr>';
   }
   table.appendChild(thead);
   const tbody=document.createElement('tbody');
+
   filtered.forEach(a=>{
     const tr=document.createElement('tr');
+    tr.style.cursor='pointer';
+
+    // Checkbox cell
+    const cbTd=document.createElement('td');cbTd.style.cssText='padding-right:0;width:32px;';
+    const cb=document.createElement('input');cb.type='checkbox';cb.className='agenda-row-cb';cb.dataset.id=a.id;
+    cb.addEventListener('change',e=>{
+      e.stopPropagation();
+      if(cb.checked)selected.add(a.id);else selected.delete(a.id);
+      renderBulkBar();
+    });
+    cbTd.appendChild(cb);tr.appendChild(cbTd);
+
+    // Data cells
     if(isSacrament){
       const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
       const speakers=(a.speakers||[]).map(s=>s.name).filter(Boolean).join(', ')||'—';
-      tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
+      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
     } else {
       const hasItems=a.announcementList&&a.announcementList.filter(Boolean).length;
-      // Strip HTML tags from rich text notes for plain text snippet
       const notesPlain=(a.speaker1Topic||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
       const notesSnippet=hasItems
         ? a.announcementList.filter(Boolean).slice(0,3).join(', ')+(a.announcementList.filter(Boolean).length>3?'…':'')
         : notesPlain?(notesPlain.substring(0,60)+(notesPlain.length>60?'…':'')):'—';
       const thought=a.spiritualThought||a.openingPrayer||'—';
-      tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#888;">${notesSnippet}</td>`;
+      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#888;">${notesSnippet}</td>`;
     }
+
+    // Action cell: PDF + trash
+    const actTd=document.createElement('td');actTd.style.cssText='text-align:right;white-space:nowrap;';
+    actTd.addEventListener('click',e=>e.stopPropagation());
+
+    const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Download PDF';pdfBtn.textContent='⬇';
+    pdfBtn.addEventListener('click',()=>generateAgendaPDF(a,role));
+    actTd.appendChild(pdfBtn);
+
+    const trashBtn=document.createElement('button');trashBtn.className='agenda-trash';trashBtn.title='Delete';trashBtn.textContent='🗑';
+    trashBtn.addEventListener('click',async()=>{
+      if(!confirm(`Delete agenda for ${fmtDate(a.date)}?`)) return;
+      await sb.from('agendas').delete().eq('id',a.id);
+      state.agendas=state.agendas.filter(x=>x.id!==a.id);
+      selected.delete(a.id);
+      state.agendaCategory=categoryKey;render();
+    });
+    actTd.appendChild(trashBtn);
+    tr.appendChild(actTd);
+
     tr.addEventListener('click',()=>{state.detailId=a.id;state.view='detail';render();});
     tbody.appendChild(tr);
   });
+
   table.appendChild(tbody);el.appendChild(table);
 }
 
@@ -3303,7 +3490,7 @@ function renderAgendaDetail(el,role){
 
   const actions=document.createElement('div');actions.className='script-actions';
   const printBtn=document.createElement('button');printBtn.className='btn-primary';
-  printBtn.innerHTML='🖨 Print';printBtn.addEventListener('click',()=>window.print());
+  printBtn.innerHTML='⬇ PDF';printBtn.addEventListener('click',()=>generateAgendaPDF(a,role));
   const editBtn2=document.createElement('button');
   editBtn2.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
   editBtn2.textContent='✏ Edit';
