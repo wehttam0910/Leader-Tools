@@ -3938,6 +3938,8 @@ function renderAgendaDetail(el,role){
 }
 
 function renderCallingDetail(el,role){
+  const c=state.callings.find(x=>x.id===state.detailId);
+  if(!c){el.innerHTML='<div class="empty-state">Calling not found.</div>';return;}
   if(!c.stepMeta)c.stepMeta={};
   const steps=getSteps(c),status=getStatusBadge(c);
   const canEdit=canAdvanceWorkflow(role)&&!isReadOnly(role);
