@@ -2509,9 +2509,12 @@ function renderAgendaCategory(el,role,categoryKey){
       const speakers=(a.speakers||[]).map(s=>s.name).filter(Boolean).join(', ')||'—';
       tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
     } else {
-      const notesSnippet=a.announcementList&&a.announcementList.length
-        ? a.announcementList.slice(0,3).join(', ')+(a.announcementList.length>3?'…':'')
-        : '—';
+      const hasItems=a.announcementList&&a.announcementList.filter(Boolean).length;
+      // Strip HTML tags from rich text notes for plain text snippet
+      const notesPlain=(a.speaker1Topic||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      const notesSnippet=hasItems
+        ? a.announcementList.filter(Boolean).slice(0,3).join(', ')+(a.announcementList.filter(Boolean).length>3?'…':'')
+        : notesPlain?(notesPlain.substring(0,60)+(notesPlain.length>60?'…':'')):'—';
       const thought=a.spiritualThought||a.openingPrayer||'—';
       tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#888;">${notesSnippet}</td>`;
     }
