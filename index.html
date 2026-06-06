@@ -1210,6 +1210,7 @@ function agendaToDb(a) {
     date: a.date || null,
     meeting_type: a.meetingType || 'Regular',
     meeting_category: a.meetingCategory || 'sacrament',
+    spiritual_thought: a.spiritualThought || '',
     conducting: (a.conductingTitle&&a.conductingTitle!=='Counselor/Other'?a.conductingTitle+'\t':a.conductingTitle==='Counselor/Other'?'Counselor/Other\t':'')+(a.conducting||''),
     presiding: (a.presidingTitle?a.presidingTitle+'\t':'')+(a.presiding||''),
     high_counselor: a.highCounselor || '',
@@ -1249,6 +1250,7 @@ function agendaFromDb(r) {
     date: r.date || '',
     meetingType: r.meeting_type || 'Regular',
     meetingCategory: r.meeting_category || 'sacrament',
+    spiritualThought: r.spiritual_thought || '',
     conducting: r.conducting?r.conducting.split('\t').slice(-1)[0]:'',
     conductingTitle: r.conducting&&r.conducting.includes('\t')?r.conducting.split('\t')[0]:'Counselor/Other',
     presiding: r.presiding?r.presiding.split('\t').slice(-1)[0]:'',
@@ -2306,18 +2308,6 @@ function renderAgendas(el,role){
   // ── Hub page ──────────────────────────────────────────────────────────────
   el.innerHTML=`<div class="page-title">Agendas</div><div class="page-sub">Select a meeting type to view or create agendas</div>`;
 
-  // Custom meeting button in top right
-  const topBar=document.createElement('div');
-  topBar.style.cssText='display:flex;justify-content:flex-end;margin-bottom:24px;';
-  if(canCreateSacramentAgenda(role)){
-    const customBtn=document.createElement('button');
-    customBtn.className='btn-primary';
-    customBtn.textContent='+ Custom Meeting';
-    customBtn.addEventListener('click',()=>{window._agendaDraft=null;state.view='new';render();});
-    topBar.appendChild(customBtn);
-  }
-  el.appendChild(topBar);
-
   const types=getMeetingTypes(role);
   if(!types.length){
     const es=document.createElement('div');es.className='empty-state';
@@ -2363,8 +2353,7 @@ function renderAgendaCategory(el,role,categoryKey){
       state.view='new';render();
     });
     hdr.appendChild(newBtn);
-  }
-  el.appendChild(hdr);
+  }  el.appendChild(hdr);
 
   // Filter agendas to this category
   const roleWard=getAgendaWard(role);
@@ -2422,6 +2411,104 @@ function dateInp(val,onChange){
   return inp;
 }
 
+// ── Simple agenda form for non-sacrament meetings ────────────────────────────
+function renderSimpleAgendaForm(el,role,categoryKey){
+  const types=getMeetingTypes(role);
+  const mt=types.find(t=>t.key===categoryKey)||{label:categoryKey,icon:'📋'};
+  const ward=getAgendaWard(role)||'';
+  const d=window._agendaDraft||{};
+  const isEditing=!!(d.id);
+
+  el.innerHTML=`<div class="page-title">${mt.icon} ${isEditing?'Edit':'New'} ${mt.label} Agenda</div>`;
+
+  const hdr=document.createElement('div');hdr.className='section-header';hdr.style.marginBottom='16px';
+  const back=document.createElement('a');back.href='#';back.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
+  back.textContent='← Back';
+  back.addEventListener('click',e=>{e.preventDefault();window._agendaDraft=null;state.view='list';render();});
+  hdr.appendChild(back);
+  el.appendChild(hdr);
+
+  const card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:12px;padding:24px;max-width:560px;box-shadow:0 1px 4px rgba(0,0,0,0.07);';
+
+  function field(label,inp){
+    const wrap=document.createElement('div');wrap.className='agenda-field';
+    wrap.innerHTML=`<label>${label}</label>`;
+    wrap.appendChild(inp);
+    return wrap;
+  }
+  function textInp(key,placeholder,value){
+    const inp=document.createElement('input');inp.type='text';inp.placeholder=placeholder;inp.value=value||'';
+    inp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';
+    inp.addEventListener('input',()=>{d[key]=inp.value;});
+    return inp;
+  }
+
+  // Date
+  const dateInpEl=document.createElement('input');dateInpEl.type='date';dateInpEl.value=d.date||'';
+  dateInpEl.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';
+  dateInpEl.addEventListener('change',()=>{d.date=dateInpEl.value;});
+  card.appendChild(field('Date *',dateInpEl));
+
+  card.appendChild(field('Conducting',textInp('conducting','Full name',d.conducting)));
+  card.appendChild(field('Opening Prayer',textInp('openingPrayer','Full name',d.openingPrayer)));
+  card.appendChild(field('Spiritual Thought / Devotional',textInp('spiritualThought','Name or topic',d.spiritualThought)));
+  card.appendChild(field('Closing Prayer',textInp('closingPrayer','Full name',d.closingPrayer)));
+
+  // Notes textarea
+  const notesWrap=document.createElement('div');notesWrap.className='agenda-field';
+  notesWrap.innerHTML='<label>Agenda Topics / Notes</label>';
+  const notesTa=document.createElement('textarea');
+  notesTa.placeholder='List agenda items, discussion topics, or any notes…';
+  notesTa.value=d.notes||'';
+  notesTa.style.cssText='width:100%;min-height:120px;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.5;';
+  notesTa.addEventListener('input',()=>{d.notes=notesTa.value;});
+  notesWrap.appendChild(notesTa);
+  card.appendChild(notesWrap);
+
+  // Save button
+  const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
+  saveBtn.style.cssText='margin-top:8px;padding:12px 24px;font-size:14px;';
+  saveBtn.textContent=isEditing?'Save Changes':'Save Agenda';
+  saveBtn.addEventListener('click',async()=>{
+    if(!d.date){alert('Please enter a date.');dateInpEl.focus();return;}
+    saveBtn.disabled=true;saveBtn.textContent='Saving…';
+    try{
+      const payload={
+        ward,date:d.date,meeting_type:'Regular',meeting_category:categoryKey,
+        conducting:(d.conductingTitle&&d.conductingTitle!=='Counselor/Other'?d.conductingTitle+'\t':'Counselor/Other\t')+(d.conducting||''),
+        presiding:'',opening_prayer:d.openingPrayer||'',closing_prayer:d.closingPrayer||'',
+        spiritual_thought:d.spiritualThought||'',notes:d.notes||'',
+        speakers:JSON.stringify([]),announcements:JSON.stringify([]),
+        ward_business:JSON.stringify({}),hymns:JSON.stringify({}),
+      };
+      let result;
+      if(isEditing){
+        result=await sb.from('agendas').update(payload).eq('id',d.id).select().single();
+      } else {
+        result=await sb.from('agendas').insert(payload).select().single();
+      }
+      if(result.error)throw result.error;
+      const saved=result.data;
+      // Update state
+      if(isEditing){
+        const idx=state.agendas.findIndex(a=>a.id===d.id);
+        if(idx>=0)state.agendas[idx]={...state.agendas[idx],...payload,id:d.id};
+      } else {
+        state.agendas.unshift({...payload,id:saved.id,meetingCategory:categoryKey,conducting:d.conducting||'',notes:d.notes||''});
+      }
+      window._agendaDraft=null;
+      state.view='list';
+      render();
+    }catch(e){
+      alert('Error saving: '+e.message);
+      saveBtn.disabled=false;saveBtn.textContent=isEditing?'Save Changes':'Save Agenda';
+    }
+  });
+  card.appendChild(saveBtn);
+  el.appendChild(card);
+}
+
 function renderAgendaWizard(el,role,editingAgenda){
   el.innerHTML='';
 
@@ -2431,6 +2518,13 @@ function renderAgendaWizard(el,role,editingAgenda){
 
   const ward=getAgendaWard(role)||'';
   const isEditing=!!editingAgenda;
+
+  // Non-sacrament meeting categories get a lightweight agenda form
+  const draftCategory=(window._agendaDraft?.meetingCategory)||(editingAgenda?.meetingCategory)||'sacrament';
+  if(draftCategory!=='sacrament'&&!isEditing){
+    renderSimpleAgendaForm(el,role,draftCategory);
+    return;
+  }
 
   // Init draft from existing agenda or blank
   if(!window._agendaDraft){
