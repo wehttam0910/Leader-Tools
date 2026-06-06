@@ -2348,7 +2348,7 @@ function openCustomMeetingTypeModal(role, onComplete){
     {key:'openingHymn',      label:'Opening Hymn',         checked:true},
     {key:'spiritualThought', label:'Spiritual Thought',    checked:true},
     {key:'agendaItems',      label:'Agenda Items',         checked:true},
-    {key:'closingHymn',      label:'Closing Hymn',         checked:true},
+    {key:'closingHymn',      label:'Closing Hymn',         checked:false},
     {key:'closingPrayer',    label:'Closing Prayer',       checked:true},
   ];
   const fieldChecks={};
@@ -2529,7 +2529,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
 
   const customTypes=getCustomMeetingTypes(ward);
   const customDef=customTypes.find(t=>t.key===categoryKey);
-  const fields=customDef?.fields||{openingPrayer:true,openingHymn:true,spiritualThought:true,agendaItems:true,closingHymn:true,closingPrayer:true};
+  const fields=customDef?.fields||{openingPrayer:true,openingHymn:true,spiritualThought:true,agendaItems:true,closingHymn:false,closingPrayer:true};
 
   el.innerHTML=`<div class="page-title">${isEditing?'Edit':'New'} ${mt.label} Agenda</div>`;
 
@@ -2601,7 +2601,27 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     renderAI();aiWrap.appendChild(aiList);card.appendChild(aiWrap);
   }
 
-  if(fields.closingHymn){const hw=document.createElement('div');hw.className='agenda-field';hw.innerHTML='<label>Closing Hymn</label>';hw.appendChild(hymnRow('closingHymnNum','closingHymnTitle',d.closingHymnNum,d.closingHymnTitle));card.appendChild(hw);}
+  if(fields.closingHymn!==undefined){
+    // Closing hymn is optional per-meeting — toggle shows/hides the inputs
+    if(d.includeClosingHymn===undefined) d.includeClosingHymn=!!fields.closingHymn;
+    const chWrap=document.createElement('div');chWrap.className='agenda-field';
+    function renderCH(){
+      chWrap.innerHTML='';
+      const headerRow=document.createElement('div');headerRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px;';
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=d.includeClosingHymn;
+      cb.style.cssText='width:15px;height:15px;accent-color:#1c2537;cursor:pointer;flex-shrink:0;';
+      const lbl=document.createElement('label');lbl.textContent='Closing Hymn';
+      lbl.style.cssText='font-size:12px;font-weight:600;color:#1c2537;cursor:pointer;user-select:none;';
+      cb.addEventListener('change',()=>{d.includeClosingHymn=cb.checked;renderCH();});
+      lbl.addEventListener('click',()=>{cb.checked=!cb.checked;d.includeClosingHymn=cb.checked;renderCH();});
+      headerRow.appendChild(cb);headerRow.appendChild(lbl);chWrap.appendChild(headerRow);
+      if(d.includeClosingHymn){
+        chWrap.appendChild(hymnRow('closingHymnNum','closingHymnTitle',d.closingHymnNum,d.closingHymnTitle));
+      }
+    }
+    renderCH();
+    card.appendChild(chWrap);
+  }
   if(fields.closingPrayer) card.appendChild(fld('Closing Prayer',ti('closingPrayer','Full name',d.closingPrayer)));
 
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';saveBtn.style.cssText='margin-top:8px;padding:12px 24px;font-size:14px;';saveBtn.textContent=isEditing?'Save Changes':'Save Agenda';
