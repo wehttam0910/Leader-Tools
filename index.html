@@ -2553,7 +2553,13 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   const hdr=document.createElement('div');hdr.className='section-header';hdr.style.marginBottom='16px';
   const back=document.createElement('a');back.href='#';back.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
   back.textContent='← Back';
-  back.addEventListener('click',e=>{e.preventDefault();window._agendaDraft=null;state.view='list';render();});
+  back.addEventListener('click',e=>{
+    e.preventDefault();
+    window._agendaDraft=null;
+    if(isEditing){state.view='detail';}
+    else{state.view='list';}
+    render();
+  });
   hdr.appendChild(back);el.appendChild(hdr);
 
   const card=document.createElement('div');
@@ -2639,7 +2645,12 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   card.appendChild(minutesWrap);
 
   if(fields.agendaItems){
-    if(!d.agendaItems||!Array.isArray(d.agendaItems)) d.agendaItems=[''];
+    // On edit, seed agendaItems from the saved announcementList
+    if(!d.agendaItems||!Array.isArray(d.agendaItems)){
+      d.agendaItems=(d.announcementList&&d.announcementList.length)
+        ? [...d.announcementList]
+        : [''];
+    }
     const aiWrap=document.createElement('div');aiWrap.className='agenda-field';aiWrap.innerHTML='<label>Agenda Items</label>';
     const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:6px;';
     let focusIdx=null;
