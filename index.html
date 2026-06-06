@@ -2664,7 +2664,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
             renderAI();
           }
         });
-        if(focusIdx===idx){inp.focus();focusIdx=null;}
+        if(focusIdx===idx){setTimeout(()=>inp.focus(),0);focusIdx=null;}
         const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0;';
         rm.addEventListener('click',()=>{d.agendaItems.splice(idx,1);if(!d.agendaItems.length)d.agendaItems=[''];focusIdx=null;renderAI();});
         row.appendChild(inp);row.appendChild(rm);aiList.appendChild(row);
