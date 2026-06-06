@@ -1,7 +1,7 @@
 // LeaderTools Service Worker
 // Caches the app shell for offline use and satisfies PWA installability criteria.
 
-const CACHE = 'leadertools-v1';
+const CACHE = 'leadertools-v2';
 const SHELL = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
