@@ -2486,7 +2486,7 @@ function renderAgendaCategory(el,role,categoryKey){
   if(isSacrament){
     thead.innerHTML='<tr><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Speakers</th></tr>';
   } else {
-    thead.innerHTML='<tr><th>Date</th><th>Conducting</th><th>Spiritual Thought</th><th>Topics / Notes</th></tr>';
+    thead.innerHTML='<tr><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th></tr>';
   }
   table.appendChild(thead);
   const tbody=document.createElement('tbody');
@@ -2552,7 +2552,34 @@ function renderSimpleAgendaForm(el,role,categoryKey){
 
   if(fields.openingPrayer) card.appendChild(fld('Opening Prayer',ti('openingPrayer','Full name',d.openingPrayer)));
   if(fields.openingHymn){const hw=document.createElement('div');hw.className='agenda-field';hw.innerHTML='<label>Opening Hymn</label>';hw.appendChild(hymnRow('openingHymnNum','openingHymnTitle',d.openingHymnNum,d.openingHymnTitle));card.appendChild(hw);}
-  if(fields.spiritualThought) card.appendChild(fld('Spiritual Thought',ti('spiritualThought','Name or topic',d.spiritualThought)));
+  if(fields.spiritualThought){
+    // Label is selectable per-meeting: Spiritual Thought, Handbook Moment, Devotional, or skip
+    if(!d.spiritualThoughtLabel) d.spiritualThoughtLabel='Spiritual Thought';
+    const stWrap=document.createElement('div');stWrap.className='agenda-field';
+    function renderST(){
+      stWrap.innerHTML='';
+      const headerRow=document.createElement('div');headerRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px;';
+      const labelSel=document.createElement('select');
+      labelSel.style.cssText='font-size:12px;font-weight:600;color:#1c2537;border:none;background:transparent;cursor:pointer;padding:0;appearance:auto;';
+      ['Spiritual Thought','Handbook Moment','Devotional','— None —'].forEach(opt=>{
+        const o=document.createElement('option');o.value=opt;o.textContent=opt;
+        if(d.spiritualThoughtLabel===opt)o.selected=true;
+        labelSel.appendChild(o);
+      });
+      labelSel.addEventListener('change',()=>{
+        d.spiritualThoughtLabel=labelSel.value;
+        renderST();
+      });
+      headerRow.appendChild(labelSel);
+      stWrap.appendChild(headerRow);
+      if(d.spiritualThoughtLabel!=='— None —'){
+        const inp=ti('spiritualThought','Name or topic',d.spiritualThought);
+        stWrap.appendChild(inp);
+      }
+    }
+    renderST();
+    card.appendChild(stWrap);
+  }
 
   if(fields.agendaItems){
     if(!d.agendaItems||!Array.isArray(d.agendaItems)) d.agendaItems=[''];
@@ -2582,7 +2609,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     if(!d.date){alert('Please enter a date.');dateEl.focus();return;}
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
     try{
-      const payload={ward,date:d.date,meeting_type:'Regular',meeting_category:categoryKey,conducting:d.conducting||'',presiding:'',opening_prayer:d.openingPrayer||'',closing_prayer:d.closingPrayer||'',spiritual_thought:d.spiritualThought||'',notes:d.notes||'',speakers:JSON.stringify([]),announcements:JSON.stringify(d.agendaItems||[]),ward_business:JSON.stringify({}),hymns:JSON.stringify({opening:{num:d.openingHymnNum||'',title:d.openingHymnTitle||''},closing:{num:d.closingHymnNum||'',title:d.closingHymnTitle||''}})};
+      const payload={ward,date:d.date,meeting_type:d.spiritualThoughtLabel||'Regular',meeting_category:categoryKey,conducting:d.conducting||'',presiding:'',opening_prayer:d.openingPrayer||'',closing_prayer:d.closingPrayer||'',spiritual_thought:d.spiritualThoughtLabel==='— None —'?'':d.spiritualThought||'',notes:d.notes||'',speakers:JSON.stringify([]),announcements:JSON.stringify(d.agendaItems||[]),ward_business:JSON.stringify({}),hymns:JSON.stringify({opening:{num:d.openingHymnNum||'',title:d.openingHymnTitle||''},closing:{num:d.closingHymnNum||'',title:d.closingHymnTitle||''}})};
       const result=isEditing?await sb.from('agendas').update(payload).eq('id',d.id).select().single():await sb.from('agendas').insert(payload).select().single();
       if(result.error)throw result.error;
       const{data:fresh}=await sb.from('agendas').select('*').order('date',{ascending:false});
