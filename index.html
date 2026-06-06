@@ -2556,7 +2556,11 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   if(fields.openingHymn){const hw=document.createElement('div');hw.className='agenda-field';hw.innerHTML='<label>Opening Hymn</label>';hw.appendChild(hymnRow('openingHymnNum','openingHymnTitle',d.openingHymnNum,d.openingHymnTitle));card.appendChild(hw);}
   if(fields.spiritualThought){
     // Label is selectable per-meeting: Spiritual Thought, Handbook Moment, Devotional, or skip
-    if(!d.spiritualThoughtLabel) d.spiritualThoughtLabel='Spiritual Thought';
+    const THOUGHT_LABELS=['Spiritual Thought','Handbook Moment','Devotional','— None —'];
+    if(!d.spiritualThoughtLabel){
+      // On edit, restore from the saved meeting_type value; otherwise default
+      d.spiritualThoughtLabel=THOUGHT_LABELS.includes(d.meetingType)?d.meetingType:'Spiritual Thought';
+    }
     const stWrap=document.createElement('div');stWrap.className='agenda-field';
     function renderST(){
       stWrap.innerHTML='';
@@ -2690,7 +2694,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
       const payload={
         ward,
         date:d.date,
-        meeting_type:'Regular',
+        meeting_type:d.spiritualThoughtLabel||'Spiritual Thought',
         meeting_category:categoryKey,
         conducting:d.conducting||'',
         presiding:'',
@@ -3323,7 +3327,7 @@ function renderAgendaDetail(el,role){
     if(a.openingHymnNum||a.openingHymnTitle)
       row('Opening Hymn',`#${a.openingHymnNum||'—'}${a.openingHymnTitle?' — '+a.openingHymnTitle:''}`);
     if(a.spiritualThought)
-      row(a.meetingType&&a.meetingType!=='Regular'?a.meetingType:'Spiritual Thought',a.spiritualThought);
+      row(a.meetingType&&a.meetingType!=='Regular'&&a.meetingType!=='Spiritual Thought'?a.meetingType:'Spiritual Thought',a.spiritualThought);
 
     // Minutes from last meeting (stored in final_speaker_topic)
     if(a.finalSpeakerTopic){
