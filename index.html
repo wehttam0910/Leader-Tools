@@ -2497,7 +2497,9 @@ function renderAgendaCategory(el,role,categoryKey){
       const speakers=(a.speakers||[]).map(s=>s.name).filter(Boolean).join(', ')||'—';
       tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
     } else {
-      const notesSnippet=a.notes?(a.notes.substring(0,60)+(a.notes.length>60?'…':'')):' —';
+      const notesSnippet=a.announcementList&&a.announcementList.length
+        ? a.announcementList.slice(0,3).join(', ')+(a.announcementList.length>3?'…':'')
+        : '—';
       const thought=a.spiritualThought||a.openingPrayer||'—';
       tr.innerHTML=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#888;">${notesSnippet}</td>`;
     }
@@ -2629,22 +2631,32 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     if(!d.date){alert('Please enter a date.');dateEl.focus();return;}
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
     try{
-      // Serialize agenda items into notes so they're readable in the detail view
-      const agendaItemsText=(d.agendaItems||[]).filter(Boolean).join('\n');
-      const fullNotes=[agendaItemsText,d.notes||''].filter(Boolean).join('\n\n');
+      // Use only columns that actually exist in the agendas table
+      // Agenda items go into announcement_list (text array), thought into spiritual_thought
+      const agendaItems=(d.agendaItems||[]).filter(Boolean);
       const payload={
         ward,
         date:d.date,
+        meeting_type:'Regular',
         meeting_category:categoryKey,
         conducting:d.conducting||'',
+        presiding:'',
         opening_prayer:d.openingPrayer||'',
         closing_prayer:d.closingPrayer||'',
         spiritual_thought:d.spiritualThoughtLabel==='— None —'?'':d.spiritualThought||'',
-        notes:fullNotes,
         opening_hymn_num:d.openingHymnNum||'',
         opening_hymn_title:d.openingHymnTitle||'',
         closing_hymn_num:d.includeClosingHymn?d.closingHymnNum||'':'',
         closing_hymn_title:d.includeClosingHymn?d.closingHymnTitle||'':'',
+        announcement_list:agendaItems,
+        // Zero out sacrament-specific fields
+        high_counselor:'',stake_visiting:false,chorister:'',accompanist:'',
+        sacrament_hymn_num:'',sacrament_hymn_title:'',
+        intermediate_hymn:'',intermediate_hymn_title:'',
+        speaker1:'',speaker1_topic:'',speaker2:'',speaker2_topic:'',
+        final_speaker:'',final_speaker_topic:'',
+        new_records_list:[],releases:[],sustainings:[],
+        ordinations:[],baby_blessings_list:[],confirmations_list:[],
       };
       const result=isEditing?await sb.from('agendas').update(payload).eq('id',d.id).select().single():await sb.from('agendas').insert(payload).select().single();
       if(result.error)throw result.error;
@@ -3481,7 +3493,7 @@ function renderAgendaDetail(el,role){
   const notesTa=document.createElement('textarea');
   notesTa.className='live-notes-textarea';
   notesTa.placeholder='Type meeting notes here — all attendees with this agenda open will see updates in real time…';
-  notesTa.value=a.notes||'';
+  notesTa.value=a.notes||a.speaker1Topic||'';
   notesPanel.appendChild(notesTa);
 
   const notesFooter=document.createElement('div');notesFooter.className='live-notes-footer';
@@ -3518,7 +3530,7 @@ function renderAgendaDetail(el,role){
         notesTa.selectionStart=notesTa.selectionEnd=Math.min(pos,notesTa.value.length);
         isRemoteUpdate=false;
         // Update local state
-        a.notes=notesTa.value;
+        a.speaker1Topic=notesTa.value;a.notes=notesTa.value;
         const idx=state.agendas.findIndex(x=>x.id===a.id);
         if(idx>=0)state.agendas[idx].notes=notesTa.value;
         setStatus('Live',`live`);
@@ -3545,8 +3557,8 @@ function renderAgendaDetail(el,role){
         channel.send({type:'broadcast',event:'notes-update',payload:{notes:newNotes}});
         // Save to DB
         try{
-          await sb.from('agendas').update({notes:newNotes}).eq('id',a.id);
-          a.notes=newNotes;
+          await sb.from('agendas').update({speaker1_topic:newNotes}).eq('id',a.id);
+          a.speaker1Topic=newNotes;a.notes=newNotes;
           const idx=state.agendas.findIndex(x=>x.id===a.id);
           if(idx>=0)state.agendas[idx].notes=newNotes;
           setStatus('Saved ✓','');
@@ -3563,8 +3575,8 @@ function renderAgendaDetail(el,role){
     notesTa.addEventListener('input',()=>{
       clearTimeout(saveTimer);
       saveTimer=setTimeout(async()=>{
-        await sb.from('agendas').update({notes:notesTa.value}).eq('id',a.id);
-        a.notes=notesTa.value;
+        await sb.from('agendas').update({speaker1_topic:notesTa.value}).eq('id',a.id);
+        a.speaker1Topic=notesTa.value;a.notes=notesTa.value;
         setStatus('Saved ✓','');
       },800);
     });
