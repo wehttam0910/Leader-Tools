@@ -2584,8 +2584,11 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   }
 
   // ── Minutes from last meeting ──────────────────────────────────────────────
-  // Find the most recent prior agenda of this category and pre-populate its notes
-  if(!isEditing&&d.lastMeetingMinutes===undefined){
+  if(isEditing){
+    // Editing: show the saved minutes (stored in finalSpeakerTopic)
+    if(d.lastMeetingMinutes===undefined) d.lastMeetingMinutes=d.finalSpeakerTopic||'';
+  } else if(d.lastMeetingMinutes===undefined){
+    // New agenda: find most recent prior agenda of this category and pre-populate
     const prior=(state.agendas||[])
       .filter(a=>a.meetingCategory===categoryKey&&a.ward===ward)
       .sort((a,b)=>b.date.localeCompare(a.date))[0];
@@ -2731,7 +2734,7 @@ function renderAgendaWizard(el,role,editingAgenda){
 
   // Non-sacrament meeting categories get a lightweight agenda form
   const draftCategory=(window._agendaDraft?.meetingCategory)||(editingAgenda?.meetingCategory)||'sacrament';
-  if(draftCategory!=='sacrament'&&!isEditing){
+  if(draftCategory!=='sacrament'){
     renderSimpleAgendaForm(el,role,draftCategory);
     return;
   }
@@ -3272,7 +3275,12 @@ function renderAgendaDetail(el,role){
   const editBtn2=document.createElement('button');
   editBtn2.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
   editBtn2.textContent='✏ Edit';
-  editBtn2.addEventListener('click',()=>{window._agendaDraft=JSON.parse(JSON.stringify(a));state.view='new';render();});
+  editBtn2.addEventListener('click',()=>{
+    window._agendaDraft=JSON.parse(JSON.stringify(a));
+    // Keep detailId set so the wizard can find the editing agenda
+    state.view='new';
+    render();
+  });
   const delBtn2=document.createElement('button');
   delBtn2.style.cssText='background:transparent;border:1px solid #e57373;color:#c62828;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
   delBtn2.textContent='Delete';
