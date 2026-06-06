@@ -1,40 +1,69 @@
 // LeaderTools Service Worker
-// Caches the app shell for offline use and satisfies PWA installability criteria.
+// Strategy: network-first for HTML (always get latest on deploy),
+// cache-first for static assets (fonts, icons, etc.)
 
-const CACHE = 'leadertools-v2';
-const SHELL = ['/', '/index.html'];
+const CACHE = 'leadertools-v3';
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(SHELL))
-  );
+  // Don't cache index.html — always fetch fresh from network
   self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
-  // Remove old caches
+  // Remove ALL old caches on activate
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for API calls (Supabase), cache-first for the app shell
   const url = new URL(e.request.url);
-  const isSupabase = url.hostname.includes('supabase.co');
-  const isCDN = url.hostname.includes('jsdelivr') || url.hostname.includes('googleapis');
 
-  if (isSupabase || isCDN) {
-    // Always go to network for data calls
-    e.respondWith(fetch(e.request));
+  // Always network-first for:
+  // - HTML documents (index.html, navigation requests)
+  // - Supabase API calls
+  // - Anything on the same origin that could be updated
+  const isHTML = e.request.mode === 'navigate' ||
+    e.request.headers.get('accept')?.includes('text/html');
+  const isSupabase = url.hostname.includes('supabase.co') ||
+    url.hostname.includes('supabase.io');
+  const isAPI = url.pathname.startsWith('/auth') ||
+    url.pathname.startsWith('/rest') ||
+    url.pathname.startsWith('/realtime');
+
+  if (isHTML || isSupabase || isAPI) {
+    // Network only — never serve stale HTML
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        caches.match(e.request) // offline fallback only
+      )
+    );
     return;
   }
 
-  // Cache-first for app shell
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+  // Cache-first for true static assets (icons, fonts from CDN)
+  const isStatic = url.hostname !== location.hostname ||
+    /\.(png|jpg|jpeg|svg|ico|woff2?|ttf)$/.test(url.pathname);
+
+  if (isStatic) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else: network first, no caching
+  e.respondWith(fetch(e.request));
 });
