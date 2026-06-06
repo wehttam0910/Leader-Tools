@@ -2583,22 +2583,74 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     card.appendChild(stWrap);
   }
 
+  // ── Minutes from last meeting ──────────────────────────────────────────────
+  // Find the most recent prior agenda of this category and pre-populate its notes
+  if(!isEditing&&d.lastMeetingMinutes===undefined){
+    const prior=(state.agendas||[])
+      .filter(a=>a.meetingCategory===categoryKey&&a.ward===ward)
+      .sort((a,b)=>b.date.localeCompare(a.date))[0];
+    d.lastMeetingMinutes=prior?.speaker1Topic||'';
+    d.lastMeetingDate=prior?.date||'';
+  }
+
+  const minutesWrap=document.createElement('div');minutesWrap.className='agenda-field';
+  const minutesLbl=document.createElement('label');
+  minutesLbl.textContent=d.lastMeetingDate
+    ?`Minutes from Last Meeting (${fmtDate(d.lastMeetingDate)})`
+    :'Minutes from Last Meeting';
+  minutesWrap.appendChild(minutesLbl);
+
+  if(!isEditing&&!d.lastMeetingMinutes){
+    // No prior notes — show a soft placeholder note
+    const none=document.createElement('div');
+    none.style.cssText='font-size:12px;color:#bbb;padding:6px 0;';
+    none.textContent='No notes found from previous meeting.';
+    minutesWrap.appendChild(none);
+  } else {
+    const minutesTa=document.createElement('textarea');
+    minutesTa.placeholder='Minutes or notes from the previous meeting…';
+    minutesTa.value=d.lastMeetingMinutes||'';
+    minutesTa.style.cssText='width:100%;min-height:100px;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.5;';
+    minutesTa.addEventListener('input',()=>{d.lastMeetingMinutes=minutesTa.value;});
+    minutesWrap.appendChild(minutesTa);
+  }
+  card.appendChild(minutesWrap);
+
   if(fields.agendaItems){
     if(!d.agendaItems||!Array.isArray(d.agendaItems)) d.agendaItems=[''];
     const aiWrap=document.createElement('div');aiWrap.className='agenda-field';aiWrap.innerHTML='<label>Agenda Items</label>';
     const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:6px;';
+    let focusIdx=null;
     function renderAI(){
       aiList.innerHTML='';
       d.agendaItems.forEach((val,idx)=>{
         const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center;';
-        const inp=document.createElement('input');inp.type='text';inp.placeholder=`Item ${idx+1}`;inp.value=val||'';inp.style.cssText='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;';
+        const inp=document.createElement('input');inp.type='text';inp.placeholder=`Item ${idx+1}`;inp.value=val||'';
+        inp.style.cssText='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;';
         inp.addEventListener('input',()=>{d.agendaItems[idx]=inp.value;});
-        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:0 4px;line-height:1;';
-        rm.addEventListener('click',()=>{d.agendaItems.splice(idx,1);if(!d.agendaItems.length)d.agendaItems=[''];renderAI();});
+        inp.addEventListener('keydown',e=>{
+          if(e.key==='Enter'){
+            e.preventDefault();
+            d.agendaItems[idx]=inp.value; // save current
+            d.agendaItems.splice(idx+1,0,''); // insert blank after
+            focusIdx=idx+1;
+            renderAI();
+          } else if(e.key==='Backspace'&&inp.value===''&&d.agendaItems.length>1){
+            e.preventDefault();
+            d.agendaItems.splice(idx,1);
+            focusIdx=Math.max(0,idx-1);
+            renderAI();
+          }
+        });
+        if(focusIdx===idx){inp.focus();focusIdx=null;}
+        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0;';
+        rm.addEventListener('click',()=>{d.agendaItems.splice(idx,1);if(!d.agendaItems.length)d.agendaItems=[''];focusIdx=null;renderAI();});
         row.appendChild(inp);row.appendChild(rm);aiList.appendChild(row);
       });
-      const addBtn=document.createElement('button');addBtn.textContent='+ Add item';addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;';
-      addBtn.addEventListener('click',()=>{d.agendaItems.push('');renderAI();});aiList.appendChild(addBtn);
+      const addBtn=document.createElement('button');addBtn.textContent='+ Add item';
+      addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;';
+      addBtn.addEventListener('click',()=>{d.agendaItems.push('');focusIdx=d.agendaItems.length-1;renderAI();});
+      aiList.appendChild(addBtn);
     }
     renderAI();aiWrap.appendChild(aiList);card.appendChild(aiWrap);
   }
@@ -2631,8 +2683,6 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     if(!d.date){alert('Please enter a date.');dateEl.focus();return;}
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
     try{
-      // Use only columns that actually exist in the agendas table
-      // Agenda items go into announcement_list (text array), thought into spiritual_thought
       const agendaItems=(d.agendaItems||[]).filter(Boolean);
       const payload={
         ward,
@@ -2649,12 +2699,13 @@ function renderSimpleAgendaForm(el,role,categoryKey){
         closing_hymn_num:d.includeClosingHymn?d.closingHymnNum||'':'',
         closing_hymn_title:d.includeClosingHymn?d.closingHymnTitle||'':'',
         announcement_list:agendaItems,
+        final_speaker_topic:d.lastMeetingMinutes||'', // minutes from last meeting
         // Zero out sacrament-specific fields
         high_counselor:'',stake_visiting:false,chorister:'',accompanist:'',
         sacrament_hymn_num:'',sacrament_hymn_title:'',
         intermediate_hymn:'',intermediate_hymn_title:'',
         speaker1:'',speaker1_topic:'',speaker2:'',speaker2_topic:'',
-        final_speaker:'',final_speaker_topic:'',
+        final_speaker:'',
         new_records_list:[],releases:[],sustainings:[],
         ordinations:[],baby_blessings_list:[],confirmations_list:[],
       };
@@ -3265,6 +3316,16 @@ function renderAgendaDetail(el,role){
       row('Opening Hymn',`#${a.openingHymnNum||'—'}${a.openingHymnTitle?' — '+a.openingHymnTitle:''}`);
     if(a.spiritualThought)
       row(a.meetingType&&a.meetingType!=='Regular'?a.meetingType:'Spiritual Thought',a.spiritualThought);
+
+    // Minutes from last meeting (stored in final_speaker_topic)
+    if(a.finalSpeakerTopic){
+      const sec=document.createElement('div');sec.style.cssText='margin-top:20px;padding-top:16px;border-top:1px solid rgba(0,0,0,0.08);';
+      const secLbl=document.createElement('div');secLbl.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:10px;';secLbl.textContent='Minutes from Last Meeting';
+      sec.appendChild(secLbl);
+      const minText=document.createElement('div');minText.style.cssText='font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6;';minText.textContent=a.finalSpeakerTopic;
+      sec.appendChild(minText);
+      doc.appendChild(sec);
+    }
 
     // Agenda items from announcement_list
     if(a.announcementList&&a.announcementList.length){
