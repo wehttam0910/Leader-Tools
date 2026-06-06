@@ -112,6 +112,16 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .agenda-table .td-date{font-weight:700;font-size:14px;}
 .agenda-type-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#e6f1fb;color:#185fa5;}
 .agenda-type-badge.fast{background:#f0eeff;color:#5b47d6;}
+.live-notes-panel{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:20px 24px;max-width:760px;margin-top:16px;}
+.live-notes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.live-notes-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#1c2537;}
+.live-notes-status{display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;}
+.live-notes-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background 0.3s;}
+.live-notes-dot.live{background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.2);}
+.live-notes-dot.saving{background:#f59e0b;}
+.live-notes-textarea{width:100%;min-height:160px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;padding:12px;font-size:13px;font-family:inherit;color:#1c2537;resize:vertical;box-sizing:border-box;line-height:1.6;}
+.live-notes-textarea:focus{outline:none;border-color:#185fa5;}
+.live-notes-footer{font-size:11px;color:#bbb;margin-top:8px;}
 /* Agenda wizard */
 .agenda-section{background:#f8f9fb;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:16px;margin-bottom:14px;}
 .agenda-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:12px;}
@@ -3212,13 +3222,115 @@ function renderAgendaDetail(el,role){
   if(a.closingPrayer)agendaItem('Benediction',a.closingPrayer);
 
   el.appendChild(doc);
+
+  // ── Live Notes Panel ───────────────────────────────────────────────────────
+  // One shared notes field per agenda. Clerk types, others see updates in ~1s.
+  // Uses Supabase Realtime broadcast on channel `agenda-notes-{id}`.
+  const notesPanel=document.createElement('div');notesPanel.className='live-notes-panel';
+
+  const notesHdr=document.createElement('div');notesHdr.className='live-notes-header';
+  const notesTitle=document.createElement('div');notesTitle.className='live-notes-title';notesTitle.textContent='Meeting Notes';
+  const notesStatusWrap=document.createElement('div');notesStatusWrap.className='live-notes-status';
+  const notesDot=document.createElement('div');notesDot.className='live-notes-dot';
+  const notesStatusTxt=document.createElement('span');notesStatusTxt.textContent='Connecting…';
+  notesStatusWrap.appendChild(notesDot);notesStatusWrap.appendChild(notesStatusTxt);
+  notesHdr.appendChild(notesTitle);notesHdr.appendChild(notesStatusWrap);
+  notesPanel.appendChild(notesHdr);
+
+  const notesTa=document.createElement('textarea');
+  notesTa.className='live-notes-textarea';
+  notesTa.placeholder='Type meeting notes here — all attendees with this agenda open will see updates in real time…';
+  notesTa.value=a.notes||'';
+  notesPanel.appendChild(notesTa);
+
+  const notesFooter=document.createElement('div');notesFooter.className='live-notes-footer';
+  notesFooter.textContent='Notes are shared live. Last edit wins if two people type simultaneously.';
+  notesPanel.appendChild(notesFooter);
+
+  el.appendChild(notesPanel);
+
+  // Set up Supabase Realtime channel for this agenda
+  const channelName=`agenda-notes-${a.id}`;
+  // Clean up any previous channel on this page
+  if(window._agendaNotesChannel){
+    try{sb.removeChannel(window._agendaNotesChannel);}catch(e){}
+    window._agendaNotesChannel=null;
+  }
+
+  let saveTimer=null;
+  let isRemoteUpdate=false;
+
+  function setStatus(label,dotClass){
+    notesStatusTxt.textContent=label;
+    notesDot.className='live-notes-dot'+(dotClass?' '+dotClass:'');
+  }
+
+  try{
+    const channel=sb.channel(channelName,{config:{broadcast:{self:false}}});
+
+    channel.on('broadcast',{event:'notes-update'},payload=>{
+      if(payload.payload&&typeof payload.payload.notes==='string'){
+        isRemoteUpdate=true;
+        const pos=notesTa.selectionStart;
+        notesTa.value=payload.payload.notes;
+        // Restore cursor position approximately
+        notesTa.selectionStart=notesTa.selectionEnd=Math.min(pos,notesTa.value.length);
+        isRemoteUpdate=false;
+        // Update local state
+        a.notes=notesTa.value;
+        const idx=state.agendas.findIndex(x=>x.id===a.id);
+        if(idx>=0)state.agendas[idx].notes=notesTa.value;
+        setStatus('Live',`live`);
+      }
+    });
+
+    channel.subscribe(status=>{
+      if(status==='SUBSCRIBED'){
+        setStatus('Live',`live`);
+      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        setStatus('Offline','');
+      }
+    });
+
+    window._agendaNotesChannel=channel;
+
+    notesTa.addEventListener('input',()=>{
+      if(isRemoteUpdate) return;
+      setStatus('Saving…','saving');
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(async()=>{
+        const newNotes=notesTa.value;
+        // Broadcast to other viewers
+        channel.send({type:'broadcast',event:'notes-update',payload:{notes:newNotes}});
+        // Save to DB
+        try{
+          await sb.from('agendas').update({notes:newNotes}).eq('id',a.id);
+          a.notes=newNotes;
+          const idx=state.agendas.findIndex(x=>x.id===a.id);
+          if(idx>=0)state.agendas[idx].notes=newNotes;
+          setStatus('Saved ✓','');
+          setTimeout(()=>setStatus('Live','live'),1500);
+        }catch(e){
+          setStatus('Save failed','');
+        }
+      },600); // 600ms debounce
+    });
+
+  }catch(e){
+    // Realtime unavailable — fall back to plain auto-save only
+    setStatus('Auto-save only','');
+    notesTa.addEventListener('input',()=>{
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(async()=>{
+        await sb.from('agendas').update({notes:notesTa.value}).eq('id',a.id);
+        a.notes=notesTa.value;
+        setStatus('Saved ✓','');
+      },800);
+    });
+  }
 }
 
-
-
-
 function renderCallingDetail(el,role){
-  const c=state.callings.find(x=>x.id===state.detailId);if(!c)return;
   if(!c.stepMeta)c.stepMeta={};
   const steps=getSteps(c),status=getStatusBadge(c);
   const canEdit=canAdvanceWorkflow(role)&&!isReadOnly(role);
@@ -4115,7 +4227,11 @@ function render(){
 
 // Listen for browser back/forward — restore app state from history snapshot
 window.addEventListener('popstate',e=>{
-  if(!e.state) return; // leaving to a real external URL — let it go
+  if(!e.state) return;
+  if(window._agendaNotesChannel){
+    try{sb.removeChannel(window._agendaNotesChannel);}catch(_){}
+    window._agendaNotesChannel=null;
+  }
   const snap=e.state;
   state.tab=snap.tab||'callings';
   state.view=snap.view||'list';
