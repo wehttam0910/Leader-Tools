@@ -3752,7 +3752,6 @@ function renderCallings(el,role){
     {key:'ward',    label:'Ward',     val:c=>c.ward},
     {key:'level',   label:'Level',    val:c=>c.level},
     {key:'action',  label:'Action',   val:c=>c.action},
-    {key:'status',  label:'Status',   val:c=>getStatusBadge(c).label},
     {key:'assigned',label:'Assigned', val:c=>getCurrentAssignment(c).group},
     {key:'progress',label:'Progress', val:c=>c.currentStep/(getSteps(c).length-1)},
     {key:'next',    label:'Next Step',val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
@@ -3793,7 +3792,7 @@ function renderCallings(el,role){
           <div style="font-weight:700;font-size:15px;color:#1c2537;">${c.calling}${holderBadge}</div>
           <div style="font-size:13px;color:#555;margin-top:1px;">${c.name}</div>
         </div>
-        <span class="badge ${status.cls}" style="flex-shrink:0;margin-top:2px;">${status.label}</span>
+        <span class="badge ${status.cls}" style="flex-shrink:0;margin-top:2px;white-space:nowrap;">${nextStep}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;">
         <span class="badge ${lvl.cls}" style="font-size:10px;">${lvl.label}</span>
@@ -3802,7 +3801,6 @@ function renderCallings(el,role){
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
         <div style="flex:1;">
-          <div style="font-size:11px;color:#aaa;margin-bottom:3px;">Next: <strong style="color:#1c2537;">${nextStep}</strong></div>
           <div style="height:4px;background:rgba(0,0,0,0.07);border-radius:2px;overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:#1c2537;border-radius:2px;"></div>
           </div>
@@ -3851,19 +3849,19 @@ function renderCallings(el,role){
     const assignCell=assignGroup
       ?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`
       :'<span style="color:#ccc;font-size:11px;">—</span>';
+    const nextStepLabel=c.currentStep<steps.length?steps[c.currentStep]:'—';
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
       <td>${c.name}</td>
       <td class="td-sub">${c.ward}</td>
       <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
       <td class="td-sub">${c.action}</td>
-      <td><span class="badge ${status.cls}">${status.label}</span></td>
       <td class="td-sub">${assignCell}</td>
       <td class="progress-cell">
         <div style="font-size:11px;color:#aaa;">${c.currentStep} / ${steps.length-1}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
       </td>
-      <td class="td-sub">${c.currentStep<steps.length?steps[c.currentStep]:'—'}</td>`;
+      <td><span class="badge ${status.cls}">${nextStepLabel}</span></td>`;
     tr.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
     tbody.appendChild(tr);
   });
