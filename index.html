@@ -4851,7 +4851,7 @@ function renderCallings(el,role){
             <div style="height:100%;width:${pct}%;background:#1c2537;border-radius:2px;"></div>
           </div>
         </div>
-        <div style="font-size:11px;color:#aaa;flex-shrink:0;">${clampedStep2}/${steps.length-1}</div>
+        <div style="font-size:11px;color:#aaa;flex-shrink:0;">${clampedStep}/${steps.length-1}</div>
       </div>`;
     card.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
     mobileCards.appendChild(card);
