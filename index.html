@@ -1316,12 +1316,12 @@ function agendaFromDb(r) {
     finalSpeaker: r.final_speaker || '',
     finalSpeakerTopic: r.final_speaker_topic || '',
     announcementList: r.announcement_list || [],
-    newRecordsList: r.new_records_list || [],
-    releases: r.releases || [],
-    sustainings: r.sustainings || [],
-    ordinations: r.ordinations || [],
-    babyBlessingsList: r.baby_blessings_list || [],
-    confirmationsList: r.confirmations_list || [],
+    newRecordsList: Array.isArray(r.new_records_list)?r.new_records_list:(r.new_records_list?JSON.parse(r.new_records_list):[]),
+    releases: Array.isArray(r.releases)?r.releases:(r.releases?JSON.parse(r.releases):[]),
+    sustainings: Array.isArray(r.sustainings)?r.sustainings:(r.sustainings?JSON.parse(r.sustainings):[]),
+    ordinations: Array.isArray(r.ordinations)?r.ordinations:(r.ordinations?JSON.parse(r.ordinations):[]),
+    babyBlessingsList: Array.isArray(r.baby_blessings_list)?r.baby_blessings_list:(r.baby_blessings_list?JSON.parse(r.baby_blessings_list):[]),
+    confirmationsList: Array.isArray(r.confirmations_list)?r.confirmations_list:(r.confirmations_list?JSON.parse(r.confirmations_list):[]),
   };
 }
 
