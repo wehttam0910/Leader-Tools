@@ -3537,7 +3537,84 @@ function renderAgendaDetail(el,role){
 
   const isSacramentMeeting=(a.meetingCategory==='sacrament'||!a.meetingCategory);
 
-  // ── Non-sacrament meetings: simple summary card, no logo, no script ────────
+  // ── Pulpit-ready banner — callings ready to sustain/release not yet on this agenda ──
+  if(isSacramentMeeting){
+    const ward=a.ward;
+    const missing={sustain:[],release:[]};
+
+    (state.callings||[]).filter(c=>c.ward===ward).forEach(c=>{
+      const steps=getSteps(c);
+      const nextStep=steps[Math.min(c.currentStep,steps.length-1)];
+      if(nextStep==='Sustain over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
+        // Check if already on agenda
+        const already=(a.sustainings||[]).some(s=>s.member===c.name&&s.calling===c.calling);
+        if(!already) missing.sustain.push({member:c.name,calling:c.calling,_callingId:c.id});
+        if(nextStep==='Sustain & Release over Pulpit'&&c.currentlyFilled&&c.releaseName){
+          const alreadyRel=(a.releases||[]).some(r=>r.member===c.releaseName&&r.calling===c.calling);
+          if(!alreadyRel) missing.release.push({member:c.releaseName,calling:c.calling,_callingId:c.id});
+        }
+      }
+      if(nextStep==='Release over Pulpit'){
+        const name=c.releaseName||c.name;
+        const already=(a.releases||[]).some(r=>r.member===name&&r.calling===c.calling);
+        if(!already) missing.release.push({member:name,calling:c.calling,_callingId:c.id});
+      }
+    });
+
+    const totalMissing=missing.sustain.length+missing.release.length;
+    if(totalMissing>0){
+      const banner=document.createElement('div');
+      banner.style.cssText='background:#fef9ed;border:1px solid #f5c842;border-radius:10px;padding:12px 16px;margin-bottom:16px;max-width:760px;';
+
+      const bannerHdr=document.createElement('div');bannerHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;';
+      const bannerTitle=document.createElement('div');
+      bannerTitle.style.cssText='font-size:13px;font-weight:600;color:#92400e;';
+      const items=[
+        ...missing.sustain.map(s=>`${s.member} as ${s.calling}`),
+        ...missing.release.map(r=>`Release ${r.member} from ${r.calling}`),
+      ];
+      bannerTitle.innerHTML=`⚠ <strong>${totalMissing} calling${totalMissing>1?'s':''} ready for the pulpit</strong> not yet on this agenda`;
+      bannerHdr.appendChild(bannerTitle);
+
+      const addBtn=document.createElement('button');
+      addBtn.style.cssText='background:#1c2537;color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+      addBtn.textContent='Add to Agenda';
+      addBtn.addEventListener('click',async()=>{
+        addBtn.disabled=true;addBtn.textContent='Adding…';
+        try{
+          const newSustainings=[...(a.sustainings||[]),...missing.sustain.map(s=>({member:s.member,calling:s.calling}))];
+          const newReleases=[...(a.releases||[]),...missing.release.map(r=>({member:r.member,calling:r.calling}))];
+          const{error}=await sb.from('agendas').update({
+            sustainings:JSON.stringify(newSustainings),
+            releases:JSON.stringify(newReleases),
+          }).eq('id',a.id);
+          if(error)throw error;
+          a.sustainings=newSustainings;a.releases=newReleases;
+          // Refresh from DB
+          const{data}=await sb.from('agendas').select('*').eq('id',a.id).single();
+          if(data){
+            const idx=state.agendas.findIndex(x=>x.id===a.id);
+            if(idx>=0)state.agendas[idx]=agendaFromDb(data);
+          }
+          render();
+        }catch(e){
+          alert('Error: '+e.message);
+          addBtn.disabled=false;addBtn.textContent='Add to Agenda';
+        }
+      });
+      bannerHdr.appendChild(addBtn);
+      banner.appendChild(bannerHdr);
+
+      // List the missing items
+      const bannerList=document.createElement('div');bannerList.style.cssText='margin-top:8px;font-size:12px;color:#92400e;';
+      items.forEach(item=>{
+        const line=document.createElement('div');line.style.cssText='padding:2px 0;';line.textContent='• '+item;
+        bannerList.appendChild(line);
+      });
+      banner.appendChild(bannerList);
+      el.appendChild(banner);
+    }
+  }
   if(!isSacramentMeeting){
     const doc=document.createElement('div');
     doc.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:28px 32px;max-width:760px;';
