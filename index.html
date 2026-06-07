@@ -2993,16 +2993,17 @@ function renderAgendaWizard(el,role,editingAgenda){
         const sustainAltIdx=steps.indexOf('Sustain & Release over Pulpit');
         const releaseOverPulpitIdx=steps.indexOf('Release over Pulpit');
 
-        // Callings ready to be sustained over the pulpit
-        const isSustainReady=(sustainIdx>=0&&c.currentStep===sustainIdx)||
-                             (sustainAltIdx>=0&&c.currentStep===sustainAltIdx);
+        // A calling is ready to appear in the agenda if the sustain step is done
+        // but the branches (LCR entry, Set Apart) are not yet complete
+        const sustainStepDone=(sustainIdx>=0&&!!c.stepDates[sustainIdx])||
+                              (sustainAltIdx>=0&&!!c.stepDates[sustainAltIdx]);
+        const isSustainReady=sustainStepDone&&!branchesAllDone(c);
+
         if(isSustainReady){
           autoSustain.push({member:c.name,calling:c.calling,_callingId:c.id,_auto:true});
-          // Also add release if there's a current holder to release
           if(c.currentlyFilled&&c.releaseName){
             autoRelease.push({member:c.releaseName,calling:c.calling,_callingId:c.id,_auto:true});
           }
-          // Add member's own release if they have prior callings to be released from
           if(c.memberNeedsRelease&&c.memberCallings&&c.memberCallings.length){
             c.memberCallings.forEach(mc=>{
               autoRelease.push({member:c.name,calling:mc,_callingId:c.id,_auto:true});
@@ -3013,7 +3014,8 @@ function renderAgendaWizard(el,role,editingAgenda){
         }
 
         // Release Only callings ready to be released over the pulpit
-        const isReleaseReady=releaseOverPulpitIdx>=0&&c.currentStep===releaseOverPulpitIdx&&c.action==='Release Only';
+        const releaseStepDone=releaseOverPulpitIdx>=0&&!!c.stepDates[releaseOverPulpitIdx];
+        const isReleaseReady=releaseStepDone&&!branchesAllDone(c)&&c.action==='Release Only';
         if(isReleaseReady){
           autoRelease.push({member:c.releaseName||c.name,calling:c.calling,_callingId:c.id,_auto:true});
         }
