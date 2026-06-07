@@ -2983,8 +2983,13 @@ function renderAgendaWizard(el,role,editingAgenda){
     if(isEditing){
       window._agendaDraft=JSON.parse(JSON.stringify(editingAgenda));
     } else {
-      // Auto-populate sustainings and releases from callings tracker
-      const autoSustain=[];
+      window._agendaDraft={meetingCategory:'sacrament'};
+    }
+  }
+  // Auto-populate sustainings and releases for NEW sacrament agendas
+  if(!isEditing&&window._agendaDraft&&!window._agendaDraft._autoPopulated){
+    window._agendaDraft._autoPopulated=true;
+    const autoSustain=[];
       const autoRelease=[];
       (state.callings||[]).forEach(c=>{
         if(c.ward!==ward)return; // only this ward
@@ -2993,10 +2998,11 @@ function renderAgendaWizard(el,role,editingAgenda){
         const sustainAltIdx=steps.indexOf('Sustain & Release over Pulpit');
         const releaseOverPulpitIdx=steps.indexOf('Release over Pulpit');
 
-        // A calling is ready to appear in the agenda if the sustain step is done
-        // but the branches (LCR entry, Set Apart) are not yet complete
-        const sustainStepDone=(sustainIdx>=0&&!!c.stepDates[sustainIdx])||
-                              (sustainAltIdx>=0&&!!c.stepDates[sustainAltIdx]);
+        // A calling is ready for sustaining if the sustain step is done
+        // Check stepDates first, fall back to currentStep position
+        const sustainStepDone=
+          (sustainIdx>=0&&(!!c.stepDates[sustainIdx]||c.currentStep>sustainIdx))||
+          (sustainAltIdx>=0&&(!!c.stepDates[sustainAltIdx]||c.currentStep>sustainAltIdx));
         const isSustainReady=sustainStepDone&&!branchesAllDone(c);
 
         if(isSustainReady){
@@ -3014,18 +3020,21 @@ function renderAgendaWizard(el,role,editingAgenda){
         }
 
         // Release Only callings ready to be released over the pulpit
-        const releaseStepDone=releaseOverPulpitIdx>=0&&!!c.stepDates[releaseOverPulpitIdx];
+        const releaseStepDone=releaseOverPulpitIdx>=0&&
+          (!!c.stepDates[releaseOverPulpitIdx]||c.currentStep>releaseOverPulpitIdx);
         const isReleaseReady=releaseStepDone&&!branchesAllDone(c)&&c.action==='Release Only';
         if(isReleaseReady){
           autoRelease.push({member:c.releaseName||c.name,calling:c.calling,_callingId:c.id,_auto:true});
         }
       });
 
-      window._agendaDraft={
-        date:'',ward,meetingType:'Regular',
-        meetingCategory:state.agendaCategory||'sacrament',
-        conducting:'',conductingTitle:'Counselor/Other',
-        presiding:'',presidingTitle:'Bishop',highCounselor:'',stakeVisiting:false,
+      // Merge auto-populated data into the draft (preserving meetingCategory set by the hub)
+      Object.assign(window._agendaDraft,{
+        date:window._agendaDraft.date||'',
+        ward,meetingType:'Regular',
+        conducting:window._agendaDraft.conducting||'',conductingTitle:window._agendaDraft.conductingTitle||'Counselor/Other',
+        presiding:window._agendaDraft.presiding||'',presidingTitle:window._agendaDraft.presidingTitle||'Bishop',
+        highCounselor:'',stakeVisiting:false,
         chorister:'',accompanist:'',
         openingPrayer:'',closingPrayer:'',
         openingHymnNum:'',openingHymnTitle:'',
@@ -3039,8 +3048,7 @@ function renderAgendaWizard(el,role,editingAgenda){
         speaker1:'',speaker1Topic:'',
         speaker2:'',speaker2Topic:'',
         finalSpeaker:'',finalSpeakerTopic:'',
-      };
-    }
+      });
   }
   const d=window._agendaDraft;
   // Always keep ward in sync with role
