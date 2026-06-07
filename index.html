@@ -378,9 +378,8 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .page-title{font-size:17px;}
   .section-header{flex-wrap:wrap;gap:8px;}
   .user-table th,.user-table td{padding:8px 8px;font-size:12px;}
-  /* Bigger tap target for step checkboxes */
-  .step-cb{width:24px;height:24px;border-radius:5px;}
-  .step-cb.checked::after{font-size:13px;}
+  .step-circle{width:26px;height:26px;}
+  .step-circle.active::after{width:10px;height:10px;}
 }
 .modal-handle{width:36px;height:4px;background:rgba(0,0,0,0.15);border-radius:2px;margin:0 auto 20px;}
 @media(min-width:600px){.modal-handle{display:none;}}
@@ -392,16 +391,23 @@ select:focus,input:focus,textarea:focus{outline:none;border-color:#1c2537;}
 textarea{resize:vertical;min-height:70px;}
 
 /* ── Step list with checkboxes ── */
-.step-list{margin-top:4px;}
-.step-item{padding:12px 0;border-bottom:1px solid rgba(0,0,0,0.06);}
-.step-item:last-child{border-bottom:none;}
-.step-row{display:flex;align-items:flex-start;gap:12px;}
-.step-cb{width:18px;height:18px;border-radius:4px;border:2px solid #ccc;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s;background:#fff;}
-.step-cb.checked{background:#1c2537;border-color:#1c2537;}
-.step-cb.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700;}
-.step-cb.disabled{cursor:default;opacity:0.4;}
-.step-body{flex:1;}
-.step-name{font-size:13px;font-weight:500;color:#1c2537;}
+.step-list{margin-top:8px;}
+.step-item{display:flex;gap:0;position:relative;}
+.step-item.after-declined{opacity:0.35;}
+.step-track{display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0;}
+.step-circle{width:22px;height:22px;border-radius:50%;border:2px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;transition:all 0.15s;cursor:pointer;}
+.step-circle.checked{background:#1c2537;border-color:#1c2537;}
+.step-circle.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700;}
+.step-circle.active{border-color:#1c2537;border-width:2.5px;background:#fff;}
+.step-circle.active::after{content:'';display:block;width:8px;height:8px;border-radius:50%;background:#1c2537;}
+.step-circle.future{opacity:0.35;cursor:default;}
+.step-circle.disabled-check{cursor:default;}
+.step-line{width:2px;flex:1;min-height:16px;background:#e0e0e0;margin:2px 0;}
+.step-line.done{background:#1c2537;}
+.step-body{flex:1;padding:0 0 24px 12px;min-width:0;}
+.step-name{font-size:13px;color:#888;font-weight:400;line-height:1.3;}
+.step-name.active{font-size:15px;font-weight:600;color:#1c2537;}
+.step-name.done{font-size:13px;color:#888;font-weight:400;}
 .step-date{font-size:11px;color:#aaa;margin-top:2px;}
 .step-panel{margin-top:10px;background:#f8f9fb;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:14px;}
 .step-panel-title{font-size:12px;font-weight:600;color:#1c2537;margin-bottom:10px;}
@@ -4046,7 +4052,6 @@ function renderCallingDetail(el,role){
     if(step==='Completed'){
       // Render as special Complete step
       const compItem=document.createElement('div');compItem.className='step-item';
-      const compRow=document.createElement('div');compRow.className='step-row';
 
       // Permission: stake presidency/admin for all callings; bishopric for ward callings
       const isStakeRole=role.scope==='stake'||role.scope==='admin';
@@ -4055,13 +4060,18 @@ function renderCallingDetail(el,role){
         ? isStakeRole
         : isStakeRole||isWardBishopricRole;
 
+      // Track: circle only (no line after last step)
+      const compTrack=document.createElement('div');compTrack.className='step-track';
       const compCb=document.createElement('div');
-      compCb.className='step-cb'+(allPrevDone?' checked':'')+(canComplete?'':' disabled');
-      if(allPrevDone)compCb.style.background='#1c7a45';
+      compCb.className='step-circle'+(allPrevDone?' checked':'')+(allPrevDone?' active':' future');
+      if(allPrevDone){compCb.className='step-circle';compCb.style.cssText='background:#1c7a45;border-color:#1c7a45;cursor:pointer;';compCb.innerHTML='<span style="color:#fff;font-size:11px;font-weight:700;">✓</span>';}
+      else{compCb.className='step-circle future';}
+      compTrack.appendChild(compCb);
+      compItem.appendChild(compTrack);
 
       const compBody=document.createElement('div');compBody.className='step-body';
-      const compName=document.createElement('div');compName.className='step-name';
-      compName.style.cssText='font-weight:700;color:'+(allPrevDone?'#1c7a45':'#1c2537')+';';
+      const compName=document.createElement('div');compName.className='step-name'+(allPrevDone?' active':'');
+      compName.style.color=allPrevDone?'#1c7a45':'';
       compName.textContent='Complete';
       compBody.appendChild(compName);
 
@@ -4074,35 +4084,25 @@ function renderCallingDetail(el,role){
       compCb.addEventListener('click',()=>{
         if(!canComplete)return;
         if(allPrevDone){
-          // Uncheck — restore from snapshot if available
           if(c._completedSnapshot){
             c.currentStep=c._completedSnapshot.currentStep;
             c.stepDates=c._completedSnapshot.stepDates.slice();
             delete c._completedSnapshot;
           } else {
-            // No snapshot — just revert to second-to-last step
             c.currentStep=steps.length-2;
             c.stepDates[steps.length-1]=undefined;
           }
           render();
         } else {
-          // Save snapshot before completing
-          c._completedSnapshot={
-            currentStep:c.currentStep,
-            stepDates:c.stepDates.slice()
-          };
-          // Complete all steps with today's date
-          steps.forEach((_,si)=>{
-            if(!c.stepDates[si])c.stepDates[si]=today();
-          });
+          c._completedSnapshot={currentStep:c.currentStep,stepDates:c.stepDates.slice()};
+          steps.forEach((_,si)=>{if(!c.stepDates[si])c.stepDates[si]=today();});
           c.currentStep=steps.length-1;
           c.stepDates[steps.length-1]=today();
           render();
         }
       });
 
-      compRow.appendChild(compCb);compRow.appendChild(compBody);
-      compItem.appendChild(compRow);sl.appendChild(compItem);
+      compItem.appendChild(compBody);sl.appendChild(compItem);
       return;
     } // Don't render the final "Completed" marker as a step
     const isDual=step===DUAL_STEP;
@@ -4135,16 +4135,36 @@ function renderCallingDetail(el,role){
 
     const extendIdx=Math.max(steps.indexOf('Extend Calling'),steps.indexOf('Release Current/Call to New'));
     const isAfterDeclined=c.declined&&extendIdx>=0&&i>extendIdx;
-    const item=document.createElement('div');item.className='step-item';
-    if(isAfterDeclined)item.style.opacity='0.35';
+    const isLastStep=i===steps.length-1;
 
-    // Top row
-    const row=document.createElement('div');row.className='step-row';
-    const cb=document.createElement('div');
-    cb.className='step-cb'+(isChecked?' checked':'')+((!isChecked&&!canCheck)||!canEdit?' disabled':'');
+    const item=document.createElement('div');
+    item.className='step-item'+(isAfterDeclined?' after-declined':'');
 
+    // ── Left track: circle + line ──────────────────────────────────────────
+    const track=document.createElement('div');track.className='step-track';
+
+    const circle=document.createElement('div');
+    let circleClass='step-circle';
+    if(isChecked) circleClass+=' checked';
+    else if(prevChecked&&!isAfterDeclined) circleClass+=' active';
+    else circleClass+=' future';
+    if(isChecked&&!canEdit) circleClass+=' disabled-check';
+    circle.className=circleClass;
+    track.appendChild(circle);
+
+    // Line below circle (connect to next step, not on last)
+    if(!isLastStep){
+      const line=document.createElement('div');
+      line.className='step-line'+(isChecked?' done':'');
+      track.appendChild(line);
+    }
+    item.appendChild(track);
+
+    // ── Right body ─────────────────────────────────────────────────────────
     const body=document.createElement('div');body.className='step-body';
-    const nameEl=document.createElement('div');nameEl.className='step-name';nameEl.textContent=step;
+    const nameEl=document.createElement('div');
+    nameEl.className='step-name'+(isChecked?' done':prevChecked&&!isAfterDeclined?' active':'');
+    nameEl.textContent=step;
     body.appendChild(nameEl);
 
     // ── Assign-to dropdown (active steps) or read-only label (completed steps) ──
@@ -4523,22 +4543,19 @@ function renderCallingDetail(el,role){
       }
     }
 
-    row.appendChild(cb);row.appendChild(body);
-    item.appendChild(row);
+    item.appendChild(body);
 
-    // ── Checkbox click handler ─────────────────────────────────────────────
+    // ── Circle click handler ────────────────────────────────────────────────
     const isApptStep=step==='Set Appt to Extend'||step==='Set Appt to Release'||isDual;
-    cb.addEventListener('click',()=>{
-      if(isApptStep&&!isChecked)return; // appt steps can only be checked via date input, but CAN be unchecked
+    circle.addEventListener('click',()=>{
+      if(isApptStep&&!isChecked)return;
       if(isChecked){
-        // Always allow unchecking — moves step back to active/incomplete
-        if(!canEdit)return; // only block if user has no edit rights at all
+        if(!canEdit)return;
         c.currentStep=i;
         c.stepDates[i]=undefined;
         if(isDual)delete c.stepMeta[i];
         render();dbSaveCalling(c);
       } else {
-        // Checking forward: respect canCheck permission
         if(!canCheck)return;
         if(isDual){
           if(!c.stepMeta[i])c.stepMeta[i]={};
