@@ -939,10 +939,12 @@ function today(){return new Date().toISOString().split('T')[0];}
 function fmt(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
 function getStatusBadge(c){
   const s=getSteps(c);
-  // Last step is always the 'Completed' marker — real steps are s.length-1
   const realSteps=s.length-1;
-  if(c.currentStep>=realSteps)return{label:'Completed',cls:'badge-green'};
-  const p=c.currentStep/realSteps;
+  const clampedStep=Math.min(c.currentStep,realSteps);
+  const mainDone=clampedStep>=realSteps;
+  if(mainDone&&branchesAllDone(c))return{label:'Completed',cls:'badge-green'};
+  if(mainDone)return{label:'Pending Tasks',cls:'badge-amber'};
+  const p=clampedStep/Math.max(realSteps,1);
   if(p<0.3)return{label:'Just Started',cls:'badge-gray'};
   if(p<0.7)return{label:'In Progress',cls:'badge-blue'};
   return{label:'Near Completion',cls:'badge-amber'};
@@ -4016,6 +4018,20 @@ function branchesAllDone(c){
   return branches.every(b=>!!meta[b.key]);
 }
 
+function pendingBranchLabel(c){
+  const branches=getBranches(c);
+  const meta=c.stepMeta?.branches||{};
+  const pending=branches.filter(b=>!meta[b.key]);
+  if(!pending.length) return '—';
+  // Return the first pending branch label, shortened
+  const first=pending[0];
+  if(first.key==='lcrSustain') return 'Record in LCR';
+  if(first.key==='lcrRelease') return 'Record Release in LCR';
+  if(first.key==='setApart') return 'Set Apart';
+  if(first.key==='lcrSetApart') return 'Record Set Apart in LCR';
+  return first.label.split('—')[0].trim();
+}
+
 function renderCallingDetail(el,role){
   const c=state.callings.find(x=>x.id===state.detailId);
   if(!c){el.innerHTML='<div class="empty-state">Calling not found.</div>';return;}
@@ -4800,8 +4816,12 @@ function renderCallings(el,role){
   const mobileCards=document.createElement('div');mobileCards.className='mobile-cards';
   list.forEach(c=>{
     const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level);
-    const pct=Math.round((c.currentStep/(steps.length-1))*100);
-    const nextStep=c.currentStep<steps.length?steps[c.currentStep]:'—';
+    const clampedStep=Math.min(c.currentStep,steps.length-1);
+    const pct=Math.round((clampedStep/(steps.length-1))*100);
+    const mainDone=clampedStep>=steps.length-1;
+    const nextStep=mainDone
+      ? (branchesAllDone(c)?'—':pendingBranchLabel(c))
+      : (steps[c.currentStep]||'—');
     const assignGroup=getCurrentAssignment(c).group;
     const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
     const steps_=getSteps(c);
@@ -4831,7 +4851,7 @@ function renderCallings(el,role){
             <div style="height:100%;width:${pct}%;background:#1c2537;border-radius:2px;"></div>
           </div>
         </div>
-        <div style="font-size:11px;color:#aaa;flex-shrink:0;">${c.currentStep}/${steps.length-1}</div>
+        <div style="font-size:11px;color:#aaa;flex-shrink:0;">${clampedStep2}/${steps.length-1}</div>
       </div>`;
     card.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
     mobileCards.appendChild(card);
@@ -4862,7 +4882,9 @@ function renderCallings(el,role){
 
   const tbody=document.createElement('tbody');
   list.forEach(c=>{
-    const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level),pct=Math.round((c.currentStep/(steps.length-1))*100);
+    const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level);
+    const clampedStep2=Math.min(c.currentStep,steps.length-1);
+    const pct=Math.round((clampedStep2/(steps.length-1))*100);
     const tr=document.createElement('tr');
     const steps_=getSteps(c);
     const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
@@ -4875,7 +4897,8 @@ function renderCallings(el,role){
     const assignCell=assignGroup
       ?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`
       :'<span style="color:#ccc;font-size:11px;">—</span>';
-    const nextStepLabel=c.currentStep<steps.length?steps[c.currentStep]:'—';
+    const mainDone2=clampedStep2>=steps.length-1;
+    const nextStepLabel=mainDone2?(branchesAllDone(c)?'—':pendingBranchLabel(c)):(steps[c.currentStep]||'—');
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
       <td style="font-weight:600;">${c.name}</td>
@@ -4884,7 +4907,7 @@ function renderCallings(el,role){
       <td class="td-sub">${c.action}</td>
       <td class="td-sub">${assignCell}</td>
       <td class="progress-cell">
-        <div style="font-size:11px;color:#aaa;">${c.currentStep} / ${steps.length-1}</div>
+        <div style="font-size:11px;color:#aaa;">${clampedStep} / ${steps.length-1}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
       </td>
       <td><span class="badge ${status.cls}">${nextStepLabel}</span></td>`;
