@@ -3537,13 +3537,14 @@ function renderAgendaDetail(el,role){
 
   const isSacramentMeeting=(a.meetingCategory==='sacrament'||!a.meetingCategory);
 
-  // ── Pulpit-ready banner — callings ready to sustain/release not yet on this agenda ──
+  // ── Pulpit-ready banner ────────────────────────────────────────────────────
   if(isSacramentMeeting){
-    const ward=a.ward;
-    const missing={sustain:[],release:[]};
-
-    const aReleases=Array.isArray(a.releases)?a.releases:(typeof a.releases==='string'?JSON.parse(a.releases||'[]'):[]);
-    const aSustainings=Array.isArray(a.sustainings)?a.sustainings:(typeof a.sustainings==='string'?JSON.parse(a.sustainings||'[]'):[]);
+    try{
+      const ward=a.ward;
+      const missing={sustain:[],release:[]};
+      function safeArr(v){if(Array.isArray(v))return v;if(!v)return[];try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}}
+      const aReleases=safeArr(a.releases);
+      const aSustainings=safeArr(a.sustainings);
 
     (state.callings||[]).filter(c=>c.ward===ward).forEach(c=>{
       const steps=getSteps(c);
@@ -3616,6 +3617,7 @@ function renderAgendaDetail(el,role){
       banner.appendChild(bannerList);
       el.appendChild(banner);
     }
+    }catch(e){console.error('Banner error:',e);}
   }
   if(!isSacramentMeeting){
     const doc=document.createElement('div');
