@@ -416,6 +416,18 @@ textarea{resize:vertical;min-height:70px;}
 input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;}
 .save-step-btn{display:inline-block;background:#1c2537;color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;}
 .save-step-btn:hover{opacity:0.85;}
+.step-branch-wrap{display:flex;flex-direction:column;gap:6px;margin-left:44px;margin-top:6px;margin-bottom:4px;}
+.step-branch{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.09);background:#f9fafb;cursor:pointer;transition:background 0.12s;}
+.step-branch:hover{background:#f0f4ff;border-color:#c7d2fe;}
+.step-branch.done{background:#f0faf4;border-color:#86efac;cursor:default;}
+.step-branch-circle{width:18px;height:18px;border-radius:50%;border:2px solid #ccc;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.step-branch-circle.done{background:#1c7a45;border-color:#1c7a45;}
+.step-branch-circle.done::after{content:'✓';color:#fff;font-size:10px;font-weight:700;}
+.step-branch-body{flex:1;}
+.step-branch-label{font-size:12px;font-weight:600;color:#555;}
+.step-branch.done .step-branch-label{color:#1c7a45;}
+.step-branch-sub{font-size:11px;color:#aaa;margin-top:2px;}
+.step-branch-tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:1px 6px;border-radius:10px;background:#e0e7ff;color:#3730a3;margin-left:6px;vertical-align:middle;}
 
 /* ── Detail header (calling-centric) ── */
 .detail-header{display:flex;align-items:center;gap:11px;margin-bottom:20px;}
@@ -758,12 +770,12 @@ const WORKFLOWS={
     'Record in LCR',
     'Completed'
   ],
-  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
-  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
+  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
+  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
+  'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
+  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
+  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
+  'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
 };
 const DUAL_STEP='Set Appts to Extend & Release Current';
 
@@ -3943,6 +3955,67 @@ function renderAgendaDetail(el,role){
 
 }
 
+// ── Branch steps — parallel tasks that run off the main flow ────────────────
+// Branches attach to trigger steps and must all be done for Complete to unlock.
+// Stored in c.stepMeta.branches = { lcrSustain: bool, setApart: bool, lcrSetApart: bool }
+function getBranches(c){
+  const action=c.action||'';
+  const isCalling=action==='Calling Only'||action==='Calling & Release';
+  const isRelease=action==='Release Only'||action==='Calling & Release';
+  const steps=getSteps(c);
+  const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
+  if(!sustainStep) return [];
+
+  const branches=[];
+  // Branch 1: Record Sustaining in LCR — appears after sustain step
+  const sustainDate=c.stepDates[steps.indexOf(sustainStep)]||'';
+  if(isCalling){
+    branches.push({
+      key:'lcrSustain',
+      trigger:sustainStep,
+      label:`Record Sustaining — ${c.name} as ${c.calling}${sustainDate?' ('+fmt(sustainDate)+')':''}`,
+      sub:'Enter the new calling with sustained date in LCR',
+      tag:'Clerk',
+    });
+  }
+  if(isRelease){
+    const relName=c.releaseName||c.name;
+    branches.push({
+      key:'lcrRelease',
+      trigger:sustainStep,
+      label:`Record Release — ${relName} from ${c.calling}`,
+      sub:'Remove the calling from LCR',
+      tag:'Clerk',
+    });
+  }
+  // Branch 2: Set Apart — appears after sustain step (Bishopric task)
+  if(isCalling){
+    branches.push({
+      key:'setApart',
+      trigger:sustainStep,
+      label:`Set Apart — ${c.name}`,
+      sub:'Perform the setting apart blessing',
+      tag:'Bishopric',
+    });
+    // Branch 3: Record Set Apart in LCR — appears after setApart is done
+    branches.push({
+      key:'lcrSetApart',
+      trigger:'setApart', // special: triggers when setApart branch is done
+      label:'Record Set Apart in LCR',
+      sub:'Check the Set Apart checkbox in LCR',
+      tag:'Clerk',
+    });
+  }
+  return branches;
+}
+
+function branchesAllDone(c){
+  const branches=getBranches(c);
+  if(!branches.length) return true;
+  const meta=c.stepMeta?.branches||{};
+  return branches.every(b=>!!meta[b.key]);
+}
+
 function renderCallingDetail(el,role){
   const c=state.callings.find(x=>x.id===state.detailId);
   if(!c){el.innerHTML='<div class="empty-state">Calling not found.</div>';return;}
@@ -4012,7 +4085,7 @@ function renderCallingDetail(el,role){
   // ── Step list with checkboxes ─────────────────────────────────────────────
   const sl=document.createElement('div');sl.className='step-list';
 
-  const allPrevDone=c.currentStep>=steps.length-1||c.stepDates[steps.length-1]!=null;
+  const allPrevDone=(c.currentStep>=steps.length-1||c.stepDates[steps.length-1]!=null)&&branchesAllDone(c);
 
   // Steps that get an individual "Assign to" person dropdown
   const ASSIGN_DROPDOWN_STEPS=new Set([
@@ -4106,20 +4179,10 @@ function renderCallingDetail(el,role){
       return;
     } // Don't render the final "Completed" marker as a step
     const isDual=step===DUAL_STEP;
-    // Set Apart and Record in LCR can be completed out of order — check stepDates directly
-    const isChecked=step==='Set Apart'||step==='Record in LCR'
-      ? !!c.stepDates[i]
-      : i<c.currentStep;
+    const isChecked=i<c.currentStep;
 
-    // Record in LCR is accessible once the sustain step is done, independently of Set Apart
-    let prevChecked;
-    if(step==='Record in LCR'){
-      const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
-      const sustainIdx=sustainStep?steps.indexOf(sustainStep):-1;
-      prevChecked=sustainIdx>=0?(sustainIdx<c.currentStep||c.stepDates[sustainIdx]!=null):i===0||(i-1)<c.currentStep;
-    } else {
-      prevChecked=i===0||(i-1)<c.currentStep;
-    }
+    // A step is checkable if the previous step is checked (or it's step 0)
+    const prevChecked=i===0||(i-1)<c.currentStep;
 
     // Step-level permissions for Stake Issued / Stake callings
     let canCheckStep=canEdit&&prevChecked;
@@ -4517,86 +4580,6 @@ function renderCallingDetail(el,role){
       body.appendChild(relSection);
     }
 
-    // ── RECORD IN LCR — clerk checklist ────────────────────────────────────
-    if(step==='Record in LCR'&&prevChecked&&canEdit){
-      if(!c.stepMeta[i])c.stepMeta[i]={};
-      const meta=c.stepMeta[i];
-      const isRelease=c.action==='Release Only'||(c.action==='Calling & Release'&&c.currentlyFilled&&c.releaseName);
-      const isCalling=c.action==='Calling Only'||c.action==='Calling & Release';
-      // Sustain date from prior step
-      const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit'].find(s=>steps.includes(s));
-      const sustainIdx=sustainStep?steps.indexOf(sustainStep):-1;
-      const sustainDate=sustainIdx>=0?c.stepDates[sustainIdx]||'':'';
-
-      const lcrWrap=document.createElement('div');lcrWrap.style.cssText='margin-top:10px;background:#f8f9fb;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:14px;max-width:520px;';
-      const lcrTitle=document.createElement('div');lcrTitle.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:12px;';lcrTitle.textContent='LCR Entry Checklist';
-      lcrWrap.appendChild(lcrTitle);
-
-      function lcrCheckItem(key,label,sublabel,indent){
-        const row=document.createElement('div');row.style.cssText=`display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;${indent?'margin-left:22px;':''}`;
-        const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!meta[key];
-        cb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c2537;flex-shrink:0;cursor:pointer;';
-        cb.addEventListener('change',()=>{
-          meta[key]=cb.checked;
-          // If all items checked and step not yet complete, auto-check step
-          const allDone=Object.values(meta).every(v=>v===true||typeof v!=='boolean'||v);
-          render();dbSaveCalling(c);
-        });
-        const textWrap=document.createElement('div');
-        const lbl=document.createElement('div');lbl.style.cssText='font-size:13px;color:#1c2537;line-height:1.4;';lbl.innerHTML=label;
-        textWrap.appendChild(lbl);
-        if(sublabel){const sub=document.createElement('div');sub.style.cssText='font-size:11px;color:#aaa;margin-top:2px;';sub.textContent=sublabel;textWrap.appendChild(sub);}
-        row.appendChild(cb);row.appendChild(textWrap);
-        lcrWrap.appendChild(row);
-        return cb;
-      }
-
-      // Release items
-      if(isRelease){
-        const relName=c.releaseName||c.name;
-        lcrCheckItem('lcrReleased',`Release <strong>${relName}</strong> from <strong>${c.calling}</strong>`,'Remove them from the calling in LCR',false);
-      }
-
-      // Calling entry + Set Apart sub-item
-      if(isCalling){
-        const sustainLabel=sustainDate?` — sustained ${fmt(sustainDate)}`:'';
-        lcrCheckItem('lcrCalling',`Enter calling — <strong>${c.name}</strong> as <strong>${c.calling}</strong>${sustainLabel}`,'Add the new calling with sustained date in LCR',false);
-
-        // Set Apart status + clerk LCR sub-item
-        const setApartIdx=steps.indexOf('Set Apart');
-        const setApartDone=setApartIdx>=0&&c.currentStep>setApartIdx;
-
-        // Status row showing whether Set Apart has been performed
-        const saStatusRow=document.createElement('div');saStatusRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;margin-left:22px;padding:7px 10px;border-radius:7px;background:'+(setApartDone?'#e6f7ee':'#f8f9fb')+';border:1px solid '+(setApartDone?'#86efac':'rgba(0,0,0,0.08)')+';';
-        const saIcon=document.createElement('span');saIcon.style.cssText='font-size:14px;flex-shrink:0;';saIcon.textContent=setApartDone?'✓':'⏳';
-        const saStatusText=document.createElement('div');
-        const saStatusLabel=document.createElement('div');saStatusLabel.style.cssText='font-size:12px;font-weight:600;color:'+(setApartDone?'#1c7a45':'#888')+';';
-        saStatusLabel.textContent=setApartDone?'Set Apart — performed':'Set Apart — not yet performed';
-        const saStatusSub=document.createElement('div');saStatusSub.style.cssText='font-size:11px;color:#aaa;margin-top:1px;';
-        saStatusSub.textContent=setApartDone
-          ?`Completed ${c.stepDates[setApartIdx]?fmt(c.stepDates[setApartIdx]):''} — check the Set Apart box in LCR`
-          :'Waiting for Bishopric to mark Set Apart complete in the tracker';
-        saStatusText.appendChild(saStatusLabel);saStatusText.appendChild(saStatusSub);
-        saStatusRow.appendChild(saIcon);saStatusRow.appendChild(saStatusText);
-        lcrWrap.appendChild(saStatusRow);
-
-        // Only show the LCR Set Apart checkbox once Set Apart has been performed
-        if(setApartDone){
-          const saLcrRow=document.createElement('div');saLcrRow.style.cssText='display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;margin-left:44px;';
-          const saLcrCb=document.createElement('input');saLcrCb.type='checkbox';
-          saLcrCb.checked=!!meta.lcrSetApart;
-          saLcrCb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c7a45;flex-shrink:0;cursor:pointer;';
-          saLcrCb.addEventListener('change',()=>{meta.lcrSetApart=saLcrCb.checked;render();dbSaveCalling(c);});
-          const saLcrLabel=document.createElement('div');saLcrLabel.style.cssText='font-size:12px;color:#1c2537;';
-          saLcrLabel.innerHTML='Check <strong>Set Apart</strong> checkbox in LCR';
-          saLcrRow.appendChild(saLcrCb);saLcrRow.appendChild(saLcrLabel);
-          lcrWrap.appendChild(saLcrRow);
-        }
-      }
-
-      body.appendChild(lcrWrap);
-    }
-
     // Date info under completed step — with pencil to edit
     if(isChecked){
       if(isDual){
@@ -4661,24 +4644,69 @@ function renderCallingDetail(el,role){
 
     item.appendChild(body);
 
+    // ── Branch steps attached to this step ───────────────────────────────────
+    const allBranches=getBranches(c);
+    if(!c.stepMeta)c.stepMeta={};
+    if(!c.stepMeta.branches)c.stepMeta.branches={};
+    const bMeta=c.stepMeta.branches;
+    const sustainStepName=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
+    const sustainDone=sustainStepName&&!!c.stepDates[steps.indexOf(sustainStepName)];
+
+    // Get branches that trigger on this step
+    const myBranches=allBranches.filter(b=>{
+      if(b.trigger===step) return sustainDone||isChecked;
+      if(b.trigger==='setApart'&&step===sustainStepName) return !!bMeta.setApart;
+      return false;
+    });
+
+    if(myBranches.length){
+      const bWrap=document.createElement('div');bWrap.className='step-branch-wrap';
+      myBranches.forEach(branch=>{
+        const isDone=!!bMeta[branch.key];
+        // Check if this branch is accessible (setApart must be done for lcrSetApart)
+        const isAccessible=branch.key==='lcrSetApart'?!!bMeta.setApart:true;
+        if(!isAccessible) return;
+
+        const bItem=document.createElement('div');bItem.className='step-branch'+(isDone?' done':'');
+        const bCircle=document.createElement('div');bCircle.className='step-branch-circle'+(isDone?' done':'');
+        const bBody=document.createElement('div');bBody.className='step-branch-body';
+        const bLabel=document.createElement('div');bLabel.className='step-branch-label';
+        bLabel.innerHTML=branch.label+`<span class="step-branch-tag">${branch.tag}</span>`;
+        const bSub=document.createElement('div');bSub.className='step-branch-sub';
+        bSub.textContent=isDone?'Done':'Tap to mark complete';
+        bBody.appendChild(bLabel);bBody.appendChild(bSub);
+        bItem.appendChild(bCircle);bItem.appendChild(bBody);
+
+        if(!isDone&&canEdit){
+          bItem.addEventListener('click',()=>{
+            bMeta[branch.key]=true;
+            render();dbSaveCalling(c);
+          });
+        } else if(isDone&&canEdit){
+          // Allow unchecking
+          bItem.addEventListener('click',()=>{
+            bMeta[branch.key]=false;
+            // If unchecking setApart, also uncheck lcrSetApart
+            if(branch.key==='setApart') bMeta.lcrSetApart=false;
+            render();dbSaveCalling(c);
+          });
+          bItem.style.cursor='pointer';
+          bItem.title='Click to undo';
+        }
+        bWrap.appendChild(bItem);
+      });
+      if(bWrap.children.length) item.appendChild(bWrap);
+    }
+
     // ── Circle click handler ────────────────────────────────────────────────
     const isApptStep=step==='Set Appt to Extend'||step==='Set Appt to Release'||isDual;
     circle.addEventListener('click',()=>{
       if(isApptStep&&!isChecked)return;
       if(isChecked){
         if(!canEdit)return;
-        // For Set Apart: unchecking should not roll back Record in LCR if it's already done
-        if(step==='Set Apart'){
-          c.stepDates[i]=undefined;
-          // Only lower currentStep if Record in LCR hasn't been done yet
-          const lcrIdx=steps.indexOf('Record in LCR');
-          const lcrDone=lcrIdx>=0&&c.stepDates[lcrIdx];
-          if(!lcrDone) c.currentStep=Math.min(c.currentStep,i);
-        } else {
-          c.currentStep=i;
-          c.stepDates[i]=undefined;
-          if(isDual)delete c.stepMeta[i];
-        }
+        c.currentStep=i;
+        c.stepDates[i]=undefined;
+        if(isDual)delete c.stepMeta[i];
         render();dbSaveCalling(c);
       } else {
         if(!canCheck)return;
@@ -4690,20 +4718,7 @@ function renderCallingDetail(el,role){
         } else {
           c.stepDates[i]=today();
         }
-        // For Set Apart: checking it doesn't need to advance currentStep past Record in LCR
-        if(step==='Set Apart'){
-          const lcrIdx=steps.indexOf('Record in LCR');
-          const lcrDone=lcrIdx>=0&&c.stepDates[lcrIdx];
-          if(lcrDone){
-            // Both done — advance to after whichever is last
-            c.currentStep=Math.max(c.currentStep,Math.max(i,lcrIdx)+1);
-          } else {
-            // Just mark Set Apart done, don't force currentStep past LCR
-            c.stepDates[i]=today();
-          }
-        } else {
-          c.currentStep=Math.max(c.currentStep,i+1);
-        }
+        c.currentStep=Math.max(c.currentStep,i+1);
         render();dbSaveCalling(c);
       }
     });
