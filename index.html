@@ -4759,13 +4759,13 @@ function renderCallings(el,role){
   if(lf.length>1){const fr=document.createElement('div');fr.className='filter-row';lf.forEach(f=>{const chip=document.createElement('button');chip.className='filter-chip'+(state.filterLevel===f?' active':'');chip.textContent=f;chip.addEventListener('click',()=>{state.filterLevel=f;render();});fr.appendChild(chip);});el.appendChild(fr);}
   let list=filterCallings(state.callings,role);
   // Only show active (non-completed) callings here
-  list=list.filter(c=>c.currentStep<getSteps(c).length-1);
+  list=list.filter(c=>c.currentStep<getSteps(c).length-1||!branchesAllDone(c));
   if(state.filterLevel!=='All')list=list.filter(c=>c.level===state.filterLevel);
 
   // Archive link
   const archiveRow=document.createElement('div');archiveRow.style.cssText='display:flex;justify-content:flex-end;margin-bottom:10px;';
   const archiveLink=document.createElement('a');archiveLink.href='#';archiveLink.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
-  const completedCount=filterCallings(state.callings,role).filter(c=>c.currentStep>=getSteps(c).length-1).length;
+  const completedCount=filterCallings(state.callings,role).filter(c=>c.currentStep>=getSteps(c).length-1&&branchesAllDone(c)).length;
   archiveLink.textContent=`Callings Archive (${completedCount}) →`;
   archiveLink.addEventListener('click',e=>{e.preventDefault();state.view='archive';render();});
   archiveRow.appendChild(archiveLink);el.appendChild(archiveRow);
@@ -4908,7 +4908,7 @@ function renderArchive(el,role){
   hdr.appendChild(backLink);
   el.appendChild(hdr);
 
-  let list=filterCallings(state.callings,role).filter(c=>c.currentStep>=getSteps(c).length-1);
+  let list=filterCallings(state.callings,role).filter(c=>c.currentStep>=getSteps(c).length-1&&branchesAllDone(c));
 
   if(!list.length){
     const es=document.createElement('div');es.className='empty-state';es.textContent='No completed callings yet';el.appendChild(es);return;
