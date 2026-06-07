@@ -4552,32 +4552,36 @@ function renderCallingDetail(el,role){
         const sustainLabel=sustainDate?` — sustained ${fmt(sustainDate)}`:'';
         lcrCheckItem('lcrCalling',`Enter calling — <strong>${c.name}</strong> as <strong>${c.calling}</strong>${sustainLabel}`,'Add the new calling with sustained date in LCR',false);
 
-        // Set Apart as indented sub-item — can be done later
+        // Set Apart status + clerk LCR sub-item
         const setApartIdx=steps.indexOf('Set Apart');
         const setApartDone=setApartIdx>=0&&c.currentStep>setApartIdx;
-        const saRow=document.createElement('div');saRow.style.cssText='display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;margin-left:22px;';
-        const saCb=document.createElement('input');saCb.type='checkbox';
-        saCb.checked=setApartDone||!!meta.lcrSetApart;
-        saCb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c7a45;flex-shrink:0;cursor:pointer;';
-        saCb.addEventListener('change',()=>{
-          meta.lcrSetApart=saCb.checked;
-          // Also advance the Set Apart step in the main workflow if checked
-          if(saCb.checked&&setApartIdx>=0&&c.currentStep<=setApartIdx){
-            c.stepDates[setApartIdx]=today();
-            c.currentStep=Math.max(c.currentStep,setApartIdx+1);
-          } else if(!saCb.checked&&setApartIdx>=0){
-            c.currentStep=Math.min(c.currentStep,setApartIdx);
-            c.stepDates[setApartIdx]=undefined;
-          }
-          render();dbSaveCalling(c);
-        });
-        const saText=document.createElement('div');
-        const saLabel=document.createElement('div');saLabel.style.cssText='font-size:13px;color:#1c2537;';saLabel.innerHTML='Check <strong>Set Apart</strong> checkbox in LCR';
-        const saSub=document.createElement('div');saSub.style.cssText='font-size:11px;color:#aaa;margin-top:2px;';
-        saSub.textContent=setApartDone?'Set Apart completed':'Can be done later — check when Set Apart is performed';
-        saText.appendChild(saLabel);saText.appendChild(saSub);
-        saRow.appendChild(saCb);saRow.appendChild(saText);
-        lcrWrap.appendChild(saRow);
+
+        // Status row showing whether Set Apart has been performed
+        const saStatusRow=document.createElement('div');saStatusRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;margin-left:22px;padding:7px 10px;border-radius:7px;background:'+(setApartDone?'#e6f7ee':'#f8f9fb')+';border:1px solid '+(setApartDone?'#86efac':'rgba(0,0,0,0.08)')+';';
+        const saIcon=document.createElement('span');saIcon.style.cssText='font-size:14px;flex-shrink:0;';saIcon.textContent=setApartDone?'✓':'⏳';
+        const saStatusText=document.createElement('div');
+        const saStatusLabel=document.createElement('div');saStatusLabel.style.cssText='font-size:12px;font-weight:600;color:'+(setApartDone?'#1c7a45':'#888')+';';
+        saStatusLabel.textContent=setApartDone?'Set Apart — performed':'Set Apart — not yet performed';
+        const saStatusSub=document.createElement('div');saStatusSub.style.cssText='font-size:11px;color:#aaa;margin-top:1px;';
+        saStatusSub.textContent=setApartDone
+          ?`Completed ${c.stepDates[setApartIdx]?fmt(c.stepDates[setApartIdx]):''} — check the Set Apart box in LCR`
+          :'Waiting for Bishopric to mark Set Apart complete in the tracker';
+        saStatusText.appendChild(saStatusLabel);saStatusText.appendChild(saStatusSub);
+        saStatusRow.appendChild(saIcon);saStatusRow.appendChild(saStatusText);
+        lcrWrap.appendChild(saStatusRow);
+
+        // Only show the LCR Set Apart checkbox once Set Apart has been performed
+        if(setApartDone){
+          const saLcrRow=document.createElement('div');saLcrRow.style.cssText='display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;margin-left:44px;';
+          const saLcrCb=document.createElement('input');saLcrCb.type='checkbox';
+          saLcrCb.checked=!!meta.lcrSetApart;
+          saLcrCb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c7a45;flex-shrink:0;cursor:pointer;';
+          saLcrCb.addEventListener('change',()=>{meta.lcrSetApart=saLcrCb.checked;render();dbSaveCalling(c);});
+          const saLcrLabel=document.createElement('div');saLcrLabel.style.cssText='font-size:12px;color:#1c2537;';
+          saLcrLabel.innerHTML='Check <strong>Set Apart</strong> checkbox in LCR';
+          saLcrRow.appendChild(saLcrCb);saLcrRow.appendChild(saLcrLabel);
+          lcrWrap.appendChild(saLcrRow);
+        }
       }
 
       body.appendChild(lcrWrap);
