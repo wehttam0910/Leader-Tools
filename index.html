@@ -4529,7 +4529,7 @@ function renderCallingDetail(el,role){
     // ── Checkbox click handler ─────────────────────────────────────────────
     const isApptStep=step==='Set Appt to Extend'||step==='Set Appt to Release'||isDual;
     cb.addEventListener('click',()=>{
-      if(isApptStep)return; // auto-checks only via date input
+      if(isApptStep&&!isChecked)return; // appt steps can only be checked via date input, but CAN be unchecked
       if(isChecked){
         // Always allow unchecking — moves step back to active/incomplete
         if(!canEdit)return; // only block if user has no edit rights at all
