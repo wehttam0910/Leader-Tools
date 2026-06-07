@@ -3542,21 +3542,23 @@ function renderAgendaDetail(el,role){
     const ward=a.ward;
     const missing={sustain:[],release:[]};
 
+    const aReleases=Array.isArray(a.releases)?a.releases:(typeof a.releases==='string'?JSON.parse(a.releases||'[]'):[]);
+    const aSustainings=Array.isArray(a.sustainings)?a.sustainings:(typeof a.sustainings==='string'?JSON.parse(a.sustainings||'[]'):[]);
+
     (state.callings||[]).filter(c=>c.ward===ward).forEach(c=>{
       const steps=getSteps(c);
       const nextStep=steps[Math.min(c.currentStep,steps.length-1)];
       if(nextStep==='Sustain over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
-        // Check if already on agenda
-        const already=(a.sustainings||[]).some(s=>s.member===c.name&&s.calling===c.calling);
+        const already=aSustainings.some(s=>s.member===c.name&&s.calling===c.calling);
         if(!already) missing.sustain.push({member:c.name,calling:c.calling,_callingId:c.id});
         if(nextStep==='Sustain & Release over Pulpit'&&c.currentlyFilled&&c.releaseName){
-          const alreadyRel=(a.releases||[]).some(r=>r.member===c.releaseName&&r.calling===c.calling);
+          const alreadyRel=aReleases.some(r=>r.member===c.releaseName&&r.calling===c.calling);
           if(!alreadyRel) missing.release.push({member:c.releaseName,calling:c.calling,_callingId:c.id});
         }
       }
       if(nextStep==='Release over Pulpit'){
         const name=c.releaseName||c.name;
-        const already=(a.releases||[]).some(r=>r.member===name&&r.calling===c.calling);
+        const already=aReleases.some(r=>r.member===name&&r.calling===c.calling);
         if(!already) missing.release.push({member:name,calling:c.calling,_callingId:c.id});
       }
     });
@@ -3582,8 +3584,8 @@ function renderAgendaDetail(el,role){
       addBtn.addEventListener('click',async()=>{
         addBtn.disabled=true;addBtn.textContent='Adding…';
         try{
-          const newSustainings=[...(a.sustainings||[]),...missing.sustain.map(s=>({member:s.member,calling:s.calling}))];
-          const newReleases=[...(a.releases||[]),...missing.release.map(r=>({member:r.member,calling:r.calling}))];
+          const newSustainings=[...aSustainings,...missing.sustain.map(s=>({member:s.member,calling:s.calling}))];
+          const newReleases=[...aReleases,...missing.release.map(r=>({member:r.member,calling:r.calling}))];
           const{error}=await sb.from('agendas').update({
             sustainings:JSON.stringify(newSustainings),
             releases:JSON.stringify(newReleases),
