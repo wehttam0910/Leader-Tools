@@ -4141,7 +4141,7 @@ function renderCallingDetail(el,role){
     // Top row
     const row=document.createElement('div');row.className='step-row';
     const cb=document.createElement('div');
-    cb.className='step-cb'+(isChecked?' checked':'')+(canCheck&&!isAfterDeclined?'':' disabled');
+    cb.className='step-cb'+(isChecked?' checked':'')+((!isChecked&&!canCheck)||!canEdit?' disabled':'');
 
     const body=document.createElement('div');body.className='step-body';
     const nameEl=document.createElement('div');nameEl.className='step-name';nameEl.textContent=step;
@@ -4529,16 +4529,17 @@ function renderCallingDetail(el,role){
     // ── Checkbox click handler ─────────────────────────────────────────────
     const isApptStep=step==='Set Appt to Extend'||step==='Set Appt to Release'||isDual;
     cb.addEventListener('click',()=>{
-      if(!canCheck)return;
       if(isApptStep)return; // auto-checks only via date input
       if(isChecked){
-        // Uncheck: revert
+        // Always allow unchecking — moves step back to active/incomplete
+        if(!canEdit)return; // only block if user has no edit rights at all
         c.currentStep=i;
         c.stepDates[i]=undefined;
         if(isDual)delete c.stepMeta[i];
         render();dbSaveCalling(c);
       } else {
-        // Check: mark complete with today's date
+        // Checking forward: respect canCheck permission
+        if(!canCheck)return;
         if(isDual){
           if(!c.stepMeta[i])c.stepMeta[i]={};
           if(!c.stepMeta[i].extendDate)c.stepMeta[i].extendDate=today();
