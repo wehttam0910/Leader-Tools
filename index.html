@@ -758,11 +758,11 @@ const WORKFLOWS={
     'Record in LCR',
     'Completed'
   ],
-  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Record in LCR','Set Apart','Completed'],
-  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Record in LCR','Set Apart','Completed'],
+  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
   'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
-  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Record in LCR','Set Apart','Completed'],
-  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Record in LCR','Set Apart','Completed'],
+  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
   'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
 };
 const DUAL_STEP='Set Appts to Extend & Release Current';
@@ -4106,10 +4106,20 @@ function renderCallingDetail(el,role){
       return;
     } // Don't render the final "Completed" marker as a step
     const isDual=step===DUAL_STEP;
-    const isChecked=i<c.currentStep;
-    // A step is checkable if the previous step is checked (or it's step 0)
-    // Unchecking is always allowed — it just lowers currentStep to i
-    const prevChecked=i===0||(i-1)<c.currentStep;
+    // Set Apart and Record in LCR can be completed out of order — check stepDates directly
+    const isChecked=step==='Set Apart'||step==='Record in LCR'
+      ? !!c.stepDates[i]
+      : i<c.currentStep;
+
+    // Record in LCR is accessible once the sustain step is done, independently of Set Apart
+    let prevChecked;
+    if(step==='Record in LCR'){
+      const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
+      const sustainIdx=sustainStep?steps.indexOf(sustainStep):-1;
+      prevChecked=sustainIdx>=0?(sustainIdx<c.currentStep||c.stepDates[sustainIdx]!=null):i===0||(i-1)<c.currentStep;
+    } else {
+      prevChecked=i===0||(i-1)<c.currentStep;
+    }
 
     // Step-level permissions for Stake Issued / Stake callings
     let canCheckStep=canEdit&&prevChecked;
@@ -4657,9 +4667,18 @@ function renderCallingDetail(el,role){
       if(isApptStep&&!isChecked)return;
       if(isChecked){
         if(!canEdit)return;
-        c.currentStep=i;
-        c.stepDates[i]=undefined;
-        if(isDual)delete c.stepMeta[i];
+        // For Set Apart: unchecking should not roll back Record in LCR if it's already done
+        if(step==='Set Apart'){
+          c.stepDates[i]=undefined;
+          // Only lower currentStep if Record in LCR hasn't been done yet
+          const lcrIdx=steps.indexOf('Record in LCR');
+          const lcrDone=lcrIdx>=0&&c.stepDates[lcrIdx];
+          if(!lcrDone) c.currentStep=Math.min(c.currentStep,i);
+        } else {
+          c.currentStep=i;
+          c.stepDates[i]=undefined;
+          if(isDual)delete c.stepMeta[i];
+        }
         render();dbSaveCalling(c);
       } else {
         if(!canCheck)return;
@@ -4671,7 +4690,20 @@ function renderCallingDetail(el,role){
         } else {
           c.stepDates[i]=today();
         }
-        c.currentStep=Math.max(c.currentStep,i+1);
+        // For Set Apart: checking it doesn't need to advance currentStep past Record in LCR
+        if(step==='Set Apart'){
+          const lcrIdx=steps.indexOf('Record in LCR');
+          const lcrDone=lcrIdx>=0&&c.stepDates[lcrIdx];
+          if(lcrDone){
+            // Both done — advance to after whichever is last
+            c.currentStep=Math.max(c.currentStep,Math.max(i,lcrIdx)+1);
+          } else {
+            // Just mark Set Apart done, don't force currentStep past LCR
+            c.stepDates[i]=today();
+          }
+        } else {
+          c.currentStep=Math.max(c.currentStep,i+1);
+        }
         render();dbSaveCalling(c);
       }
     });
