@@ -758,11 +758,11 @@ const WORKFLOWS={
     'Record in LCR',
     'Completed'
   ],
-  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Record in LCR','Set Apart','Completed'],
+  'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Record in LCR','Set Apart','Completed'],
   'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
-  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Set Apart','Record in LCR','Completed'],
-  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Set Apart','Record in LCR','Completed'],
+  'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Record in LCR','Set Apart','Completed'],
+  'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Record in LCR','Set Apart','Completed'],
   'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Record in LCR','Completed'],
 };
 const DUAL_STEP='Set Appts to Extend & Release Current';
@@ -4271,6 +4271,32 @@ function renderCallingDetail(el,role){
           relBody.appendChild(pill);
         });
 
+        // Released / Not Released toggle
+        if(!c.stepMeta[i])c.stepMeta[i]={};
+        const releaseStatus=c.stepMeta[i].releaseStatus;
+        const relToggle=document.createElement('div');relToggle.style.cssText='display:flex;gap:8px;margin-bottom:8px;';
+        ['Released','Not Released'].forEach(opt=>{
+          const btn=document.createElement('button');
+          const isSel=releaseStatus===opt;
+          const isRel=opt==='Released';
+          btn.textContent=(isRel?'✓ ':'✗ ')+opt;
+          btn.style.cssText=`padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${isSel?(isRel?'#1c7a45':'#c62828'):(isRel?'#a3d9b8':'#f5a9a9')};background:${isSel?(isRel?'#e6f7ee':'#fdecea'):(isRel?'#f3fdf6':'#fff8f7')};color:${isSel?(isRel?'#1c7a45':'#c62828'):(isRel?'#3a8a5a':'#c06060')};`;
+          btn.addEventListener('click',()=>{
+            if(!c.stepMeta[i])c.stepMeta[i]={};
+            c.stepMeta[i].releaseStatus=opt;
+            render();dbSaveCalling(c);
+          });
+          relToggle.appendChild(btn);
+        });
+        relBody.appendChild(relToggle);
+
+        if(releaseStatus==='Not Released'){
+          const note=document.createElement('div');
+          note.style.cssText='font-size:11px;color:#92400e;background:#fef3e2;border-radius:6px;padding:6px 10px;margin-bottom:6px;';
+          note.innerHTML='<strong>Note:</strong> Member agreed to continue current calling while also accepting the new calling. Release can be handled separately.';
+          relBody.appendChild(note);
+        }
+
         // Release tips inside the release section
         const relTips=document.createElement('details');relTips.className='handbook-tips';
         relTips.style.marginTop='4px';
@@ -4479,6 +4505,82 @@ function renderCallingDetail(el,role){
 
       relSection.appendChild(relBody);
       body.appendChild(relSection);
+    }
+
+    // ── RECORD IN LCR — clerk checklist ────────────────────────────────────
+    if(step==='Record in LCR'&&prevChecked&&canEdit){
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const meta=c.stepMeta[i];
+      const isRelease=c.action==='Release Only'||(c.action==='Calling & Release'&&c.currentlyFilled&&c.releaseName);
+      const isCalling=c.action==='Calling Only'||c.action==='Calling & Release';
+      // Sustain date from prior step
+      const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit'].find(s=>steps.includes(s));
+      const sustainIdx=sustainStep?steps.indexOf(sustainStep):-1;
+      const sustainDate=sustainIdx>=0?c.stepDates[sustainIdx]||'':'';
+
+      const lcrWrap=document.createElement('div');lcrWrap.style.cssText='margin-top:10px;background:#f8f9fb;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:14px;max-width:520px;';
+      const lcrTitle=document.createElement('div');lcrTitle.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:12px;';lcrTitle.textContent='LCR Entry Checklist';
+      lcrWrap.appendChild(lcrTitle);
+
+      function lcrCheckItem(key,label,sublabel,indent){
+        const row=document.createElement('div');row.style.cssText=`display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;${indent?'margin-left:22px;':''}`;
+        const cb=document.createElement('input');cb.type='checkbox';cb.checked=!!meta[key];
+        cb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c2537;flex-shrink:0;cursor:pointer;';
+        cb.addEventListener('change',()=>{
+          meta[key]=cb.checked;
+          // If all items checked and step not yet complete, auto-check step
+          const allDone=Object.values(meta).every(v=>v===true||typeof v!=='boolean'||v);
+          render();dbSaveCalling(c);
+        });
+        const textWrap=document.createElement('div');
+        const lbl=document.createElement('div');lbl.style.cssText='font-size:13px;color:#1c2537;line-height:1.4;';lbl.innerHTML=label;
+        textWrap.appendChild(lbl);
+        if(sublabel){const sub=document.createElement('div');sub.style.cssText='font-size:11px;color:#aaa;margin-top:2px;';sub.textContent=sublabel;textWrap.appendChild(sub);}
+        row.appendChild(cb);row.appendChild(textWrap);
+        lcrWrap.appendChild(row);
+        return cb;
+      }
+
+      // Release items
+      if(isRelease){
+        const relName=c.releaseName||c.name;
+        lcrCheckItem('lcrReleased',`Release <strong>${relName}</strong> from <strong>${c.calling}</strong>`,'Remove them from the calling in LCR',false);
+      }
+
+      // Calling entry + Set Apart sub-item
+      if(isCalling){
+        const sustainLabel=sustainDate?` — sustained ${fmt(sustainDate)}`:'';
+        lcrCheckItem('lcrCalling',`Enter calling — <strong>${c.name}</strong> as <strong>${c.calling}</strong>${sustainLabel}`,'Add the new calling with sustained date in LCR',false);
+
+        // Set Apart as indented sub-item — can be done later
+        const setApartIdx=steps.indexOf('Set Apart');
+        const setApartDone=setApartIdx>=0&&c.currentStep>setApartIdx;
+        const saRow=document.createElement('div');saRow.style.cssText='display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;margin-left:22px;';
+        const saCb=document.createElement('input');saCb.type='checkbox';
+        saCb.checked=setApartDone||!!meta.lcrSetApart;
+        saCb.style.cssText='width:16px;height:16px;margin-top:2px;accent-color:#1c7a45;flex-shrink:0;cursor:pointer;';
+        saCb.addEventListener('change',()=>{
+          meta.lcrSetApart=saCb.checked;
+          // Also advance the Set Apart step in the main workflow if checked
+          if(saCb.checked&&setApartIdx>=0&&c.currentStep<=setApartIdx){
+            c.stepDates[setApartIdx]=today();
+            c.currentStep=Math.max(c.currentStep,setApartIdx+1);
+          } else if(!saCb.checked&&setApartIdx>=0){
+            c.currentStep=Math.min(c.currentStep,setApartIdx);
+            c.stepDates[setApartIdx]=undefined;
+          }
+          render();dbSaveCalling(c);
+        });
+        const saText=document.createElement('div');
+        const saLabel=document.createElement('div');saLabel.style.cssText='font-size:13px;color:#1c2537;';saLabel.innerHTML='Check <strong>Set Apart</strong> checkbox in LCR';
+        const saSub=document.createElement('div');saSub.style.cssText='font-size:11px;color:#aaa;margin-top:2px;';
+        saSub.textContent=setApartDone?'Set Apart completed':'Can be done later — check when Set Apart is performed';
+        saText.appendChild(saLabel);saText.appendChild(saSub);
+        saRow.appendChild(saCb);saRow.appendChild(saText);
+        lcrWrap.appendChild(saRow);
+      }
+
+      body.appendChild(lcrWrap);
     }
 
     // Date info under completed step — with pencil to edit
