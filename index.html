@@ -2994,24 +2994,18 @@ function renderAgendaWizard(el,role,editingAgenda){
       (state.callings||[]).forEach(c=>{
         if(c.ward!==ward)return; // only this ward
         const steps=getSteps(c);
-        const sustainIdx=steps.indexOf('Sustain over Pulpit');
-        const sustainAltIdx=steps.indexOf('Sustain & Release over Pulpit');
-        const releaseOverPulpitIdx=steps.indexOf('Release over Pulpit');
+        const nextStep=steps[Math.min(c.currentStep,steps.length-1)];
 
-        // A calling is ready for sustaining if the sustain step is done
-        // Check stepDates first, fall back to currentStep position
-        const sustainStepDone=
-          (sustainIdx>=0&&(!!c.stepDates[sustainIdx]||c.currentStep>sustainIdx))||
-          (sustainAltIdx>=0&&(!!c.stepDates[sustainAltIdx]||c.currentStep>sustainAltIdx));
-        const isSustainReady=sustainStepDone&&!branchesAllDone(c);
-
-        if(isSustainReady){
+        // Sustain over Pulpit — add to sustainings
+        if(nextStep==='Sustain over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
           autoSustain.push({member:c.name,calling:c.calling,_callingId:c.id,_auto:true});
-          if(c.currentlyFilled&&c.releaseName){
+          // C&R: also release the current holder
+          if(nextStep==='Sustain & Release over Pulpit'&&c.currentlyFilled&&c.releaseName){
             autoRelease.push({member:c.releaseName,calling:c.calling,_callingId:c.id,_auto:true});
           }
-          if(c.memberNeedsRelease&&c.memberCallings&&c.memberCallings.length){
-            c.memberCallings.forEach(mc=>{
+          // Member's own prior calling to release
+          if(c.memberNeedsRelease&&c.memberCallings&&c.memberCallings.filter(Boolean).length){
+            c.memberCallings.filter(Boolean).forEach(mc=>{
               autoRelease.push({member:c.name,calling:mc,_callingId:c.id,_auto:true});
             });
           } else if(c.memberNeedsRelease&&c.memberCurrentCalling){
@@ -3019,11 +3013,8 @@ function renderAgendaWizard(el,role,editingAgenda){
           }
         }
 
-        // Release Only callings ready to be released over the pulpit
-        const releaseStepDone=releaseOverPulpitIdx>=0&&
-          (!!c.stepDates[releaseOverPulpitIdx]||c.currentStep>releaseOverPulpitIdx);
-        const isReleaseReady=releaseStepDone&&!branchesAllDone(c)&&c.action==='Release Only';
-        if(isReleaseReady){
+        // Release over Pulpit — add to releases only
+        if(nextStep==='Release over Pulpit'){
           autoRelease.push({member:c.releaseName||c.name,calling:c.calling,_callingId:c.id,_auto:true});
         }
       });
