@@ -3948,7 +3948,7 @@ function renderCallingDetail(el,role){
   const hdr=document.createElement('div');hdr.className='detail-header';
   const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';bb.addEventListener('click',()=>{state.view='list';state.detailId=null;render();});
   const hdi=document.createElement('div');
-  hdi.innerHTML=`<div class="detail-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:11px;vertical-align:middle">Custom</span>':''}</div><div class="detail-member">${c.name}</div>`;
+  hdi.innerHTML=`<div class="detail-member" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:2px;">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px;vertical-align:middle;">Custom</span>':''}</div><div class="detail-calling" style="font-size:22px;">${c.name}</div>`;
   hdr.appendChild(bb);hdr.appendChild(hdi);
 
   // Edit button — right side of header
@@ -4708,7 +4708,7 @@ function renderCallings(el,role){
     const nextStepLabel=c.currentStep<steps.length?steps[c.currentStep]:'—';
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
-      <td>${c.name}</td>
+      <td style="font-weight:600;">${c.name}</td>
       <td class="td-sub">${c.ward}</td>
       <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
       <td class="td-sub">${c.action}</td>
@@ -4783,7 +4783,7 @@ function renderArchive(el,role){
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}</td>
-      <td>${c.name}</td>
+      <td style="font-weight:600;">${c.name}</td>
       <td class="td-sub">${c.ward}</td>
       <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
       <td class="td-sub">${c.action}</td>
