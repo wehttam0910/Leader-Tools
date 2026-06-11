@@ -3918,8 +3918,10 @@ function renderAgendaDetail(el,role){
         const rrow=document.createElement('div');rrow.style.cssText='display:flex;align-items:center;gap:8px;margin-top:4px;padding-left:130px;font-size:13px;';
         const rname=document.createElement('span');rname.style.flex='1';rname.textContent=`${r.member}${r.calling?` — ${r.calling}`:''}`;
         rrow.appendChild(rname);
-        if(r._callingId){
-          const linkedC=state.callings.find(c=>c.id===r._callingId);
+        if(r._callingId||r.member){
+          const linkedC=r._callingId
+            ? state.callings.find(c=>c.id===r._callingId)
+            : state.callings.find(c=>c.ward===a.ward&&(c.releaseName===r.member||c.name===r.member)&&c.calling===r.calling);
           if(linkedC){
             const steps=getSteps(linkedC);
             const relIdx=Math.max(steps.indexOf('Extend Release'),steps.indexOf('Release Current'),steps.indexOf('Release over Pulpit'));
@@ -3955,8 +3957,10 @@ function renderAgendaDetail(el,role){
         const srow=document.createElement('div');srow.style.cssText='display:flex;align-items:center;gap:8px;margin-top:4px;padding-left:130px;font-size:13px;';
         const sname=document.createElement('span');sname.style.flex='1';sname.textContent=`${s.member}${s.calling?` — ${s.calling}`:''}`;
         srow.appendChild(sname);
-        if(s._callingId){
-          const linkedC=state.callings.find(c=>c.id===s._callingId);
+        if(s._callingId||s.member){
+          const linkedC=s._callingId
+            ? state.callings.find(c=>c.id===s._callingId)
+            : state.callings.find(c=>c.ward===a.ward&&c.name===s.member&&c.calling===s.calling);
           if(linkedC){
             const steps=getSteps(linkedC);
             const sustainIdx=Math.max(steps.indexOf('Sustain over Pulpit'),steps.indexOf('Sustain & Release over Pulpit'));
