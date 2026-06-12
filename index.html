@@ -4391,6 +4391,32 @@ function renderCallingDetail(el,role){
     if(step==='Set Appt to Extend'&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const m=c.stepMeta[i];
+      // HC assignment for stake callings
+      const isStakeCall2=c.level==='Stake'||c.level==='Stake Issued';
+      const isStakePres2=isStakePresidency(role)||role.scope==='admin';
+      if(isStakeCall2&&isStakePres2){
+        const hcRow2=document.createElement('div');hcRow2.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+        const hcLbl2=document.createElement('label');hcLbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;min-width:120px;';hcLbl2.textContent='Assign High Councilor:';
+        const hcProfiles2=(state.profiles||[]).filter(p=>p.role_id==='high_council');
+        if(hcProfiles2.length){
+          const hcSel2=document.createElement('select');
+          hcSel2.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;flex:1;';
+          hcSel2.innerHTML='<option value="">— Select —</option>';
+          hcProfiles2.forEach(p=>{const o=document.createElement('option');o.value=p.full_name||p.id;o.textContent=p.full_name||p.id;if(m.assignedHC===o.value)o.selected=true;hcSel2.appendChild(o);});
+          hcSel2.addEventListener('change',()=>{m.assignedHC=hcSel2.value;render();dbSaveCalling(c);});
+          hcRow2.appendChild(hcLbl2);hcRow2.appendChild(hcSel2);
+        } else {
+          const hcInp2=document.createElement('input');hcInp2.type='text';hcInp2.placeholder='High Councilor name';hcInp2.value=m.assignedHC||'';
+          hcInp2.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;flex:1;';
+          hcInp2.addEventListener('input',()=>{m.assignedHC=hcInp2.value;});hcInp2.addEventListener('blur',()=>{render();dbSaveCalling(c);});
+          hcRow2.appendChild(hcLbl2);hcRow2.appendChild(hcInp2);
+        }
+        body.appendChild(hcRow2);
+      } else if(isStakeCall2&&m.assignedHC){
+        const hcPill2=document.createElement('div');hcPill2.style.cssText='font-size:12px;color:#555;margin-bottom:8px;';
+        hcPill2.innerHTML=`Assigned High Councilor: <strong>${m.assignedHC}</strong>`;
+        body.appendChild(hcPill2);
+      }
       const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
       const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
       const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
@@ -4408,6 +4434,31 @@ function renderCallingDetail(el,role){
     if(step==='Set Appt to Release'&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const m=c.stepMeta[i];
+      const isStakeCall3=c.level==='Stake'||c.level==='Stake Issued';
+      const isStakePres3=isStakePresidency(role)||role.scope==='admin';
+      if(isStakeCall3&&isStakePres3){
+        const hcRow3=document.createElement('div');hcRow3.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+        const hcLbl3=document.createElement('label');hcLbl3.style.cssText='font-size:12px;color:#555;white-space:nowrap;min-width:120px;';hcLbl3.textContent='Assign High Councilor:';
+        const hcProfiles3=(state.profiles||[]).filter(p=>p.role_id==='high_council');
+        if(hcProfiles3.length){
+          const hcSel3=document.createElement('select');
+          hcSel3.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;flex:1;';
+          hcSel3.innerHTML='<option value="">— Select —</option>';
+          hcProfiles3.forEach(p=>{const o=document.createElement('option');o.value=p.full_name||p.id;o.textContent=p.full_name||p.id;if(m.assignedHC===o.value)o.selected=true;hcSel3.appendChild(o);});
+          hcSel3.addEventListener('change',()=>{m.assignedHC=hcSel3.value;render();dbSaveCalling(c);});
+          hcRow3.appendChild(hcLbl3);hcRow3.appendChild(hcSel3);
+        } else {
+          const hcInp3=document.createElement('input');hcInp3.type='text';hcInp3.placeholder='High Councilor name';hcInp3.value=m.assignedHC||'';
+          hcInp3.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;flex:1;';
+          hcInp3.addEventListener('input',()=>{m.assignedHC=hcInp3.value;});hcInp3.addEventListener('blur',()=>{render();dbSaveCalling(c);});
+          hcRow3.appendChild(hcLbl3);hcRow3.appendChild(hcInp3);
+        }
+        body.appendChild(hcRow3);
+      } else if(isStakeCall3&&m.assignedHC){
+        const hcPill3=document.createElement('div');hcPill3.style.cssText='font-size:12px;color:#555;margin-bottom:8px;';
+        hcPill3.innerHTML=`Assigned High Councilor: <strong>${m.assignedHC}</strong>`;
+        body.appendChild(hcPill3);
+      }
       const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
       const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent='Appointment Date:';
       const dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.value=m.apptDate||'';
@@ -4425,6 +4476,41 @@ function renderCallingDetail(el,role){
     if(isDual&&prevChecked&&canCheck&&!isChecked){
       if(!c.stepMeta[i])c.stepMeta[i]={};
       const m=c.stepMeta[i];
+
+      // HC assignment — only for stake callings, only SP can set it
+      const isStakeCall=c.level==='Stake'||c.level==='Stake Issued';
+      const isStakePres=isStakePresidency(role)||role.scope==='admin';
+      if(isStakeCall&&isStakePres){
+        const hcRow=document.createElement('div');hcRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+        const hcLbl=document.createElement('label');hcLbl.style.cssText='font-size:12px;color:#555;white-space:nowrap;min-width:120px;';hcLbl.textContent='Assign High Councilor:';
+        const hcProfiles=(state.profiles||[]).filter(p=>p.role_id==='high_council');
+        if(hcProfiles.length){
+          const hcSel=document.createElement('select');
+          hcSel.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;flex:1;';
+          hcSel.innerHTML='<option value="">— Select —</option>';
+          hcProfiles.forEach(p=>{
+            const o=document.createElement('option');o.value=p.full_name||p.id;o.textContent=p.full_name||p.id;
+            if(m.assignedHC===o.value)o.selected=true;
+            hcSel.appendChild(o);
+          });
+          hcSel.addEventListener('change',()=>{m.assignedHC=hcSel.value;render();dbSaveCalling(c);});
+          hcRow.appendChild(hcLbl);hcRow.appendChild(hcSel);
+        } else {
+          const hcInp=document.createElement('input');hcInp.type='text';hcInp.placeholder='High Councilor name';
+          hcInp.value=m.assignedHC||'';
+          hcInp.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;flex:1;';
+          hcInp.addEventListener('input',()=>{m.assignedHC=hcInp.value;});
+          hcInp.addEventListener('blur',()=>{render();dbSaveCalling(c);});
+          hcRow.appendChild(hcLbl);hcRow.appendChild(hcInp);
+        }
+        body.appendChild(hcRow);
+      } else if(isStakeCall&&m.assignedHC){
+        // HC/others: show who's assigned read-only
+        const hcPill=document.createElement('div');hcPill.style.cssText='font-size:12px;color:#555;margin-bottom:8px;';
+        hcPill.innerHTML=`Assigned High Councilor: <strong>${m.assignedHC}</strong>`;
+        body.appendChild(hcPill);
+      }
+
       function makeApptDateRow(label,key){
         const row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
         const lbl2=document.createElement('span');lbl2.style.cssText='font-size:12px;color:#555;white-space:nowrap;';lbl2.textContent=label+':';
@@ -4639,61 +4725,21 @@ function renderCallingDetail(el,role){
       body.appendChild(relTips);
     }
 
-    // ── SUSTAIN IN HC — SP assigns a High Councilor + date ───────────────────
+    // ── SUSTAIN IN HC — show assigned HC (read-only, assignment is in Set Appts step) ──
     if(step==='Sustain in HC'&&prevChecked){
-      const isStakePres=isStakePresidency(role)||role.scope==='admin';
-      if(!c.stepMeta[i])c.stepMeta[i]={};
-      const sm=c.stepMeta[i];
-      const assignedHC=sm.assignedHC||'';
-      const hcDate=sm.hcDate||'';
-
-      const hcPanel=document.createElement('div');hcPanel.style.cssText='margin-top:8px;';
-
-      if(isStakePres){
-        // Assignment dropdown
-        const assignRow=document.createElement('div');assignRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-        const assignLbl=document.createElement('label');assignLbl.style.cssText='font-size:12px;color:#555;white-space:nowrap;';assignLbl.textContent='Assigned HC:';
-        const assignSel=document.createElement('select');
-        assignSel.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;';
-        // Get HC members from profiles
-        const hcProfiles=(state.profiles||[]).filter(p=>{
-          const role_id=p.role_id||'';
-          return role_id==='high_council'||role_id==='stake_exec_sec';
-        });
-        assignSel.innerHTML='<option value="">— Select High Councilor —</option>';
-        hcProfiles.forEach(p=>{
-          const o=document.createElement('option');o.value=p.full_name||p.id;o.textContent=p.full_name||p.id;
-          if(assignedHC===o.value)o.selected=true;
-          assignSel.appendChild(o);
-        });
-        // If no profiles, allow free text
-        if(!hcProfiles.length){
-          const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='High Councilor name';
-          nameInp.value=assignedHC;nameInp.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;flex:1;';
-          nameInp.addEventListener('input',()=>{sm.assignedHC=nameInp.value;});
-          assignRow.appendChild(assignLbl);assignRow.appendChild(nameInp);
-        } else {
-          assignSel.addEventListener('change',()=>{sm.assignedHC=assignSel.value;render();dbSaveCalling(c);});
-          assignRow.appendChild(assignLbl);assignRow.appendChild(assignSel);
-        }
-        hcPanel.appendChild(assignRow);
-
-        // Date field
-        const dateRow=document.createElement('div');dateRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-        const dateLbl=document.createElement('label');dateLbl.style.cssText='font-size:12px;color:#555;white-space:nowrap;';dateLbl.textContent='HC Meeting Date:';
-        const dateInp=document.createElement('input');dateInp.type='date';dateInp.value=hcDate;
-        dateInp.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;';
-        dateInp.addEventListener('change',()=>{sm.hcDate=dateInp.value;c.stepDates[i]=dateInp.value;render();dbSaveCalling(c);});
-        dateRow.appendChild(dateLbl);dateRow.appendChild(dateInp);
-        hcPanel.appendChild(dateRow);
-      } else if(assignedHC||hcDate){
-        // HC view — read-only summary
-        const info=document.createElement('div');info.style.cssText='font-size:12px;color:#555;';
-        if(assignedHC) info.innerHTML+=`<div>Assigned to: <strong>${assignedHC}</strong></div>`;
-        if(hcDate) info.innerHTML+=`<div>HC Meeting: <strong>${fmt(hcDate)}</strong></div>`;
-        hcPanel.appendChild(info);
+      // Find the appt step that precedes this one and read assignedHC from it
+      const apptStepNames=['Set Appts to Extend & Release Current','Set Appt to Extend','Set Appt to Release'];
+      let assignedHC='';
+      apptStepNames.forEach(sn=>{
+        const idx=steps.indexOf(sn);
+        if(idx>=0&&c.stepMeta[idx]?.assignedHC) assignedHC=c.stepMeta[idx].assignedHC;
+      });
+      if(assignedHC){
+        const pill=document.createElement('div');
+        pill.style.cssText='margin-top:6px;font-size:12px;color:#555;';
+        pill.innerHTML=`Assigned High Councilor: <strong>${assignedHC}</strong>`;
+        body.appendChild(pill);
       }
-      body.appendChild(hcPanel);
     }
 
     // ── EXTEND RELEASE step (Release Only workflows) ─────────────────────────
