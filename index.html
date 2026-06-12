@@ -894,7 +894,17 @@ function filterCallings(cs,role){
   if(role.scope==='admin')return cs;
   if(role.scope==='stake'){
     const base=cs.filter(c=>c.level==='Stake'||c.level==='Stake Issued');
-    return canSeeBishop?base:base.filter(c=>!isBishopCalling(c));
+    const visible=canSeeBishop?base:base.filter(c=>!isBishopCalling(c));
+    // High councilor: only see callings where next step is Sustain in HC or later
+    if(role.id==='high_council'){
+      return visible.filter(c=>{
+        const steps=getSteps(c);
+        const sustainHCIdx=steps.indexOf('Sustain in HC');
+        if(sustainHCIdx<0) return false; // not an HC calling
+        return c.currentStep>=sustainHCIdx; // at or past Sustain in HC step
+      });
+    }
+    return visible;
   }
   if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishopCalling(c));
   if(role.scope==='ward_org')return cs.filter(c=>c.level==='Ward'&&c.ward===role.ward&&c.org===role.org);
@@ -4289,21 +4299,30 @@ function renderCallingDetail(el,role){
     // Step-level permissions for Stake Issued / Stake callings
     let canCheckStep=canEdit&&prevChecked;
     if(canCheckStep&&(c.level==='Stake Issued'||c.level==='Stake')){
-      const isStake=role.scope==='stake'||role.scope==='admin';
+      const isStakePres=isStakePresidency(role)||role.scope==='admin';
       const isWardBishopric=role.scope==='ward'&&role.org==='Bishopric';
       const isHighCouncilor=role.id==='high_council';
-      // Steps a High Councilor can complete when assigned
-      const hcSteps=["Set Appt to Extend","Extend Calling","Release Current/Call to New","Sustain over Pulpit","Set Apart",
+
+      // Steps only SP can check
+      const spOnlySteps=["Presidency Approval","Bishop's Approval","Sustain in HC"];
+      // Steps HC can check once assigned (after Sustain in HC)
+      const hcSteps=["Set Appt to Extend","Extend Calling","Release Current/Call to New",
+                     "Sustain over Pulpit","Set Apart",
                      "Set Appts to Extend & Release Current","Sustain & Release over Pulpit",
                      "Set Appt to Release","Extend Release","Release Current","Release over Pulpit"];
-      if(step==="Bishop's Approval"||step==="Stake Presidency Approval"){
-        canCheckStep=isStake||isWardBishopric;
-      } else if(step==='Q12 Approval'){
-        canCheckStep=isStake; // Stake Presidency records this, HC cannot
+
+      if(spOnlySteps.includes(step)){
+        // Only SP/admin can check these — HC sees them read-only
+        canCheckStep=isStakePres||isWardBishopric;
       } else if(isHighCouncilor&&hcSteps.includes(step)){
-        canCheckStep=prevChecked; // HC can check these steps
+        // HC can check these steps only after Sustain in HC is done
+        const sustainHCIdx=steps.indexOf('Sustain in HC');
+        const sustainHCDone=sustainHCIdx>=0&&c.currentStep>sustainHCIdx;
+        canCheckStep=sustainHCDone&&prevChecked;
+      } else if(isHighCouncilor){
+        canCheckStep=false; // HC cannot check anything else
       } else {
-        canCheckStep=isStake;
+        canCheckStep=isStakePres||isWardBishopric;
       }
     }
     const canCheck=canCheckStep;
@@ -4314,6 +4333,13 @@ function renderCallingDetail(el,role){
 
     const item=document.createElement('div');
     item.className='step-item'+(isAfterDeclined?' after-declined':'');
+    // HC sees early stake steps as greyed out
+    const isHighCouncilor=role.id==='high_council';
+    const spOnlyStepsArr=["Presidency Approval","Bishop's Approval","Sustain in HC"];
+    if(isHighCouncilor&&spOnlyStepsArr.includes(step)&&!isChecked){
+      item.style.opacity='0.4';
+      item.title='This step is completed by the Stake Presidency';
+    }
 
     // ── Left track: circle + line ──────────────────────────────────────────
     const track=document.createElement('div');track.className='step-track';
@@ -4611,6 +4637,63 @@ function renderCallingDetail(el,role){
         <div style="font-size:11px;color:#5a7fa8;margin-top:8px;">Source: General Handbook §30.6</div>
         </div>`;
       body.appendChild(relTips);
+    }
+
+    // ── SUSTAIN IN HC — SP assigns a High Councilor + date ───────────────────
+    if(step==='Sustain in HC'&&prevChecked){
+      const isStakePres=isStakePresidency(role)||role.scope==='admin';
+      if(!c.stepMeta[i])c.stepMeta[i]={};
+      const sm=c.stepMeta[i];
+      const assignedHC=sm.assignedHC||'';
+      const hcDate=sm.hcDate||'';
+
+      const hcPanel=document.createElement('div');hcPanel.style.cssText='margin-top:8px;';
+
+      if(isStakePres){
+        // Assignment dropdown
+        const assignRow=document.createElement('div');assignRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        const assignLbl=document.createElement('label');assignLbl.style.cssText='font-size:12px;color:#555;white-space:nowrap;';assignLbl.textContent='Assigned HC:';
+        const assignSel=document.createElement('select');
+        assignSel.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;';
+        // Get HC members from profiles
+        const hcProfiles=(state.profiles||[]).filter(p=>{
+          const role_id=p.role_id||'';
+          return role_id==='high_council'||role_id==='stake_exec_sec';
+        });
+        assignSel.innerHTML='<option value="">— Select High Councilor —</option>';
+        hcProfiles.forEach(p=>{
+          const o=document.createElement('option');o.value=p.full_name||p.id;o.textContent=p.full_name||p.id;
+          if(assignedHC===o.value)o.selected=true;
+          assignSel.appendChild(o);
+        });
+        // If no profiles, allow free text
+        if(!hcProfiles.length){
+          const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='High Councilor name';
+          nameInp.value=assignedHC;nameInp.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;flex:1;';
+          nameInp.addEventListener('input',()=>{sm.assignedHC=nameInp.value;});
+          assignRow.appendChild(assignLbl);assignRow.appendChild(nameInp);
+        } else {
+          assignSel.addEventListener('change',()=>{sm.assignedHC=assignSel.value;render();dbSaveCalling(c);});
+          assignRow.appendChild(assignLbl);assignRow.appendChild(assignSel);
+        }
+        hcPanel.appendChild(assignRow);
+
+        // Date field
+        const dateRow=document.createElement('div');dateRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        const dateLbl=document.createElement('label');dateLbl.style.cssText='font-size:12px;color:#555;white-space:nowrap;';dateLbl.textContent='HC Meeting Date:';
+        const dateInp=document.createElement('input');dateInp.type='date';dateInp.value=hcDate;
+        dateInp.style.cssText='font-size:13px;padding:5px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;';
+        dateInp.addEventListener('change',()=>{sm.hcDate=dateInp.value;c.stepDates[i]=dateInp.value;render();dbSaveCalling(c);});
+        dateRow.appendChild(dateLbl);dateRow.appendChild(dateInp);
+        hcPanel.appendChild(dateRow);
+      } else if(assignedHC||hcDate){
+        // HC view — read-only summary
+        const info=document.createElement('div');info.style.cssText='font-size:12px;color:#555;';
+        if(assignedHC) info.innerHTML+=`<div>Assigned to: <strong>${assignedHC}</strong></div>`;
+        if(hcDate) info.innerHTML+=`<div>HC Meeting: <strong>${fmt(hcDate)}</strong></div>`;
+        hcPanel.appendChild(info);
+      }
+      body.appendChild(hcPanel);
     }
 
     // ── EXTEND RELEASE step (Release Only workflows) ─────────────────────────
