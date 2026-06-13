@@ -1098,12 +1098,12 @@ async function handleSession(session){
       state.loading = true;
       render();
       try{
-        const{callings, agendas, profiles} = await dbLoadAll();
+        const{callings, agendas, profiles, stakeUnits, hcRoster} = await dbLoadAll();
         state.callings = callings;
         state.agendas = agendas;
         state.profiles = profiles;
-        state.stakeUnits = data.stakeUnits || [];
-        state.hcRoster = data.hcRoster || [];
+        state.stakeUnits = stakeUnits || [];
+        state.hcRoster = hcRoster || [];
       }catch(e){
         console.error('Failed to load data:', e);
         state.callings = [];
