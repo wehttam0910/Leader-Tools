@@ -5778,7 +5778,7 @@ function openInviteModal(callerRole,onDone){
   const wardOpts=isStake?['',...WARDS_ONLY]:['',callerRole.ward].filter((v,i,a)=>a.indexOf(v)===i);
   wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'Select ward';wardSel.appendChild(o);});
   if(!isStake&&callerRole.ward)wardSel.value=callerRole.ward;
-  fg('Ward<span class="req">*</span>',wardSel);
+  fg('Home Ward<span class="req">*</span>',wardSel);
   const passInp=document.createElement('input');passInp.type='text';
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
@@ -5879,7 +5879,7 @@ function openEditUserModal(profile,callerRole,onDone){
   const wardOpts=isStake?['',...WARDS_ONLY]:['',callerRole.ward];
   wardOpts.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=w||'— No ward —';wardSel.appendChild(o);});
   wardSel.value=profile.ward||'';
-  fg('Ward',wardSel);
+  fg('Home Ward',wardSel);
 
   const saveBtn=document.createElement('button');saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
