@@ -5945,6 +5945,10 @@ async function renderStakeWards(el,role){
     }
     tr.appendChild(cell(unit?.ward_name,'ward_name','Ward name'));
     tr.appendChild(cell(unit?.meeting_time,'meeting_time','e.g. 9:00 AM'));
+    // Override meeting_time cell to use time picker
+    const timeTd=tr.children[tr.children.length-1];
+    const timeInp=timeTd.querySelector('input');
+    if(timeInp){timeInp.type='time';timeInp.placeholder='';}
     tr.appendChild(cell(unit?.building,'building','Building address'));
     if(isAdmin){
       const td=document.createElement('td');td.style.padding='6px 8px';
