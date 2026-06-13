@@ -920,7 +920,13 @@ function filterCallings(cs,role){
     }
     return visible;
   }
-  if(role.scope==='ward')return cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishopCalling(c));
+  if(role.scope==='ward'){
+    const result=cs.filter(c=>c.level!=='Stake'&&c.ward===role.ward&&!isBishopCalling(c));
+    if(!result.length&&cs.length){
+      console.warn('filterCallings: no ward matches. role.ward=',role.ward,'sample c.ward=',cs[0]?.ward,'level=',cs[0]?.level);
+    }
+    return result;
+  }
   if(role.scope==='ward_org')return cs.filter(c=>c.level==='Ward'&&c.ward===role.ward&&c.org===role.org);
   return[];
 }
