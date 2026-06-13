@@ -5539,10 +5539,31 @@ async function renderMyProfile(el){
   nameFg.appendChild(nameInp);
   nameSection.appendChild(nameFg);
 
-  const emailRow=document.createElement('div');
-  emailRow.style.cssText='font-size:12px;color:#aaa;margin-bottom:14px;margin-top:-4px;';
-  emailRow.textContent='Account email: '+(currentUser?.email||'');
+  const emailRow=document.createElement('div');emailRow.style.cssText='margin-bottom:14px;';
+  emailRow.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">Email Address</div>`;
+  const emailInp=document.createElement('input');emailInp.type='email';emailInp.value=currentUser?.email||'';
+  emailInp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px;';
+  const saveEmailBtn=document.createElement('button');saveEmailBtn.className='btn-primary';
+  saveEmailBtn.style.cssText='padding:8px 18px;font-size:13px;border-radius:8px;';
+  saveEmailBtn.textContent='Update Email';
+  saveEmailBtn.addEventListener('click',async()=>{
+    const newEmail=emailInp.value.trim();
+    if(!newEmail||newEmail===currentUser?.email){showStatus('Enter a new email address.',true);return;}
+    saveEmailBtn.disabled=true;saveEmailBtn.textContent='Sending…';
+    try{
+      const{error}=await sb.auth.updateUser({email:newEmail});
+      if(error)throw error;
+      showStatus('Confirmation email sent to '+newEmail+'. Check your inbox to confirm the change.');
+    }catch(e){showStatus('Error: '+e.message,true);}
+    finally{saveEmailBtn.disabled=false;saveEmailBtn.textContent='Update Email';}
+  });
+  emailRow.appendChild(emailInp);emailRow.appendChild(saveEmailBtn);
   nameSection.appendChild(emailRow);
+  nameSection.appendChild(mkDivider());
+
+  const emailNote=document.createElement('div');emailNote.style.cssText='font-size:11px;color:#aaa;margin-top:-8px;margin-bottom:14px;';
+  emailNote.textContent='A confirmation link will be sent to the new address. Your current email stays active until confirmed.';
+  nameSection.appendChild(emailNote);
 
   const saveNameBtn=document.createElement('button');
   saveNameBtn.className='btn-primary';
@@ -5837,6 +5858,9 @@ function openEditUserModal(profile,callerRole,onDone){
 
   const nameInp=document.createElement('input');nameInp.type='text';nameInp.value=profile.full_name||'';fg('Full Name',nameInp);
 
+  // Email change (admin only, uses service role key)
+  const emailInp2=document.createElement('input');emailInp2.type='email';emailInp2.value=profile.email||'';fg('Email Address',emailInp2);
+
   const isStake=callerRole.scope==='admin'||callerRole.scope==='stake';
   const availableRoles=isStake?ROLES:ROLES.filter(r=>r.scope==='ward'||r.scope==='ward_org');
   const roleSel=document.createElement('select');
@@ -5866,17 +5890,47 @@ function openEditUserModal(profile,callerRole,onDone){
   saveBtn.textContent='Save Changes';
   saveBtn.addEventListener('click',async()=>{
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
-    const{error}=await sb.from('profiles').update({
-      full_name:nameInp.value.trim(),
-      role_id:roleSel.value,
-      ward:wardSel.value||null,
-    }).eq('id',profile.id);
-    if(error){errEl.textContent=error.message;errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Save Changes';return;}
-    closeModal();onDone();
+    try{
+      // Update profile fields
+      const{error}=await sb.from('profiles').update({
+        full_name:nameInp.value.trim(),
+        role_id:roleSel.value,
+        ward:wardSel.value||null,
+      }).eq('id',profile.id);
+      if(error) throw error;
+
+      // Update email if changed (requires service role key)
+      const newEmail=emailInp2.value.trim();
+      if(newEmail&&newEmail!==profile.email){
+        const srk=getServiceKey();
+        if(!srk) throw new Error('Service key required to change email. Enter it via Invite User.');
+        const res=await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${profile.id}`,{
+          method:'PUT',
+          headers:{'apikey':srk,'Authorization':`Bearer ${srk}`,'Content-Type':'application/json'},
+          body:JSON.stringify({email:newEmail}),
+        });
+        if(!res.ok){const e=await res.json();throw new Error(e.message||'Email update failed');}
+      }
+      closeModal();onDone();
+    }catch(e){errEl.textContent=e.message;errEl.classList.add('visible');saveBtn.disabled=false;saveBtn.textContent='Save Changes';}
   });
   modal.appendChild(saveBtn);
 
-  // Delete user (superadmin only)
+  // Send password reset email
+  const resetBtn=document.createElement('button');
+  resetBtn.style.cssText='width:100%;margin-top:8px;background:transparent;border:1px solid rgba(0,0,0,0.15);color:#555;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;';
+  resetBtn.textContent='Send Password Reset Email';
+  resetBtn.addEventListener('click',async()=>{
+    if(!profile.email){errEl.textContent='No email on file for this user.';errEl.classList.add('visible');return;}
+    resetBtn.disabled=true;resetBtn.textContent='Sending…';
+    try{
+      const{error}=await sb.auth.resetPasswordForEmail(profile.email,{redirectTo:window.location.origin});
+      if(error) throw error;
+      resetBtn.textContent='✓ Reset email sent';
+      setTimeout(()=>{resetBtn.disabled=false;resetBtn.textContent='Send Password Reset Email';},3000);
+    }catch(e){errEl.textContent=e.message;errEl.classList.add('visible');resetBtn.disabled=false;resetBtn.textContent='Send Password Reset Email';}
+  });
+  modal.appendChild(resetBtn);
   if(isSuperAdmin()&&profile.id!==currentUser?.id){
     const delBtn=document.createElement('button');
     delBtn.style.cssText='width:100%;margin-top:8px;background:transparent;border:1px solid #e57373;color:#c62828;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;';
