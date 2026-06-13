@@ -1357,22 +1357,24 @@ async function dbLoadAll() {
   const load = Promise.all([
     sb.from('callings').select('*').order('id', { ascending: true }),
     sb.from('agendas').select('*').order('date', { ascending: false }),
-    sb.from('profiles').select('id,full_name,role_id,ward,gender,additional_callings').order('full_name',{ascending:true}),
-    sb.from('stake_units').select('*').order('sort_order',{ascending:true}),
-    sb.from('high_council_roster').select('*').order('sort_order',{ascending:true}),
+    sb.from('profiles').select('id,full_name,role_id,ward').order('full_name',{ascending:true}),
   ]);
-  const [{ data: callings, error: ce }, { data: agendas, error: ae }, { data: profiles, error: pe }, { data: units, error: ue }, { data: hcRows, error: he }] = await Promise.race([load, timeout]);
+  const [{ data: callings, error: ce }, { data: agendas, error: ae }, { data: profiles, error: pe }] = await Promise.race([load, timeout]);
   if (ce) console.error('Error loading callings:', ce);
   if (ae) console.error('Error loading agendas:', ae);
   if (pe) console.error('Error loading profiles:', pe);
-  if (ue) console.error('Error loading stake_units:', ue);
-  if (he) console.error('Error loading hc_roster:', he);
+
+  // Load stake tables separately so errors don't break core data
+  let units=[], hcRows=[];
+  try{const{data}=await sb.from('stake_units').select('*').order('sort_order',{ascending:true});units=data||[];}catch(e){console.error('stake_units load error:',e);}
+  try{const{data}=await sb.from('high_council_roster').select('*').order('sort_order',{ascending:true});hcRows=data||[];}catch(e){console.error('hc_roster load error:',e);}
+
   return {
     callings: (callings || []).map(callingFromDb),
     agendas: (agendas || []).map(agendaFromDb),
     profiles: profiles || [],
-    stakeUnits: units || [],
-    hcRoster: hcRows || [],
+    stakeUnits: units,
+    hcRoster: hcRows,
   };
 }
 
