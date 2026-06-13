@@ -5525,111 +5525,107 @@ async function renderMyProfile(el){
   function mkDivider(){const d=document.createElement('div');d.style.cssText='border-top:1px solid rgba(0,0,0,0.08);margin-bottom:24px;';return d;}
   card.appendChild(mkDivider());
 
-  // ── Section: Name ─────────────────────────────────────────────────────────
-  const nameSection=document.createElement('div');
-  nameSection.style.cssText='margin-bottom:24px;';
-  nameSection.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:14px;">Display Name</div>`;
+  // ── Section: Name + Email + Password — unified form with single Save ─────
+  const formSection=document.createElement('div');
 
+  const origName=currentProfile?.full_name||'';
+  const origEmail=currentUser?.email||'';
+
+  // Full Name
   const nameFg=document.createElement('div');nameFg.className='agenda-field';
-  nameFg.innerHTML=`<label>Full Name</label>`;
-  const nameInp=document.createElement('input');
-  nameInp.type='text';
-  nameInp.value=currentProfile?.full_name||'';
-  nameInp.placeholder='Your full name';
-  nameFg.appendChild(nameInp);
-  nameSection.appendChild(nameFg);
+  nameFg.innerHTML='<label>Full Name</label>';
+  const nameInp=document.createElement('input');nameInp.type='text';nameInp.value=origName;nameInp.placeholder='Your full name';
+  nameInp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';
+  nameFg.appendChild(nameInp);formSection.appendChild(nameFg);
 
-  const emailRow=document.createElement('div');emailRow.style.cssText='margin-bottom:14px;';
-  emailRow.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">Email Address</div>`;
-  const emailInp=document.createElement('input');emailInp.type='email';emailInp.value=currentUser?.email||'';
-  emailInp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px;';
-  const saveEmailBtn=document.createElement('button');saveEmailBtn.className='btn-primary';
-  saveEmailBtn.style.cssText='padding:8px 18px;font-size:13px;border-radius:8px;';
-  saveEmailBtn.textContent='Update Email';
-  saveEmailBtn.addEventListener('click',async()=>{
-    const newEmail=emailInp.value.trim();
-    if(!newEmail||newEmail===currentUser?.email){showStatus('Enter a new email address.',true);return;}
-    saveEmailBtn.disabled=true;saveEmailBtn.textContent='Sending…';
-    try{
-      const{error}=await sb.auth.updateUser({email:newEmail});
-      if(error)throw error;
-      showStatus('Confirmation email sent to '+newEmail+'. Check your inbox to confirm the change.');
-    }catch(e){showStatus('Error: '+e.message,true);}
-    finally{saveEmailBtn.disabled=false;saveEmailBtn.textContent='Update Email';}
-  });
-  emailRow.appendChild(emailInp);emailRow.appendChild(saveEmailBtn);
-  nameSection.appendChild(emailRow);
-  nameSection.appendChild(mkDivider());
-
-  const emailNote=document.createElement('div');emailNote.style.cssText='font-size:11px;color:#aaa;margin-top:-8px;margin-bottom:14px;';
-  emailNote.textContent='A confirmation link will be sent to the new address. Your current email stays active until confirmed.';
-  nameSection.appendChild(emailNote);
-
-  const saveNameBtn=document.createElement('button');
-  saveNameBtn.className='btn-primary';
-  saveNameBtn.style.cssText='padding:10px 22px;font-size:13px;border-radius:9px;';
-  saveNameBtn.textContent='Save Name';
-  saveNameBtn.addEventListener('click',async()=>{
-    const newName=nameInp.value.trim();
-    if(!newName){showStatus('Name cannot be empty.',true);return;}
-    saveNameBtn.disabled=true;saveNameBtn.textContent='Saving…';
-    try{
-      const{error}=await sb.from('profiles').update({full_name:newName}).eq('id',currentUser.id);
-      if(error) throw error;
-      currentProfile={...currentProfile,full_name:newName};
-      const nameEl=document.getElementById('sidebar-role-name');
-      if(nameEl) nameEl.textContent=newName;
-      showStatus('Name updated successfully.');
-    }catch(e){
-      showStatus('Error: '+e.message,true);
-    }finally{
-      saveNameBtn.disabled=false;saveNameBtn.textContent='Save Name';
-    }
-  });
-  nameSection.appendChild(saveNameBtn);
-  card.appendChild(nameSection);
+  // Email
+  const emailFg=document.createElement('div');emailFg.className='agenda-field';
+  emailFg.innerHTML='<label>Email Address</label>';
+  const emailInp=document.createElement('input');emailInp.type='email';emailInp.value=origEmail;
+  emailInp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';
+  emailFg.appendChild(emailInp);
+  const emailNote=document.createElement('div');emailNote.style.cssText='font-size:11px;color:#aaa;margin-top:4px;display:none;';
+  emailNote.textContent='A confirmation link will be sent to the new address.';
+  emailFg.appendChild(emailNote);
+  formSection.appendChild(emailFg);
 
   card.appendChild(mkDivider());
 
-  // ── Section: Change Password ───────────────────────────────────────────────
+  // Password (optional — only saves if filled in)
   const pwSection=document.createElement('div');
-  pwSection.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:14px;">Change Password</div>`;
-
+  pwSection.innerHTML=`<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">Change Password <span style="font-weight:400;font-size:11px;text-transform:none;letter-spacing:0;">(optional)</span></div>`;
   function mkPwField(labelText,placeholder,id){
-    const fg=document.createElement('div');fg.className='agenda-field';
-    fg.innerHTML=`<label>${labelText}</label>`;
-    const inp=document.createElement('input');
-    inp.type='password';inp.placeholder=placeholder;inp.id='profile-'+id;
-    fg.appendChild(inp);
-    return fg;
+    const fg=document.createElement('div');fg.className='agenda-field';fg.innerHTML=`<label>${labelText}</label>`;
+    const inp=document.createElement('input');inp.type='password';inp.placeholder=placeholder;inp.id='profile-'+id;
+    inp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';
+    fg.appendChild(inp);return fg;
   }
-  pwSection.appendChild(mkPwField('New Password','Min. 8 characters','pw1'));
-  pwSection.appendChild(mkPwField('Confirm New Password','Repeat password','pw2'));
+  const pw1Fg=mkPwField('New Password','Leave blank to keep current','pw1');
+  const pw2Fg=mkPwField('Confirm New Password','Repeat new password','pw2');
+  pwSection.appendChild(pw1Fg);pwSection.appendChild(pw2Fg);
+  formSection.appendChild(pwSection);
 
-  const savePwBtn=document.createElement('button');
-  savePwBtn.className='btn-primary';
-  savePwBtn.style.cssText='padding:10px 22px;font-size:13px;border-radius:9px;';
-  savePwBtn.textContent='Update Password';
-  savePwBtn.addEventListener('click',async()=>{
+  // Single Save button — greyed out until something changes
+  const saveBtn=document.createElement('button');
+  saveBtn.className='btn-primary';
+  saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:9px;margin-top:8px;opacity:0.4;cursor:default;transition:opacity 0.2s;';
+  saveBtn.textContent='Save';saveBtn.disabled=true;
+  formSection.appendChild(saveBtn);
+
+  card.appendChild(formSection);
+
+  function checkChanges(){
+    const pw1=document.getElementById('profile-pw1')?.value||'';
+    const changed=nameInp.value.trim()!==origName||emailInp.value.trim()!==origEmail||pw1.length>0;
+    if(emailInp.value.trim()!==origEmail){emailNote.style.display='block';}else{emailNote.style.display='none';}
+    saveBtn.disabled=!changed;saveBtn.style.opacity=changed?'1':'0.4';saveBtn.style.cursor=changed?'pointer':'default';
+  }
+  nameInp.addEventListener('input',checkChanges);
+  emailInp.addEventListener('input',checkChanges);
+  document.addEventListener('input',e=>{if(e.target.id==='profile-pw1'||e.target.id==='profile-pw2')checkChanges();});
+
+  saveBtn.addEventListener('click',async()=>{
+    if(saveBtn.disabled)return;
+    const newName=nameInp.value.trim();
+    const newEmail=emailInp.value.trim();
     const pw1=document.getElementById('profile-pw1').value;
     const pw2=document.getElementById('profile-pw2').value;
-    if(pw1.length<8){showStatus('Password must be at least 8 characters.',true);return;}
-    if(pw1!==pw2){showStatus('Passwords do not match.',true);return;}
-    savePwBtn.disabled=true;savePwBtn.textContent='Updating…';
+    if(!newName){showStatus('Name cannot be empty.',true);return;}
+    if(pw1&&pw1.length<8){showStatus('Password must be at least 8 characters.',true);return;}
+    if(pw1&&pw1!==pw2){showStatus('Passwords do not match.',true);return;}
+    saveBtn.disabled=true;saveBtn.textContent='Saving…';saveBtn.style.opacity='0.6';
+
     try{
-      const{error}=await sb.auth.updateUser({password:pw1});
-      if(error) throw error;
-      document.getElementById('profile-pw1').value='';
-      document.getElementById('profile-pw2').value='';
-      showStatus('Password updated successfully.');
-    }catch(e){
-      showStatus('Error: '+e.message,true);
-    }finally{
-      savePwBtn.disabled=false;savePwBtn.textContent='Update Password';
-    }
+      // Save name
+      if(newName!==origName){
+        const{error}=await sb.from('profiles').update({full_name:newName}).eq('id',currentUser.id);
+        if(error)throw error;
+        currentProfile={...currentProfile,full_name:newName};
+        const nameEl=document.getElementById('sidebar-role-name');if(nameEl)nameEl.textContent=newName;
+      }
+      // Save email
+      if(newEmail!==origEmail){
+        const{error}=await sb.auth.updateUser({email:newEmail});
+        if(error)throw error;
+      }
+      // Save password
+      if(pw1){
+        const{error}=await sb.auth.updateUser({password:pw1});
+        if(error)throw error;
+        document.getElementById('profile-pw1').value='';
+        document.getElementById('profile-pw2').value='';
+      }
+      updateChrome();
+      const msgs=[];
+      if(newName!==origName)msgs.push('Name updated');
+      if(newEmail!==origEmail)msgs.push('Confirmation email sent to '+newEmail);
+      if(pw1)msgs.push('Password updated');
+      showStatus(msgs.join(' · ')+'.');
+      // Reset dirty state
+      checkChanges();
+    }catch(e){showStatus('Error: '+e.message,true);}
+    finally{saveBtn.disabled=false;saveBtn.textContent='Save';checkChanges();}
   });
-  pwSection.appendChild(savePwBtn);
-  card.appendChild(pwSection);
 
   el.appendChild(card);
 }
