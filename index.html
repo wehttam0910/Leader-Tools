@@ -5326,9 +5326,23 @@ window.addEventListener('popstate',e=>{
 });
 
 // ── Service role key (stored locally, never in code) ─────────────────────
-function getServiceKey(){return localStorage.getItem('leadertools_srk')||'';}
-function setServiceKey(k){localStorage.setItem('leadertools_srk',k);}
-function clearServiceKey(){localStorage.removeItem('leadertools_srk');}
+function getSrkStorageKey(){
+  // Tie the key to the superadmin user ID so it persists across role switches
+  const uid=currentUser?.id||'default';
+  return 'leadertools_srk_'+uid;
+}
+function getServiceKey(){
+  // Check user-specific key first, fall back to legacy key
+  return localStorage.getItem(getSrkStorageKey())||localStorage.getItem('leadertools_srk')||'';
+}
+function setServiceKey(k){
+  localStorage.setItem(getSrkStorageKey(),k);
+  localStorage.setItem('leadertools_srk',k); // keep legacy in sync
+}
+function clearServiceKey(){
+  localStorage.removeItem(getSrkStorageKey());
+  localStorage.removeItem('leadertools_srk');
+}
 
 function promptForServiceKey(onSuccess){
   const root=document.getElementById('modal-root');root.innerHTML='';
