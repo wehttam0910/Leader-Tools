@@ -6078,7 +6078,7 @@ async function renderStakeHC(el,role){
       secWrap.innerHTML='';
       arr.forEach((val,si)=>{
         const row2=document.createElement('div');row2.style.cssText='display:flex;gap:4px;';
-        const inp=document.createElement('input');inp.type='text';inp.placeholder='e.g. Youth Dance';inp.value=val||'';
+        const inp=document.createElement('input');inp.type='text';inp.placeholder='e.g. Temple Service';inp.value=val||'';
         inp.style.cssText='flex:1;padding:6px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;font-size:12px;';
         inp.disabled=!isAdmin;
         inp.addEventListener('input',()=>{arr[si]=inp.value;});
