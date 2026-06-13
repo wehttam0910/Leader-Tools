@@ -1170,10 +1170,28 @@ setTimeout(()=>{
 },15000);
 
 // Handle invite/password reset links — Supabase puts token in URL hash
-(()=>{
+(async ()=>{
   const hash=window.location.hash||'';
   const isInvite=hash.includes('type=invite')||hash.includes('type=recovery');
   if(!isInvite) return;
+
+  // Get the user's email from the current session (token already applied by Supabase)
+  let inviteEmail='';let inviteName='';
+  try{
+    const{data:{user}}=await sb.auth.getUser();
+    inviteEmail=user?.email||'';
+    // Try to get their name from profiles
+    if(user?.id){
+      const{data:p}=await sb.from('profiles').select('full_name').eq('id',user.id).single();
+      inviteName=p?.full_name||'';
+    }
+  }catch(e){}
+
+  const greeting=inviteName
+    ? `Hi <strong>${inviteName}</strong>!`
+    : inviteEmail
+    ? `Setting up account for <strong>${inviteEmail}</strong>`
+    : 'Welcome to LeaderTools';
 
   // Hide init screen, show password setup UI
   document.getElementById('init-screen').style.display='none';
@@ -1183,7 +1201,9 @@ setTimeout(()=>{
     <div class="auth-card">
       <div style="font-size:13px;color:#aaa;margin-bottom:6px;">Welcome to</div>
       <div class="auth-title" style="margin-bottom:6px;">LeaderTools</div>
-      <div class="auth-sub">Set your password to get started</div>
+      <div style="font-size:14px;color:#444;margin-bottom:4px;">${greeting}</div>
+      ${inviteEmail&&inviteName?`<div style="font-size:12px;color:#aaa;margin-bottom:16px;">${inviteEmail}</div>`:'<div style="margin-bottom:16px;"></div>'}
+      <div class="auth-sub" style="margin-bottom:16px;">Set your password to get started</div>
       <div class="auth-error" id="setup-error"></div>
       <div class="auth-field">
         <label>New Password</label>
