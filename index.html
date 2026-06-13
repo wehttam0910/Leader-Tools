@@ -5949,7 +5949,7 @@ async function renderStakeWards(el,role){
     const timeTd=tr.children[tr.children.length-1];
     const timeInp=timeTd.querySelector('input');
     if(timeInp){timeInp.type='time';timeInp.placeholder='';}
-    tr.appendChild(cell(unit?.building,'building','Building address'));
+    tr.appendChild(cell(unit?.building,'building','Building name'));
     if(isAdmin){
       const td=document.createElement('td');td.style.padding='6px 8px';
       if(unit?.id){
