@@ -6086,11 +6086,32 @@ async function renderStakeHC(el,role){
   const wardOpts=(state.stakeUnits||[]).map(u=>u.ward_name).filter(Boolean);
   const primaryOpts=['',  ...wardOpts,'Stake Young Men President','Stake Sunday School President','Other'];
 
-  // Brother profiles for HC dropdown
-  const brotherProfiles=(state.profiles||[]).filter(p=>{
-    const g=p.gender||'brother';
-    return g==='brother'||g==='';
-  });
+  // HC profiles — only users with role_id === 'high_council'
+  const hcProfiles=(state.profiles||[]).filter(p=>p.role_id==='high_council');
+
+  // Auto-fill: find HC profiles not yet in the roster and fill empty slots
+  if(isAdmin&&hcProfiles.length){
+    const assignedIds=new Set((state.hcRoster||[]).map(r=>r?.profile_id).filter(Boolean));
+    const unassigned=hcProfiles.filter(p=>!assignedIds.has(p.id));
+    let filledAny=false;
+    for(let i=0;i<roster.length&&unassigned.length;i++){
+      if(!roster[i]||!roster[i].profile_id){
+        const p=unassigned.shift();
+        const rowData={profile_id:p.id,primary_assignment:'',secondary_assignments:[],sort_order:i};
+        const{data:ins}=await sb.from('high_council_roster').insert(rowData).select().single();
+        if(ins){
+          roster[i]=ins;
+          if(i<state.hcRoster.length)state.hcRoster[i]=ins;
+          else state.hcRoster.push(ins);
+          filledAny=true;
+        }
+      }
+    }
+    if(filledAny){render();return;} // re-render with fresh data
+  }
+
+  // Already-assigned profile IDs for filtering dropdowns
+  const assignedIds=new Set((state.hcRoster||[]).map(r=>r?.profile_id).filter(Boolean));
 
   const card=document.createElement('div');card.style.cssText='background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.07);overflow:hidden;max-width:1000px;';
   const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;';
@@ -6118,13 +6139,13 @@ async function renderStakeHC(el,role){
     }
     tr.appendChild(numTd);
 
-    // Brother dropdown
+    // HC dropdown — only show unassigned HC profiles plus the currently selected one
     const nameTd=document.createElement('td');nameTd.style.padding='6px 8px';
     const nameSel=document.createElement('select');
     nameSel.style.cssText='width:100%;padding:7px 10px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;font-size:13px;background:#fff;';
     nameSel.disabled=!isAdmin;
     nameSel.innerHTML='<option value="">— Select —</option>';
-    brotherProfiles.forEach(p=>{
+    hcProfiles.filter(p=>!assignedIds.has(p.id)||p.id===row?.profile_id).forEach(p=>{
       const o=document.createElement('option');o.value=p.id;o.textContent=p.full_name||p.id;
       if(row?.profile_id===p.id)o.selected=true;
       nameSel.appendChild(o);
@@ -6133,7 +6154,7 @@ async function renderStakeHC(el,role){
 
     // Home ward (auto-filled from profile)
     const wardTd=document.createElement('td');wardTd.style.cssText='padding:8px 14px;font-size:13px;color:#555;';
-    const selectedProfile=brotherProfiles.find(p=>p.id===row?.profile_id);
+    const selectedProfile=hcProfiles.find(p=>p.id===row?.profile_id);
     wardTd.textContent=selectedProfile?.ward||'—';
     tr.appendChild(wardTd);
 
