@@ -6175,7 +6175,6 @@ async function renderStakeHC(el,role){
     if(row?.primary_assignment&&!primaryOpts.includes(row.primary_assignment)){
       primSel.value='Other';otherInp.style.display='block';otherInp.value=row.primary_assignment;
     }
-    primSel.addEventListener('change',()=>{otherInp.style.display=primSel.value==='Other'?'block':'none';});
     primTd.appendChild(primSel);primTd.appendChild(otherInp);tr.appendChild(primTd);
 
     // Secondary assignments — dynamic text fields
@@ -6232,7 +6231,11 @@ async function renderStakeHC(el,role){
       render();
     }
     nameSel.addEventListener('change',saveRow);
-    primSel.addEventListener('change',saveRow);
+    primSel.addEventListener('change',()=>{
+      otherInp.style.display=primSel.value==='Other'?'block':'none';
+      if(primSel.value!=='Other') saveRow(); // only save immediately for non-Other selections
+      else setTimeout(()=>otherInp.focus(),50);
+    });
     otherInp.addEventListener('blur',saveRow);
     secWrap.addEventListener('focusout',e=>{if(!secWrap.contains(e.relatedTarget))saveRow();});
 
