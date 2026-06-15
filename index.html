@@ -2288,8 +2288,16 @@ function openRoleSwitcher(){
   overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
   const modal=document.createElement('div');modal.className='modal';modal.innerHTML='<div class="modal-handle"></div>';
   const title=document.createElement('div');title.className='modal-title';title.textContent='Dev Mode — Switch Role';modal.appendChild(title);
-  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:16px;';sub.textContent='Preview as a different role (superadmin only)';modal.appendChild(sub);
+  const sub=document.createElement('div');sub.style.cssText='font-size:13px;color:#999;margin-bottom:12px;';sub.textContent='Preview as a different role (superadmin only)';modal.appendChild(sub);
+
+  // Search input
+  const searchInp=document.createElement('input');searchInp.type='text';searchInp.placeholder='Search roles…';
+  searchInp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:14px;';
+  modal.appendChild(searchInp);
+
   const currentId=getEffectiveRoleId();
+  const listWrap=document.createElement('div');
+  modal.appendChild(listWrap);
 
   // Group roles by scope
   const groups=[
@@ -2299,30 +2307,38 @@ function openRoleSwitcher(){
     {label:'Ward Organizations',roles:ROLES.filter(r=>r.scope==='ward_org')},
   ];
 
-  groups.forEach(group=>{
-    if(!group.roles.length) return;
-    const grpLabel=document.createElement('div');
-    grpLabel.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#aaa;margin:12px 0 6px;';
-    grpLabel.textContent=group.label;modal.appendChild(grpLabel);
-    group.roles.forEach(r=>{
-      const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
-      card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
-      card.addEventListener('click',()=>{
-        devModeRole=r.id==='admin'?null:r.id;
-        if(r.id==='admin') devModeWard=null;
-        state.tab='callings';state.view='list';state.filterLevel='All';
-        closeModal();
-        // If switching to a ward-scoped role, show ward picker
-        if(devModeRole && (r.scope==='ward'||r.scope==='ward_org')){
-          openDevWardPicker();
-        } else {
-          render();
-        }
+  function renderList(filter){
+    listWrap.innerHTML='';
+    const q=(filter||'').toLowerCase();
+    groups.forEach(group=>{
+      const filtered=q?group.roles.filter(r=>r.label.toLowerCase().includes(q)):group.roles;
+      if(!filtered.length) return;
+      const grpLabel=document.createElement('div');
+      grpLabel.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#aaa;margin:12px 0 6px;';
+      grpLabel.textContent=group.label;listWrap.appendChild(grpLabel);
+      filtered.forEach(r=>{
+        const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
+        card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
+        card.addEventListener('click',()=>{
+          devModeRole=r.id==='admin'?null:r.id;
+          if(r.id==='admin') devModeWard=null;
+          state.tab='callings';state.view='list';state.filterLevel='All';
+          closeModal();
+          if(devModeRole&&(r.scope==='ward'||r.scope==='ward_org')){
+            openDevWardPicker();
+          } else {
+            render();
+          }
+        });
+        listWrap.appendChild(card);
       });
-      modal.appendChild(card);
     });
-  });
+  }
+
+  renderList('');
+  searchInp.addEventListener('input',()=>renderList(searchInp.value));
   applyMobileModal(overlay,modal);overlay.appendChild(modal);root.appendChild(overlay);
+  setTimeout(()=>searchInp.focus(),100);
 }
 
 // ── Render ───────────────────────────────────────────────────────────────────
