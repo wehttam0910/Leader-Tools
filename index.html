@@ -989,8 +989,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SUPERADMIN_EMAIL = 'wehttam0910@gmail.com'; // your email — only this account gets dev mode
 let currentUser = null;      // Supabase auth user
 let currentProfile = null;   // row from profiles table
-let devModeRole = null;      // when superadmin is previewing another role
-let devModeWard = null;      // when superadmin is previewing a specific ward
+let devModeRole=sessionStorage.getItem('leadertools_devRole')||null;
+let devModeWard=sessionStorage.getItem('leadertools_devWard')||null;
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
 function isSuperAdmin(){
@@ -1025,7 +1025,7 @@ async function loadOrCreateProfile(user){
 
 async function signOut(){
   await sb.auth.signOut();
-  currentUser=null;currentProfile=null;devModeRole=null;
+  currentUser=null;currentProfile=null;devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
   showAuthScreen();
 }
 
@@ -1093,7 +1093,7 @@ async function handleSession(session){
         currentProfile = await loadOrCreateProfile(currentUser);
       }
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
-      devModeRole = null;
+      devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
       showAppShell();
       state.loading = true;
       render();
@@ -1115,7 +1115,7 @@ async function handleSession(session){
     } else {
       currentUser = null;
       currentProfile = null;
-      devModeRole = null;
+      devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
       showAuthScreen();
     }
   }catch(e){
@@ -1153,7 +1153,7 @@ sb.auth.onAuthStateChange(async(event, session)=>{
     await handleSession(session);
   } else if(event==='SIGNED_OUT'){
     authBooted = false;
-    currentUser=null;currentProfile=null;devModeRole=null;
+    currentUser=null;currentProfile=null;devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
     showAuthScreen();
   }
 });
@@ -1538,7 +1538,7 @@ mqDesktop.addEventListener('change',handleMq);
 document.getElementById('topbar-avatar').addEventListener('click',()=>{state.tab='profile';state.view='list';state.detailId=null;render();});
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();state.tab='profile';state.view='list';state.detailId=null;render();});
 document.getElementById('sidebar-switch-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
-document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;devModeWard=null;state.tab='callings';state.view='list';render();});
+document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');devModeWard=null;sessionStorage.setItem('leadertools_devWard',devModeWard||'');state.tab='callings';state.view='list';render();});
 
 function openDevWardPicker(){
   const root=document.getElementById('modal-root');root.innerHTML='';
@@ -1556,7 +1556,7 @@ function openDevWardPicker(){
     const card=document.createElement('div');card.className='role-card'+(currentWard===w?' selected':'');
     card.innerHTML=`<div style="flex:1;font-size:14px;font-weight:600;color:#1c2537;">${w}</div>${currentWard===w?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
     card.addEventListener('click',()=>{
-      devModeWard=w;
+      devModeWard=w;sessionStorage.setItem('leadertools_devWard',devModeWard||'');
       closeModal();render();
     });
     modal.appendChild(card);
@@ -2320,8 +2320,8 @@ function openRoleSwitcher(){
         const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
         card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
         card.addEventListener('click',()=>{
-          devModeRole=r.id==='admin'?null:r.id;
-          if(r.id==='admin') devModeWard=null;
+          devModeRole=r.id==='admin'?null:r.id;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
+          if(r.id==='admin'){devModeWard=null;sessionStorage.setItem('leadertools_devWard','');}
           state.tab='callings';state.view='list';state.filterLevel='All';
           closeModal();
           if(devModeRole&&(r.scope==='ward'||r.scope==='ward_org')){
@@ -2420,28 +2420,29 @@ function getMeetingTypes(role){
     {key:'stake-conference',label:'Stake Conference',          icon:'🏛️', sub:'Semiannual all-stake gathering',                  scopes:['stake','admin'], orgs:['Stake Presidency','Stake High Council']},
     {key:'high-council',    label:'High Council Meeting',      icon:'⚖️', sub:'Regular meeting of the high council',             scopes:['stake','admin'], orgs:['Stake Presidency','Stake High Council']},
     // Elders Quorum
-    {key:'eq-presidency',   label:'EQ Presidency Meeting',     icon:'📋', sub:'Regular elders quorum presidency meeting',        scopes:['ward','admin'], orgs:['Elders Quorum']},
-    {key:'eq-meeting',      label:'Elders Quorum Meeting',     icon:'👥', sub:'Sunday quorum instruction meeting',               scopes:['ward','admin'], orgs:['Elders Quorum']},
+    {key:'eq-presidency',   label:'EQ Presidency Meeting',     icon:'📋', sub:'Regular elders quorum presidency meeting',        scopes:['ward','ward_org','admin'], orgs:["Elder's Quorum"]},
+    {key:'eq-meeting',      label:'Elders Quorum Meeting',     icon:'👥', sub:'Sunday quorum instruction meeting',               scopes:['ward','ward_org','admin'], orgs:["Elder's Quorum"]},
     // Relief Society
-    {key:'rs-presidency',   label:'RS Presidency Meeting',     icon:'📋', sub:'Regular Relief Society presidency meeting',       scopes:['ward','admin'], orgs:['Ward Relief Society']},
-    {key:'rs-meeting',      label:'Relief Society Meeting',    icon:'🌸', sub:'Sunday Relief Society meeting',                   scopes:['ward','admin'], orgs:['Ward Relief Society']},
+    {key:'rs-presidency',   label:'RS Presidency Meeting',     icon:'📋', sub:'Regular Relief Society presidency meeting',       scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
+    {key:'rs-meeting',      label:'Relief Society Meeting',    icon:'🌸', sub:'Sunday Relief Society meeting',                   scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
     // Young Men
-    {key:'ym-presidency',   label:'YM Presidency Meeting',     icon:'📋', sub:'Regular Young Men presidency meeting',            scopes:['ward','admin'], orgs:['Ward Young Men']},
-    {key:'ym-activity',     label:'YM Combined Activity',      icon:'⚽', sub:'Combined young men activity planning/review',     scopes:['ward','admin'], orgs:['Ward Young Men']},
+    {key:'ym-presidency',   label:'YM Presidency Meeting',     icon:'📋', sub:'Regular Young Men presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Young Men']},
+    {key:'ym-activity',     label:'YM Combined Activity',      icon:'⚽', sub:'Combined young men activity planning/review',     scopes:['ward','ward_org','admin'], orgs:['Ward Young Men']},
     // Young Women
-    {key:'yw-presidency',   label:'YW Presidency Meeting',     icon:'📋', sub:'Regular Young Women presidency meeting',          scopes:['ward','admin'], orgs:['Ward Young Women']},
-    {key:'yw-activity',     label:'YW Combined Activity',      icon:'✨', sub:'Combined young women activity planning/review',   scopes:['ward','admin'], orgs:['Ward Young Women']},
+    {key:'yw-presidency',   label:'YW Presidency Meeting',     icon:'📋', sub:'Regular Young Women presidency meeting',          scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
+    {key:'yw-activity',     label:'YW Combined Activity',      icon:'✨', sub:'Combined young women activity planning/review',   scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
     // Primary
-    {key:'primary-presidency',label:'Primary Presidency Meeting',icon:'📋',sub:'Regular Primary presidency meeting',            scopes:['ward','admin'], orgs:['Ward Primary']},
-    {key:'primary-sharing', label:'Sharing Time Planning',     icon:'🎨', sub:'Sharing time and program planning',               scopes:['ward','admin'], orgs:['Ward Primary']},
+    {key:'primary-presidency',label:'Primary Presidency Meeting',icon:'📋',sub:'Regular Primary presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Primary']},
+    {key:'primary-sharing', label:'Sharing Time Planning',     icon:'🎨', sub:'Sharing time and program planning',               scopes:['ward','ward_org','admin'], orgs:['Ward Primary']},
     // Sunday School
-    {key:'ss-presidency',   label:'SS Presidency Meeting',     icon:'📋', sub:'Regular Sunday School presidency meeting',        scopes:['ward','admin'], orgs:['Ward Sunday School']},
+    {key:'ss-presidency',   label:'SS Presidency Meeting',     icon:'📋', sub:'Regular Sunday School presidency meeting',        scopes:['ward','ward_org','admin'], orgs:['Ward Sunday School']},
   ];
 
   const filtered=all.filter(m=>{
     if(!m.scopes.includes(scope)) return false;
     if(scope==='admin') return true;
-    if(!m.orgs) return true;
+    if(!m.orgs) return scope==='ward'||scope==='ward_org'?true:false; // sacrament etc — ward and ward_org see them if no org filter
+    if(scope==='ward_org') return m.orgs.some(o=>org.includes(o)||o.includes(org));
     return m.orgs.some(o=>org.includes(o)||o.includes(org));
   });
 
@@ -2690,7 +2691,8 @@ function renderAgendaCategory(el,role,categoryKey){
   back.textContent='← Back to Agendas';
   back.addEventListener('click',e=>{e.preventDefault();state.agendaCategory=null;render();});
   hdr.appendChild(back);
-  if(role.scope==='admin'||role.scope==='ward'||role.scope==='stake') {
+  const canCreateAgenda=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric')||role.scope==='ward_org';
+  if(canCreateAgenda&&role.id!=='high_council') {
     const newBtn=document.createElement('button');newBtn.className='btn-primary';newBtn.textContent='+ New Agenda';
     newBtn.addEventListener('click',()=>{
       window._agendaDraft={meetingCategory:categoryKey};
