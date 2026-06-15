@@ -647,7 +647,7 @@ const ROLES=[
   {id:'stake_rs_pres',label:'Stake Relief Society President',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
   {id:'stake_rs_1c',label:'Stake Relief Society 1st Counselor',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
   {id:'stake_rs_2c',label:'Stake Relief Society 2nd Counselor',desc:'Stake RS',color:'#993556',scope:'stake',org:'Stake Relief Society'},
-  {id:'stake_ym_pres',label:'Stake Young Men President',desc:'Stake YM',color:'#1a6b55',scope:'stake',org:'Stake Young Men'},
+  {id:'stake_ym_pres',label:"Stake Young Men's President",desc:'Stake YM',color:'#1a6b55',scope:'stake',org:'Stake Young Men'},
   {id:'stake_ym_1c',label:'Stake Young Men 1st Counselor',desc:'Stake YM',color:'#1a6b55',scope:'stake',org:'Stake Young Men'},
   {id:'stake_yw_pres',label:'Stake Young Women President',desc:'Stake YW',color:'#d4537e',scope:'stake',org:'Stake Young Women'},
   {id:'stake_yw_1c',label:'Stake Young Women 1st Counselor',desc:'Stake YW',color:'#d4537e',scope:'stake',org:'Stake Young Women'},
@@ -694,7 +694,7 @@ const CALLING_DIR=[
   {name:'Stake Relief Society First Counselor',level:'Stake',org:'Stake Relief Society'},
   {name:'Stake Relief Society Second Counselor',level:'Stake',org:'Stake Relief Society'},
   {name:'Stake Relief Society Secretary',level:'Stake',org:'Stake Relief Society'},
-  {name:'Stake Young Men President',level:'Stake',org:'Stake Young Men'},
+  {name:"Stake Young Men's President",level:'Stake',org:'Stake Young Men'},
   {name:'Stake Young Men First Counselor',level:'Stake',org:'Stake Young Men'},
   {name:'Stake Young Men Second Counselor',level:'Stake',org:'Stake Young Men'},
   {name:'Stake Young Men Secretary',level:'Stake',org:'Stake Young Men'},
@@ -1887,7 +1887,7 @@ function openCallingModal(role){
     else if(stepId==='filled'){
       title('Is this calling currently filled?');
       const sub2=document.createElement('div');sub2.style.cssText='font-size:13px;color:#888;margin-bottom:16px;margin-top:-8px;';
-      sub2.textContent=`Does someone currently hold the calling of "${data.callingName||'this calling'}"?`;
+      sub2.textContent='';
       modal.appendChild(sub2);
 
       radioGroup([
@@ -6084,7 +6084,7 @@ async function renderStakeHC(el,role){
 
   // Build primary assignment options
   const wardOpts=(state.stakeUnits||[]).map(u=>u.ward_name).filter(Boolean);
-  const primaryOpts=['',  ...wardOpts,'Stake Young Men President','Stake Sunday School President','Other'];
+  const primaryOpts=['',  ...wardOpts,"Stake Young Men's President",'Stake Sunday School President','Other'];
 
   // HC profiles — only users with role_id === 'high_council'
   const hcProfiles=(state.profiles||[]).filter(p=>p.role_id==='high_council');
