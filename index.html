@@ -989,8 +989,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SUPERADMIN_EMAIL = 'wehttam0910@gmail.com'; // your email — only this account gets dev mode
 let currentUser = null;      // Supabase auth user
 let currentProfile = null;   // row from profiles table
-let devModeRole=sessionStorage.getItem('leadertools_devRole')||null;
-let devModeWard=sessionStorage.getItem('leadertools_devWard')||null;
+let devModeRole=localStorage.getItem('leadertools_devRole')||null;
+let devModeWard=localStorage.getItem('leadertools_devWard')||null;
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
 function isSuperAdmin(){
@@ -1025,7 +1025,7 @@ async function loadOrCreateProfile(user){
 
 async function signOut(){
   await sb.auth.signOut();
-  currentUser=null;currentProfile=null;devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
+  currentUser=null;currentProfile=null;devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
   showAuthScreen();
 }
 
@@ -1093,7 +1093,7 @@ async function handleSession(session){
         currentProfile = await loadOrCreateProfile(currentUser);
       }
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
-      devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
+      devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
       showAppShell();
       state.loading = true;
       render();
@@ -1115,7 +1115,7 @@ async function handleSession(session){
     } else {
       currentUser = null;
       currentProfile = null;
-      devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
+      devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
       showAuthScreen();
     }
   }catch(e){
@@ -1153,7 +1153,7 @@ sb.auth.onAuthStateChange(async(event, session)=>{
     await handleSession(session);
   } else if(event==='SIGNED_OUT'){
     authBooted = false;
-    currentUser=null;currentProfile=null;devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
+    currentUser=null;currentProfile=null;devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
     showAuthScreen();
   }
 });
@@ -1538,7 +1538,7 @@ mqDesktop.addEventListener('change',handleMq);
 document.getElementById('topbar-avatar').addEventListener('click',()=>{state.tab='profile';state.view='list';state.detailId=null;render();});
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();state.tab='profile';state.view='list';state.detailId=null;render();});
 document.getElementById('sidebar-switch-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
-document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;sessionStorage.setItem('leadertools_devRole',devModeRole||'');devModeWard=null;sessionStorage.setItem('leadertools_devWard',devModeWard||'');state.tab='callings';state.view='list';render();});
+document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');devModeWard=null;localStorage.setItem('leadertools_devWard',devModeWard||'');state.tab='callings';state.view='list';render();});
 
 function openDevWardPicker(){
   const root=document.getElementById('modal-root');root.innerHTML='';
@@ -1556,7 +1556,7 @@ function openDevWardPicker(){
     const card=document.createElement('div');card.className='role-card'+(currentWard===w?' selected':'');
     card.innerHTML=`<div style="flex:1;font-size:14px;font-weight:600;color:#1c2537;">${w}</div>${currentWard===w?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
     card.addEventListener('click',()=>{
-      devModeWard=w;sessionStorage.setItem('leadertools_devWard',devModeWard||'');
+      devModeWard=w;localStorage.setItem('leadertools_devWard',devModeWard||'');
       closeModal();render();
     });
     modal.appendChild(card);
@@ -2320,8 +2320,8 @@ function openRoleSwitcher(){
         const card=document.createElement('div');card.className='role-card'+(currentId===r.id?' selected':'');
         card.innerHTML=`<span class="role-dot" style="background:${r.color}"></span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:#1c2537">${r.label}</div></div>${currentId===r.id?'<span style="color:#1c2537;font-size:16px">&#10003;</span>':''}`;
         card.addEventListener('click',()=>{
-          devModeRole=r.id==='admin'?null:r.id;sessionStorage.setItem('leadertools_devRole',devModeRole||'');
-          if(r.id==='admin'){devModeWard=null;sessionStorage.setItem('leadertools_devWard','');}
+          devModeRole=r.id==='admin'?null:r.id;localStorage.setItem('leadertools_devRole',devModeRole||'');
+          if(r.id==='admin'){devModeWard=null;localStorage.setItem('leadertools_devWard','');}
           state.tab='callings';state.view='list';state.filterLevel='All';
           closeModal();
           if(devModeRole&&(r.scope==='ward'||r.scope==='ward_org')){
