@@ -1899,7 +1899,7 @@ function openCallingModal(role){
       const rb=document.createElement('div');
       rb.className='currently-filled-box'+(data.currentlyFilledAnswer==='yes'?'':' hidden');
       rb.style.marginTop='12px';
-      const rlbl=document.createElement('label');rlbl.className='form-label';rlbl.style.color='#7a5400';rlbl.textContent='Name of current holder to be released<span class="req">*</span>';
+      const rlbl=document.createElement('label');rlbl.className='form-label';rlbl.style.color='#7a5400';rlbl.innerHTML='Name of current holder to be released<span class="req">*</span>';
       const rinp=document.createElement('input');rinp.type='text';rinp.placeholder='Full name';rinp.value=data.releaseName||'';
       rinp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;margin-top:6px;';
       rinp.addEventListener('input',()=>{data.releaseName=rinp.value;});
