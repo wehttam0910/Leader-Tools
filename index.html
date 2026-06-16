@@ -672,8 +672,8 @@ const ROLES=[
   {id:'yw_1c',label:'Young Women 1st Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
   {id:'yw_2c',label:'Young Women 2nd Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
   {id:'yw_secretary',label:'Young Women Secretary',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
-  {id:'ym_president',label:'Young Men President',desc:'Ward — YM',color:'#1a6b55',scope:'ward_org',org:'Ward Young Men'},
-  {id:'ym_1c',label:'Young Men 1st Counselor',desc:'Ward — YM',color:'#1a6b55',scope:'ward_org',org:'Ward Young Men'},
+  {id:'ym_president',label:'Aaronic Priesthood (YM)',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Ward Aaronic Priesthood'},
+  {id:'ym_1c',label:'Aaronic Priesthood 1st Counselor',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Ward Aaronic Priesthood'},
   {id:'primary_president',label:'Primary President',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
   {id:'primary_1c',label:'Primary 1st Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
   {id:'primary_2c',label:'Primary 2nd Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
@@ -724,7 +724,7 @@ const CALLING_DIR=[
   {name:'Elders Quorum Second Counselor',level:'Stake Issued',org:"Elder's Quorum"},
   {name:'Elders Quorum Secretary',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Assistant Secretary',level:'Ward',org:"Elder's Quorum"},
-  {name:'Elders Quorum Instructor',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Teacher',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Ministering Secretary',level:'Ward',org:"Elder's Quorum"},
   {name:'Relief Society President',level:'Ward',org:'Ward Relief Society'},
   {name:'Relief Society First Counselor',level:'Ward',org:'Ward Relief Society'},
@@ -735,26 +735,43 @@ const CALLING_DIR=[
   {name:'Relief Society Music Leader',level:'Ward',org:'Ward Relief Society'},
   {name:'Relief Society Pianist',level:'Ward',org:'Ward Relief Society'},
   {name:'Relief Society Compassionate Service Coordinator',level:'Ward',org:'Ward Relief Society'},
-  {name:'Priests Quorum Adviser',level:'Ward',org:'Ward Young Men'},
-  {name:'Teachers Quorum President',level:'Ward',org:'Ward Young Men'},
-  {name:'Teachers Quorum Adviser',level:'Ward',org:'Ward Young Men'},
-  {name:'Deacons Quorum President',level:'Ward',org:'Ward Young Men'},
-  {name:'Deacons Quorum Adviser',level:'Ward',org:'Ward Young Men'},
+  // Aaronic Priesthood — quorum is selected as a sub-step in the wizard
+  {name:'Quorum Adviser',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum President',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum First Counselor',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Second Counselor',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Secretary',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Specialist',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  // Young Women — main presidency (no class picker)
   {name:'Young Women President',level:'Ward',org:'Ward Young Women'},
   {name:'Young Women First Counselor',level:'Ward',org:'Ward Young Women'},
   {name:'Young Women Second Counselor',level:'Ward',org:'Ward Young Women'},
   {name:'Young Women Secretary',level:'Ward',org:'Ward Young Women'},
   {name:'Young Women Specialist',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women Class President',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women Class Adviser',level:'Ward',org:'Ward Young Women'},
+  // Young Women — class callings (class is selected as a sub-step)
+  {name:'Class President',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class First Counselor',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class Second Counselor',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class Secretary',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class Adviser',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class Specialist',level:'Ward',org:'Ward Young Women',classPicker:true},
+  // Sunday School
   {name:'Sunday School President',level:'Ward',org:'Ward Sunday School'},
-  {name:'Sunday School Teacher',level:'Ward',org:'Ward Sunday School'},
+  {name:'Sunday School First Counselor',level:'Ward',org:'Ward Sunday School'},
+  {name:'Sunday School Second Counselor',level:'Ward',org:'Ward Sunday School'},
+  {name:'Sunday School Secretary',level:'Ward',org:'Ward Sunday School'},
+  // Sunday School Teacher — class(es) selected as extra metadata in wizard
+  {name:'Sunday School Teacher',level:'Ward',org:'Ward Sunday School',classPicker:true,classPickerType:'ss'},
   {name:'Resource Center Specialist',level:'Ward',org:'Ward Sunday School'},
+  // Primary
   {name:'Primary President',level:'Ward',org:'Ward Primary'},
   {name:'Primary First Counselor',level:'Ward',org:'Ward Primary'},
   {name:'Primary Second Counselor',level:'Ward',org:'Ward Primary'},
   {name:'Primary Secretary',level:'Ward',org:'Ward Primary'},
-  {name:'Primary Teacher',level:'Ward',org:'Ward Primary'},
+  {name:'Primary Music Leader',level:'Ward',org:'Ward Primary'},
+  {name:'Primary Pianist',level:'Ward',org:'Ward Primary'},
+  // Primary Teacher — class(es) selected as extra metadata in wizard
+  {name:'Primary Teacher',level:'Ward',org:'Ward Primary',classPicker:true,classPickerType:'primary'},
   {name:'Nursery Leader',level:'Ward',org:'Ward Primary'},
   {name:'Nursery Worker',level:'Ward',org:'Ward Primary'},
   {name:'Ward Mission Leader',level:'Ward',org:'Ward Mission'},
@@ -773,6 +790,14 @@ const CALLING_DIR=[
   {name:'Seminary Specialist',level:'Ward',org:'Additional Ward Callings'},
   {name:'Ward Bulletin Specialist',level:'Ward',org:'Additional Ward Callings'},
 ];
+// ── Aaronic Priesthood quorums ────────────────────────────────────────────
+const AP_QUORUMS=['Priests','Teachers','Deacons'];
+// ── Young Women classes ───────────────────────────────────────────────────
+const YW_CLASSES=['Gatherers of Light','Messengers of Hope','Builders of Faith'];
+// ── Primary classes ───────────────────────────────────────────────────────
+const PRIMARY_CLASSES=['Nursery','Sunbeam','CTR 4','CTR 5','CTR 6','CTR 7','Valiant 8','Valiant 9','Valiant 10'];
+// ── Sunday School classes ─────────────────────────────────────────────────
+const SS_CLASSES=['Course 11','Course 12','Course 13','Course 14','Course 15','Course 16','Course 17'];
 const WORKFLOWS={
   'Stake-Bishop':[
     'Stake Presidency Approval',
@@ -1691,7 +1716,32 @@ function openCallingModal(role){
     spouseName:'',
     spouseCalling:'',
     notes:'',
+    // Sub-pickers for AP quorum, YW class, Primary/SS classes
+    selectedQuorum:null,      // 'Priests' | 'Teachers' | 'Deacons'
+    selectedYWClass:null,     // 'Gatherers of Light' | 'Messengers of Hope' | 'Builders of Faith'
+    selectedClasses:[],       // array of Primary or SS class strings
   };
+
+  // Helper: does the current calling selection need a quorum picker?
+  function needsQuorumPicker(){
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Ward Aaronic Priesthood');
+    return !!(dir&&dir.quorumPicker);
+  }
+  // Helper: does the current calling selection need a YW class picker?
+  function needsYWClassPicker(){
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Ward Young Women');
+    return !!(dir&&dir.classPicker);
+  }
+  // Helper: does the current calling selection need a Primary class picker?
+  function needsPrimaryClassPicker(){
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.classPickerType==='primary');
+    return !!(dir&&dir.classPicker);
+  }
+  // Helper: does the current calling selection need a SS class picker?
+  function needsSSClassPicker(){
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.classPickerType==='ss');
+    return !!(dir&&dir.classPicker);
+  }
 
   // ── Build step list based on role + intent ───────────────────────────────
   function buildSteps(){
@@ -1704,6 +1754,11 @@ function openCallingModal(role){
     }
     // ward_org: no org/ward step — org is known
     steps.push('calling');
+    // Sub-picker steps inserted after calling selection
+    if(needsQuorumPicker()) steps.push('quorum-picker');
+    else if(needsYWClassPicker()) steps.push('yw-class-picker');
+    else if(needsPrimaryClassPicker()) steps.push('class-picker-primary');
+    else if(needsSSClassPicker()) steps.push('class-picker-ss');
     // For any calling (fill or both), ask if the calling is currently filled
     if(data.intent==='fill'||data.intent==='both') steps.push('filled');
     // Member info step
@@ -1850,7 +1905,7 @@ function openCallingModal(role){
       let d=CALLING_DIR;
       if(isWard) d=d.filter(c=>(c.level==='Stake Issued'||c.level==='Ward')&&!c.stakeOnly);
       const orgs=getUniqueOrgs(d);
-      radioGroup(orgs.map(o=>({value:o,label:o})),'org');
+      radioGroup(orgs.map(o=>({value:o,label:o.replace(/^Ward /,'')})),'org');
     }
 
     // ── CALLING ─────────────────────────────────────────────────────────────
@@ -1885,6 +1940,72 @@ function openCallingModal(role){
       const ci=document.createElement('input');ci.type='text';ci.placeholder='Enter calling title...';ci.value=(data.isCustom&&data.callingName)||'';
       ci.addEventListener('input',()=>{data.callingName=ci.value.trim();});
       customWrap.appendChild(cl);customWrap.appendChild(ci);modal.appendChild(customWrap);
+    }
+
+    // ── QUORUM PICKER (Aaronic Priesthood) ─────────────────────────────────
+    else if(stepId==='quorum-picker'){
+      title('Which Quorum?');
+      radioGroup(AP_QUORUMS.map(q=>({
+        value:q,
+        label:q+' Quorum',
+        sub:q==='Priests'?'Ages 16–17':q==='Teachers'?'Ages 14–15':'Ages 12–13',
+      })),'selectedQuorum');
+    }
+
+    // ── YW CLASS PICKER ───────────────────────────────────────────────────
+    else if(stepId==='yw-class-picker'){
+      title('Which Class?');
+      radioGroup(YW_CLASSES.map(c=>({value:c,label:c})),'selectedYWClass');
+    }
+
+    // ── PRIMARY CLASS PICKER (multi-select) ───────────────────────────────
+    else if(stepId==='class-picker-primary'){
+      title('Which Class(es)?');
+      const sub2=document.createElement('div');sub2.style.cssText='font-size:13px;color:#888;margin-bottom:16px;margin-top:-8px;';
+      sub2.textContent='Select one or more classes this teacher will be assigned to.';
+      modal.appendChild(sub2);
+      if(!Array.isArray(data.selectedClasses))data.selectedClasses=[];
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:8px;';
+      PRIMARY_CLASSES.forEach(cls=>{
+        const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;';
+        const cb=document.createElement('input');cb.type='checkbox';cb.value=cls;cb.style.cssText='width:16px;height:16px;accent-color:#1c2537;flex-shrink:0;';
+        cb.checked=data.selectedClasses.includes(cls);
+        cb.addEventListener('change',()=>{
+          if(cb.checked)data.selectedClasses.push(cls);
+          else data.selectedClasses=data.selectedClasses.filter(c=>c!==cls);
+          row.style.borderColor=cb.checked?'#1c2537':'rgba(0,0,0,0.12)';
+          row.style.background=cb.checked?'#f0f4ff':'';
+        });
+        if(cb.checked){row.style.borderColor='#1c2537';row.style.background='#f0f4ff';}
+        const lbl=document.createElement('span');lbl.style.cssText='font-size:13px;font-weight:500;color:#1c2537;';lbl.textContent=cls;
+        row.appendChild(cb);row.appendChild(lbl);wrap.appendChild(row);
+      });
+      modal.appendChild(wrap);
+    }
+
+    // ── SUNDAY SCHOOL CLASS PICKER (multi-select) ─────────────────────────
+    else if(stepId==='class-picker-ss'){
+      title('Which Class(es)?');
+      const sub2=document.createElement('div');sub2.style.cssText='font-size:13px;color:#888;margin-bottom:16px;margin-top:-8px;';
+      sub2.textContent='Select one or more courses this teacher will be assigned to.';
+      modal.appendChild(sub2);
+      if(!Array.isArray(data.selectedClasses))data.selectedClasses=[];
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:8px;';
+      SS_CLASSES.forEach(cls=>{
+        const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;';
+        const cb=document.createElement('input');cb.type='checkbox';cb.value=cls;cb.style.cssText='width:16px;height:16px;accent-color:#1c2537;flex-shrink:0;';
+        cb.checked=data.selectedClasses.includes(cls);
+        cb.addEventListener('change',()=>{
+          if(cb.checked)data.selectedClasses.push(cls);
+          else data.selectedClasses=data.selectedClasses.filter(c=>c!==cls);
+          row.style.borderColor=cb.checked?'#1c2537':'rgba(0,0,0,0.12)';
+          row.style.background=cb.checked?'#f0f4ff':'';
+        });
+        if(cb.checked){row.style.borderColor='#1c2537';row.style.background='#f0f4ff';}
+        const lbl=document.createElement('span');lbl.style.cssText='font-size:13px;font-weight:500;color:#1c2537;';lbl.textContent=cls;
+        row.appendChild(cb);row.appendChild(lbl);wrap.appendChild(row);
+      });
+      modal.appendChild(wrap);
     }
 
     // ── FILLED (is this calling currently occupied?) ────────────────────────
@@ -2037,6 +2158,10 @@ function openCallingModal(role){
       if(stepId==='org-or-ward'&&data.callingLevel==='Stake'&&!data.org){alert('Please select an organization.');return;}
       if(stepId==='org'&&!data.org){alert('Please select an organization.');return;}
       if(stepId==='calling'&&!data.callingName){alert('Please select a calling.');return;}
+      if(stepId==='quorum-picker'&&!data.selectedQuorum){alert('Please select a quorum.');return;}
+      if(stepId==='yw-class-picker'&&!data.selectedYWClass){alert('Please select a class.');return;}
+      if(stepId==='class-picker-primary'&&(!data.selectedClasses||!data.selectedClasses.length)){alert('Please select at least one class.');return;}
+      if(stepId==='class-picker-ss'&&(!data.selectedClasses||!data.selectedClasses.length)){alert('Please select at least one course.');return;}
       if(stepId==='filled'&&!data.currentlyFilledAnswer){alert('Please indicate if this calling is currently filled.');return;}
       if(stepId==='filled'&&data.currentlyFilledAnswer==='yes'&&!data.releaseName.trim()){alert('Please enter the name of the current holder to be released.');return;}
       if(stepId==='member'&&!data.memberName.trim()){alert('Please enter the member\'s name.');return;}
@@ -2060,10 +2185,24 @@ function openCallingModal(role){
     const {action,level,ward,org}=derived();
     // hasCurrentHolder = the calling is currently occupied by someone who needs replacing
     const hasCurrentHolder=(data.intent==='fill'||data.intent==='both')&&data.currentlyFilledAnswer==='yes';
+
+    // Build the final calling name incorporating sub-picker selections
+    let finalCallingName=data.callingName;
+    if(data.selectedQuorum){
+      // e.g. "Priests Quorum Adviser"
+      finalCallingName=data.selectedQuorum+' '+data.callingName;
+    } else if(data.selectedYWClass){
+      // e.g. "Gatherers of Light Class President"
+      finalCallingName=data.selectedYWClass+' '+data.callingName;
+    } else if(data.selectedClasses&&data.selectedClasses.length){
+      // e.g. "Primary Teacher — CTR 7, Valiant 8"
+      finalCallingName=data.callingName+' — '+data.selectedClasses.join(', ');
+    }
+
     const newCalling={
       id:null, // will be assigned by DB
       name:data.memberName,
-      calling:data.callingName,
+      calling:finalCallingName,
       org,ward,level,action,
       submittedDate:today(),
       currentStep:0,stepDates:[],stepMeta:{},
@@ -2429,9 +2568,9 @@ function getMeetingTypes(role){
     // Relief Society
     {key:'rs-presidency',   label:'RS Presidency Meeting',     icon:'📋', sub:'Regular Relief Society presidency meeting',       scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
     {key:'rs-meeting',      label:'Relief Society Meeting',    icon:'🌸', sub:'Sunday Relief Society meeting',                   scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
-    // Young Men
-    {key:'ym-presidency',   label:'YM Presidency Meeting',     icon:'📋', sub:'Regular Young Men presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Young Men']},
-    {key:'ym-activity',     label:'YM Combined Activity',      icon:'⚽', sub:'Combined young men activity planning/review',     scopes:['ward','ward_org','admin'], orgs:['Ward Young Men']},
+    // Aaronic Priesthood (Young Men)
+    {key:'ym-presidency',   label:'AP Presidency Meeting',     icon:'📋', sub:'Regular Aaronic Priesthood presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Aaronic Priesthood']},
+    {key:'ym-activity',     label:'AP Combined Activity',      icon:'⚽', sub:'Combined Aaronic Priesthood activity planning/review',     scopes:['ward','ward_org','admin'], orgs:['Ward Aaronic Priesthood']},
     // Young Women
     {key:'yw-presidency',   label:'YW Presidency Meeting',     icon:'📋', sub:'Regular Young Women presidency meeting',          scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
     {key:'yw-activity',     label:'YW Combined Activity',      icon:'✨', sub:'Combined young women activity planning/review',   scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
