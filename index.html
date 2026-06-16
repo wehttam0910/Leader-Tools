@@ -1093,7 +1093,9 @@ async function handleSession(session){
         currentProfile = await loadOrCreateProfile(currentUser);
       }
       state.activeRoleId = currentProfile?.role_id || (currentUser.email===SUPERADMIN_EMAIL?'admin':'ward_member');
-      devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
+      // Restore devModeRole from localStorage — don't reset on session restore
+      devModeRole=localStorage.getItem('leadertools_devRole')||null;
+      devModeWard=localStorage.getItem('leadertools_devWard')||null;
       showAppShell();
       state.loading = true;
       render();
@@ -1115,7 +1117,9 @@ async function handleSession(session){
     } else {
       currentUser = null;
       currentProfile = null;
-      devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');
+      devModeRole=null;devModeWard=null;
+      localStorage.removeItem('leadertools_devRole');
+      localStorage.removeItem('leadertools_devWard');
       showAuthScreen();
     }
   }catch(e){
