@@ -660,26 +660,26 @@ const ROLES=[
   {id:'ward_asst_clerk',label:'Ward Assistant Clerk',desc:'Ward access',color:'#4a7c20',scope:'ward',org:'Bishopric'},
   {id:'ward_exec_sec',label:'Ward Executive Secretary',desc:'Ward access',color:'#4a7c20',scope:'ward',org:'Bishopric'},
   // ── Ward Orgs ───────────────────────────────────────────────────────────
-  {id:'rs_president',label:'Relief Society President',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
-  {id:'rs_1c',label:'Relief Society 1st Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
-  {id:'rs_2c',label:'Relief Society 2nd Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
-  {id:'rs_secretary',label:'Relief Society Secretary',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Ward Relief Society'},
+  {id:'rs_president',label:'Relief Society President',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Relief Society'},
+  {id:'rs_1c',label:'Relief Society 1st Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Relief Society'},
+  {id:'rs_2c',label:'Relief Society 2nd Counselor',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Relief Society'},
+  {id:'rs_secretary',label:'Relief Society Secretary',desc:'Ward — RS',color:'#993556',scope:'ward_org',org:'Relief Society'},
   {id:'eq_president',label:'Elders Quorum President',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
   {id:'eq_1c',label:'Elders Quorum 1st Counselor',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
   {id:'eq_2c',label:'Elders Quorum 2nd Counselor',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
   {id:'eq_secretary',label:'Elders Quorum Secretary',desc:'Ward — EQ',color:'#854f0b',scope:'ward_org',org:"Elder's Quorum"},
-  {id:'yw_president',label:'Young Women President',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
-  {id:'yw_1c',label:'Young Women 1st Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
-  {id:'yw_2c',label:'Young Women 2nd Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
-  {id:'yw_secretary',label:'Young Women Secretary',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Ward Young Women'},
-  {id:'ym_president',label:'Aaronic Priesthood (YM)',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Ward Aaronic Priesthood'},
-  {id:'ym_1c',label:'Aaronic Priesthood 1st Counselor',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Ward Aaronic Priesthood'},
-  {id:'primary_president',label:'Primary President',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
-  {id:'primary_1c',label:'Primary 1st Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
-  {id:'primary_2c',label:'Primary 2nd Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
-  {id:'primary_secretary',label:'Primary Secretary',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Ward Primary'},
-  {id:'sunday_school_pres',label:'Sunday School President',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Ward Sunday School'},
-  {id:'sunday_school_1c',label:'Sunday School 1st Counselor',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Ward Sunday School'},
+  {id:'yw_president',label:'Young Women President',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Young Women'},
+  {id:'yw_1c',label:'Young Women 1st Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Young Women'},
+  {id:'yw_2c',label:'Young Women 2nd Counselor',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Young Women'},
+  {id:'yw_secretary',label:'Young Women Secretary',desc:'Ward — YW',color:'#d4537e',scope:'ward_org',org:'Young Women'},
+  {id:'ym_president',label:'Aaronic Priesthood (YM)',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Aaronic Priesthood'},
+  {id:'ym_1c',label:'Aaronic Priesthood 1st Counselor',desc:'Ward — Aaronic Priesthood',color:'#1a6b55',scope:'ward_org',org:'Aaronic Priesthood'},
+  {id:'primary_president',label:'Primary President',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Primary'},
+  {id:'primary_1c',label:'Primary 1st Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Primary'},
+  {id:'primary_2c',label:'Primary 2nd Counselor',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Primary'},
+  {id:'primary_secretary',label:'Primary Secretary',desc:'Ward — Primary',color:'#b45309',scope:'ward_org',org:'Primary'},
+  {id:'sunday_school_pres',label:'Sunday School President',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Sunday School'},
+  {id:'sunday_school_1c',label:'Sunday School 1st Counselor',desc:'Ward — Sunday School',color:'#0e7490',scope:'ward_org',org:'Sunday School'},
   {id:'ward_mission_leader',label:'Ward Mission Leader',desc:'Ward — Mission',color:'#0e7490',scope:'ward_org',org:'Ward Mission'},
 ];
 const CALLING_DIR=[
@@ -726,54 +726,54 @@ const CALLING_DIR=[
   {name:'Elders Quorum Assistant Secretary',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Teacher',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Ministering Secretary',level:'Ward',org:"Elder's Quorum"},
-  {name:'Relief Society President',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society First Counselor',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Second Counselor',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Secretary',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Teacher',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Ministering Secretary',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Music Leader',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Pianist',level:'Ward',org:'Ward Relief Society'},
-  {name:'Relief Society Compassionate Service Coordinator',level:'Ward',org:'Ward Relief Society'},
+  {name:'Relief Society President',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society First Counselor',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Second Counselor',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Secretary',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Teacher',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Ministering Secretary',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Music Leader',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Pianist',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Compassionate Service Coordinator',level:'Ward',org:'Relief Society'},
   // Aaronic Priesthood — quorum is selected as a sub-step in the wizard
-  {name:'Quorum Adviser',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
-  {name:'Quorum President',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
-  {name:'Quorum First Counselor',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
-  {name:'Quorum Second Counselor',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
-  {name:'Quorum Secretary',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
-  {name:'Quorum Specialist',level:'Ward',org:'Ward Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Adviser',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum President',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum First Counselor',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Second Counselor',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Secretary',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Specialist',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   // Young Women — main presidency (no class picker)
-  {name:'Young Women President',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women First Counselor',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women Second Counselor',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women Secretary',level:'Ward',org:'Ward Young Women'},
-  {name:'Young Women Specialist',level:'Ward',org:'Ward Young Women'},
+  {name:'Young Women President',level:'Ward',org:'Young Women'},
+  {name:'Young Women First Counselor',level:'Ward',org:'Young Women'},
+  {name:'Young Women Second Counselor',level:'Ward',org:'Young Women'},
+  {name:'Young Women Secretary',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist',level:'Ward',org:'Young Women'},
   // Young Women — class callings (class is selected as a sub-step)
-  {name:'Class President',level:'Ward',org:'Ward Young Women',classPicker:true},
-  {name:'Class First Counselor',level:'Ward',org:'Ward Young Women',classPicker:true},
-  {name:'Class Second Counselor',level:'Ward',org:'Ward Young Women',classPicker:true},
-  {name:'Class Secretary',level:'Ward',org:'Ward Young Women',classPicker:true},
-  {name:'Class Adviser',level:'Ward',org:'Ward Young Women',classPicker:true},
-  {name:'Class Specialist',level:'Ward',org:'Ward Young Women',classPicker:true},
+  {name:'Class President',level:'Ward',org:'Young Women',classPicker:true},
+  {name:'Class First Counselor',level:'Ward',org:'Young Women',classPicker:true},
+  {name:'Class Second Counselor',level:'Ward',org:'Young Women',classPicker:true},
+  {name:'Class Secretary',level:'Ward',org:'Young Women',classPicker:true},
+  {name:'Class Adviser',level:'Ward',org:'Young Women',classPicker:true},
+  {name:'Class Specialist',level:'Ward',org:'Young Women',classPicker:true},
   // Sunday School
-  {name:'Sunday School President',level:'Ward',org:'Ward Sunday School'},
-  {name:'Sunday School First Counselor',level:'Ward',org:'Ward Sunday School'},
-  {name:'Sunday School Second Counselor',level:'Ward',org:'Ward Sunday School'},
-  {name:'Sunday School Secretary',level:'Ward',org:'Ward Sunday School'},
+  {name:'Sunday School President',level:'Ward',org:'Sunday School'},
+  {name:'Sunday School First Counselor',level:'Ward',org:'Sunday School'},
+  {name:'Sunday School Second Counselor',level:'Ward',org:'Sunday School'},
+  {name:'Sunday School Secretary',level:'Ward',org:'Sunday School'},
   // Sunday School Teacher — class(es) selected as extra metadata in wizard
-  {name:'Sunday School Teacher',level:'Ward',org:'Ward Sunday School',classPicker:true,classPickerType:'ss'},
-  {name:'Resource Center Specialist',level:'Ward',org:'Ward Sunday School'},
+  {name:'Sunday School Teacher',level:'Ward',org:'Sunday School',classPicker:true,classPickerType:'ss'},
+  {name:'Resource Center Specialist',level:'Ward',org:'Sunday School'},
   // Primary
-  {name:'Primary President',level:'Ward',org:'Ward Primary'},
-  {name:'Primary First Counselor',level:'Ward',org:'Ward Primary'},
-  {name:'Primary Second Counselor',level:'Ward',org:'Ward Primary'},
-  {name:'Primary Secretary',level:'Ward',org:'Ward Primary'},
-  {name:'Primary Music Leader',level:'Ward',org:'Ward Primary'},
-  {name:'Primary Pianist',level:'Ward',org:'Ward Primary'},
+  {name:'Primary President',level:'Ward',org:'Primary'},
+  {name:'Primary First Counselor',level:'Ward',org:'Primary'},
+  {name:'Primary Second Counselor',level:'Ward',org:'Primary'},
+  {name:'Primary Secretary',level:'Ward',org:'Primary'},
+  {name:'Primary Music Leader',level:'Ward',org:'Primary'},
+  {name:'Primary Pianist',level:'Ward',org:'Primary'},
   // Primary Teacher — class(es) selected as extra metadata in wizard
-  {name:'Primary Teacher',level:'Ward',org:'Ward Primary',classPicker:true,classPickerType:'primary'},
-  {name:'Nursery Leader',level:'Ward',org:'Ward Primary'},
-  {name:'Nursery Worker',level:'Ward',org:'Ward Primary'},
+  {name:'Primary Teacher',level:'Ward',org:'Primary',classPicker:true,classPickerType:'primary'},
+  {name:'Nursery Leader',level:'Ward',org:'Primary'},
+  {name:'Nursery Worker',level:'Ward',org:'Primary'},
   {name:'Ward Mission Leader',level:'Ward',org:'Ward Mission'},
   {name:'Ward Missionary',level:'Ward',org:'Ward Mission'},
   {name:'Ward Temple and Family History Leader',level:'Ward',org:'Ward Temple and Family History'},
@@ -1724,12 +1724,12 @@ function openCallingModal(role){
 
   // Helper: does the current calling selection need a quorum picker?
   function needsQuorumPicker(){
-    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Ward Aaronic Priesthood');
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Aaronic Priesthood');
     return !!(dir&&dir.quorumPicker);
   }
   // Helper: does the current calling selection need a YW class picker?
   function needsYWClassPicker(){
-    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Ward Young Women');
+    const dir=CALLING_DIR.find(c=>c.name===data.callingName&&c.org==='Young Women');
     return !!(dir&&dir.classPicker);
   }
   // Helper: does the current calling selection need a Primary class picker?
@@ -2566,19 +2566,19 @@ function getMeetingTypes(role){
     {key:'eq-presidency',   label:'EQ Presidency Meeting',     icon:'📋', sub:'Regular elders quorum presidency meeting',        scopes:['ward','ward_org','admin'], orgs:["Elder's Quorum"]},
     {key:'eq-meeting',      label:'Elders Quorum Meeting',     icon:'👥', sub:'Sunday quorum instruction meeting',               scopes:['ward','ward_org','admin'], orgs:["Elder's Quorum"]},
     // Relief Society
-    {key:'rs-presidency',   label:'RS Presidency Meeting',     icon:'📋', sub:'Regular Relief Society presidency meeting',       scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
-    {key:'rs-meeting',      label:'Relief Society Meeting',    icon:'🌸', sub:'Sunday Relief Society meeting',                   scopes:['ward','ward_org','admin'], orgs:['Ward Relief Society']},
+    {key:'rs-presidency',   label:'RS Presidency Meeting',     icon:'📋', sub:'Regular Relief Society presidency meeting',       scopes:['ward','ward_org','admin'], orgs:['Relief Society']},
+    {key:'rs-meeting',      label:'Relief Society Meeting',    icon:'🌸', sub:'Sunday Relief Society meeting',                   scopes:['ward','ward_org','admin'], orgs:['Relief Society']},
     // Aaronic Priesthood (Young Men)
-    {key:'ym-presidency',   label:'AP Presidency Meeting',     icon:'📋', sub:'Regular Aaronic Priesthood presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Aaronic Priesthood']},
-    {key:'ym-activity',     label:'AP Combined Activity',      icon:'⚽', sub:'Combined Aaronic Priesthood activity planning/review',     scopes:['ward','ward_org','admin'], orgs:['Ward Aaronic Priesthood']},
+    {key:'ym-presidency',   label:'AP Presidency Meeting',     icon:'📋', sub:'Regular Aaronic Priesthood presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Aaronic Priesthood']},
+    {key:'ym-activity',     label:'AP Combined Activity',      icon:'⚽', sub:'Combined Aaronic Priesthood activity planning/review',     scopes:['ward','ward_org','admin'], orgs:['Aaronic Priesthood']},
     // Young Women
-    {key:'yw-presidency',   label:'YW Presidency Meeting',     icon:'📋', sub:'Regular Young Women presidency meeting',          scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
-    {key:'yw-activity',     label:'YW Combined Activity',      icon:'✨', sub:'Combined young women activity planning/review',   scopes:['ward','ward_org','admin'], orgs:['Ward Young Women']},
+    {key:'yw-presidency',   label:'YW Presidency Meeting',     icon:'📋', sub:'Regular Young Women presidency meeting',          scopes:['ward','ward_org','admin'], orgs:['Young Women']},
+    {key:'yw-activity',     label:'YW Combined Activity',      icon:'✨', sub:'Combined young women activity planning/review',   scopes:['ward','ward_org','admin'], orgs:['Young Women']},
     // Primary
-    {key:'primary-presidency',label:'Primary Presidency Meeting',icon:'📋',sub:'Regular Primary presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Ward Primary']},
-    {key:'primary-sharing', label:'Sharing Time Planning',     icon:'🎨', sub:'Sharing time and program planning',               scopes:['ward','ward_org','admin'], orgs:['Ward Primary']},
+    {key:'primary-presidency',label:'Primary Presidency Meeting',icon:'📋',sub:'Regular Primary presidency meeting',            scopes:['ward','ward_org','admin'], orgs:['Primary']},
+    {key:'primary-sharing', label:'Sharing Time Planning',     icon:'🎨', sub:'Sharing time and program planning',               scopes:['ward','ward_org','admin'], orgs:['Primary']},
     // Sunday School
-    {key:'ss-presidency',   label:'SS Presidency Meeting',     icon:'📋', sub:'Regular Sunday School presidency meeting',        scopes:['ward','ward_org','admin'], orgs:['Ward Sunday School']},
+    {key:'ss-presidency',   label:'SS Presidency Meeting',     icon:'📋', sub:'Regular Sunday School presidency meeting',        scopes:['ward','ward_org','admin'], orgs:['Sunday School']},
   ];
 
   const filtered=all.filter(m=>{
