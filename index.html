@@ -3766,6 +3766,62 @@ function renderAgendaDetail(el,role){
       row('Closing Hymn',`#${a.closingHymnNum||'—'}${a.closingHymnTitle?' — '+a.closingHymnTitle:''}`);
     row('Closing Prayer',a.closingPrayer);
 
+    // ── Pending Callings — live from callings tracker (bishopric only) ────────
+    if(a.meetingCategory==='bishopric'){
+      const ward=a.ward;
+      const pendingCallings=(state.callings||[])
+        .filter(c=>c.ward===ward&&c.currentStep<getSteps(c).length-1||!branchesAllDone(c))
+        .filter(c=>c.ward===ward);
+
+      if(pendingCallings.length){
+        // Sort by current step index so earliest steps appear first
+        pendingCallings.sort((a,b)=>a.currentStep-b.currentStep);
+
+        const sec=document.createElement('div');sec.style.cssText='margin-top:20px;padding-top:16px;border-top:1px solid rgba(0,0,0,0.08);';
+        const secLbl=document.createElement('div');secLbl.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:10px;';secLbl.textContent='Pending Callings';
+        sec.appendChild(secLbl);
+
+        pendingCallings.forEach(c=>{
+          const steps=getSteps(c);
+          const clampedStep=Math.min(c.currentStep,steps.length-1);
+          const nextStep=clampedStep>=steps.length-1
+            ?(branchesAllDone(c)?'Complete':pendingBranchLabel(c))
+            :steps[clampedStep];
+
+          // Build the label with full context
+          let label='';
+          if(c.action==='Release Only'){
+            label=`Release ${c.releaseName||c.name} from ${c.calling}`;
+          } else {
+            label=`Call ${c.name} as ${c.calling}`;
+            const releaseLines=[];
+            // Someone currently in this position needs releasing
+            if(c.currentlyFilled&&c.releaseName){
+              releaseLines.push(`releasing ${c.releaseName} from ${c.calling}`);
+            }
+            // Member being called also needs releasing from their current calling
+            if(c.memberNeedsRelease){
+              if(c.memberCallings&&c.memberCallings.filter(Boolean).length){
+                c.memberCallings.filter(Boolean).forEach(mc=>releaseLines.push(`releasing ${c.name} from ${mc}`));
+              } else if(c.memberCurrentCalling){
+                releaseLines.push(`releasing ${c.name} from ${c.memberCurrentCalling}`);
+              }
+            }
+            if(releaseLines.length) label+=` — ${releaseLines.join('; ')}`;
+          }
+
+          const item=document.createElement('div');
+          item.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;';
+          const labelEl=document.createElement('span');labelEl.style.color='#1c2537';labelEl.textContent=label;
+          const stepEl=document.createElement('span');stepEl.style.cssText='font-size:11px;color:#aaa;white-space:nowrap;flex-shrink:0;';stepEl.textContent=nextStep;
+          item.appendChild(labelEl);item.appendChild(stepEl);
+          sec.appendChild(item);
+        });
+
+        doc.appendChild(sec);
+      }
+    }
+
     el.appendChild(doc);
 
     // Live notes panel (uses speaker1Topic as storage for non-sacrament)
