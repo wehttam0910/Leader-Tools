@@ -2298,6 +2298,126 @@ function openCallingEditModal(c,role){
   customInp.addEventListener('input',()=>{c.calling=customInp.value;});
   customBox.appendChild(customLbl);customBox.appendChild(customInp);modal.appendChild(customBox);
 
+  // ── Sub-picker panels (shown when calling has quorumPicker / classPicker) ──
+  // Parse existing calling name to extract base name + sub-selection
+  function parseCallingName(fullName){
+    // AP quorum: "Priests Quorum Adviser" → base="Quorum Adviser", quorum="Priests"
+    for(const q of AP_QUORUMS){
+      if(fullName.startsWith(q+' ')){
+        const base=fullName.slice(q.length+1);
+        if(CALLING_DIR.find(d=>d.name===base&&d.quorumPicker)) return{base,quorum:q,ywClass:null,classes:[]};
+      }
+    }
+    // YW class: "Gatherers of Light Class President" → base="Class President", ywClass="Gatherers of Light"
+    for(const cls of YW_CLASSES){
+      if(fullName.startsWith(cls+' ')){
+        const base=fullName.slice(cls.length+1);
+        if(CALLING_DIR.find(d=>d.name===base&&d.classPicker)) return{base,quorum:null,ywClass:cls,classes:[]};
+      }
+    }
+    // Primary/SS class: "Primary Teacher — CTR 7, Valiant 8" → base="Primary Teacher", classes=[...]
+    const dashIdx=fullName.indexOf(' — ');
+    if(dashIdx>=0){
+      const base=fullName.slice(0,dashIdx);
+      const classStr=fullName.slice(dashIdx+3);
+      const classes=classStr.split(', ').map(s=>s.trim()).filter(Boolean);
+      if(CALLING_DIR.find(d=>d.name===base&&d.classPicker)) return{base,quorum:null,ywClass:null,classes};
+    }
+    return{base:fullName,quorum:null,ywClass:null,classes:[]};
+  }
+
+  const parsed=parseCallingName(c.calling||'');
+  // Mutable sub-picker state for edit modal
+  const sub={
+    quorum: parsed.quorum,
+    ywClass: parsed.ywClass,
+    classes: [...parsed.classes],
+  };
+  // The base calling name (without sub-selection) shown in dropdown
+  let baseCallingName=parsed.base;
+
+  // Sub-picker container — rendered dynamically below the calling dropdown
+  const subPickerContainer=document.createElement('div');
+  modal.appendChild(subPickerContainer);
+
+  function buildFinalCallingName(){
+    if(sub.quorum) return sub.quorum+' '+baseCallingName;
+    if(sub.ywClass) return sub.ywClass+' '+baseCallingName;
+    if(sub.classes&&sub.classes.length) return baseCallingName+' — '+sub.classes.join(', ');
+    return baseCallingName;
+  }
+
+  function renderSubPicker(dirEntry){
+    subPickerContainer.innerHTML='';
+    if(!dirEntry) return;
+
+    if(dirEntry.quorumPicker){
+      const lbl=document.createElement('div');lbl.className='form-label';lbl.style.marginBottom='6px';lbl.textContent='Quorum';
+      subPickerContainer.appendChild(lbl);
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:6px;margin-bottom:13px;';
+      AP_QUORUMS.forEach(q=>{
+        const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;';
+        const rb=document.createElement('input');rb.type='radio';rb.name='edit-quorum';rb.value=q;rb.style.cssText='accent-color:#1c2537;flex-shrink:0;';
+        rb.checked=sub.quorum===q;
+        const lbl2=document.createElement('span');lbl2.style.cssText='font-size:13px;font-weight:500;color:#1c2537;';lbl2.textContent=q+' Quorum';
+        if(rb.checked){row.style.borderColor='#1c2537';row.style.background='#f0f4ff';}
+        rb.addEventListener('change',()=>{
+          sub.quorum=q;
+          wrap.querySelectorAll('label').forEach(r=>{ r.style.borderColor='rgba(0,0,0,0.12)'; r.style.background=''; });
+          row.style.borderColor='#1c2537';row.style.background='#f0f4ff';
+          c.calling=buildFinalCallingName();
+        });
+        row.appendChild(rb);row.appendChild(lbl2);wrap.appendChild(row);
+      });
+      subPickerContainer.appendChild(wrap);
+    }
+
+    else if(dirEntry.classPicker&&dirEntry.classPickerType===undefined&&dirEntry.org==='Young Women'){
+      const lbl=document.createElement('div');lbl.className='form-label';lbl.style.marginBottom='6px';lbl.textContent='Class';
+      subPickerContainer.appendChild(lbl);
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:6px;margin-bottom:13px;';
+      YW_CLASSES.forEach(cls=>{
+        const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;';
+        const rb=document.createElement('input');rb.type='radio';rb.name='edit-ywclass';rb.value=cls;rb.style.cssText='accent-color:#1c2537;flex-shrink:0;';
+        rb.checked=sub.ywClass===cls;
+        const lbl2=document.createElement('span');lbl2.style.cssText='font-size:13px;font-weight:500;color:#1c2537;';lbl2.textContent=cls;
+        if(rb.checked){row.style.borderColor='#1c2537';row.style.background='#f0f4ff';}
+        rb.addEventListener('change',()=>{
+          sub.ywClass=cls;
+          wrap.querySelectorAll('label').forEach(r=>{ r.style.borderColor='rgba(0,0,0,0.12)'; r.style.background=''; });
+          row.style.borderColor='#1c2537';row.style.background='#f0f4ff';
+          c.calling=buildFinalCallingName();
+        });
+        row.appendChild(rb);row.appendChild(lbl2);wrap.appendChild(row);
+      });
+      subPickerContainer.appendChild(wrap);
+    }
+
+    else if(dirEntry.classPicker&&(dirEntry.classPickerType==='primary'||dirEntry.classPickerType==='ss')){
+      const classList=dirEntry.classPickerType==='primary'?PRIMARY_CLASSES:SS_CLASSES;
+      const lbl=document.createElement('div');lbl.className='form-label';lbl.style.marginBottom='6px';
+      lbl.textContent=dirEntry.classPickerType==='primary'?'Class(es)':'Course(s)';
+      subPickerContainer.appendChild(lbl);
+      const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:6px;margin-bottom:13px;';
+      classList.forEach(cls=>{
+        const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;';
+        const cb=document.createElement('input');cb.type='checkbox';cb.value=cls;cb.style.cssText='width:15px;height:15px;accent-color:#1c2537;flex-shrink:0;';
+        cb.checked=sub.classes.includes(cls);
+        const lbl2=document.createElement('span');lbl2.style.cssText='font-size:13px;font-weight:500;color:#1c2537;';lbl2.textContent=cls;
+        if(cb.checked){row.style.borderColor='#1c2537';row.style.background='#f0f4ff';}
+        cb.addEventListener('change',()=>{
+          if(cb.checked){if(!sub.classes.includes(cls))sub.classes.push(cls);}
+          else sub.classes=sub.classes.filter(x=>x!==cls);
+          row.style.borderColor=cb.checked?'#1c2537':'rgba(0,0,0,0.12)';
+          row.style.background=cb.checked?'#f0f4ff':'';
+          c.calling=buildFinalCallingName();
+        });
+        row.appendChild(cb);row.appendChild(lbl2);wrap.appendChild(row);
+      });
+      subPickerContainer.appendChild(wrap);
+    }
+  }
+
   function rebuildCallingDropdown(){
     const level=levelSel.value;
     let dir=CALLING_DIR;
@@ -2314,7 +2434,8 @@ function openCallingEditModal(c,role){
         const o=document.createElement('option');
         o.value=`${d.name}||${d.org}`;
         o.textContent=d.name;
-        if(d.name===c.calling&&!c.isCustom) o.selected=true;
+        // Match on base name (without sub-selection prefix/suffix)
+        if(d.name===baseCallingName&&!c.isCustom) o.selected=true;
         og.appendChild(o);
       });
       const co=document.createElement('option');co.value=`__custom__||${orgName}`;co.textContent=`✦ Custom (${orgName})...`;
@@ -2323,12 +2444,16 @@ function openCallingEditModal(c,role){
       callingSel.appendChild(og);
     });
 
-    // Set org from current selection
+    // Show sub-picker for current selection
     const raw=callingSel.value;
     if(raw){
       const parts=raw.split('||');
       const isCustom=parts[0]==='__custom__';
-      if(!isCustom){c.calling=parts[0];c.org=parts[1];orgInp.value=parts[1];}
+      if(!isCustom){
+        const dirEntry=CALLING_DIR.find(d=>d.name===parts[0]&&d.org===parts[1]);
+        c.org=parts[1];orgInp.value=parts[1];
+        renderSubPicker(dirEntry||null);
+      }
       customBox.classList.toggle('hidden',!isCustom);
     }
   }
@@ -2339,7 +2464,15 @@ function openCallingEditModal(c,role){
     const parts=raw.split('||');
     const isCustom=parts[0]==='__custom__';
     c.isCustom=isCustom;
-    if(!isCustom){c.calling=parts[0];c.org=parts[1];orgInp.value=parts[1];}
+    if(!isCustom){
+      baseCallingName=parts[0];
+      // Reset sub-selections when changing calling type
+      sub.quorum=null;sub.ywClass=null;sub.classes=[];
+      const dirEntry=CALLING_DIR.find(d=>d.name===parts[0]&&d.org===parts[1]);
+      c.org=parts[1];orgInp.value=parts[1];
+      c.calling=buildFinalCallingName();
+      renderSubPicker(dirEntry||null);
+    }
     customBox.classList.toggle('hidden',!isCustom);
   });
 
