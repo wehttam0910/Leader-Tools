@@ -917,6 +917,38 @@ function getCurrentAssignment(c){
   return getStepAssignmentDef(stepName,c.level);
 }
 
+// Get the effective assignment group accounting for branch steps
+// When the main workflow is done, look at the first pending branch instead
+function getEffectiveAssignment(c){
+  const steps=getSteps(c);
+  const mainDone=c.currentStep>=steps.length-1;
+  if(!mainDone){
+    // Still in main workflow — use current step
+    return getCurrentAssignment(c);
+  }
+  // Main done — check pending branches in order
+  const branches=getBranches(c);
+  const meta=c.stepMeta?.branches||{};
+  const pending=branches.filter(b=>!meta[b.key]);
+  if(!pending.length) return {group:'',roleIds:[]};
+  const first=pending[0];
+  // Map branch keys to groups
+  const isStakeCalling=c.level==='Stake'||c.level==='Stake Issued';
+  const STAKE_CLERK_IDS=['stake_clerk','stake_asst_clerk'];
+  const WARD_CLERK_IDS=['ward_clerk','ward_asst_clerk'];
+  const STAKE_PRES_IDS=['stake_president','stake_1c','stake_2c'];
+  const BISHOPRIC_IDS=['bishop','ward_1c','ward_2c'];
+  if(first.key==='lcrSustain'||first.key==='lcrRelease'||first.key==='lcrSetApart'){
+    return{group:'Clerk',roleIds:isStakeCalling?STAKE_CLERK_IDS:WARD_CLERK_IDS};
+  }
+  if(first.key==='setApart'){
+    return isStakeCalling
+      ?{group:'Stake Presidency',roleIds:STAKE_PRES_IDS}
+      :{group:'Bishopric',roleIds:BISHOPRIC_IDS};
+  }
+  return{group:'',roleIds:[]};
+}
+
 // Get list of profiles matching certain role IDs (optionally filtered to a ward)
 function getAssignableProfiles(roleIds, ward){
   return (state.profiles||[]).filter(p=>{
@@ -4612,10 +4644,11 @@ function renderCallingDetail(el,role){
 
   // ── Info grid ─────────────────────────────────────────────────────────────
   const info=document.createElement('div');info.className='info-grid';
-  const assignDef=getCurrentAssignment(c);
+  const assignDef=getCurrentAssignment(c);       // used for dropdown roleIds
+  const effectiveAssign=getEffectiveAssignment(c); // used for display badge
   const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
-  const assignedGroupHTML=assignDef.group
-    ?`<span class="assigned-group-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${assignDef.group}${assignedToName?' · '+assignedToName:''}</span>`
+  const assignedGroupHTML=effectiveAssign.group
+    ?`<span class="assigned-group-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${effectiveAssign.group}${assignedToName?' · '+assignedToName:''}</span>`
     :'<span style="color:#aaa;font-size:12px;">—</span>';
   info.innerHTML=`<div><div class="info-cell-label">Ward</div><div class="info-cell-value">${c.ward}</div></div><div><div class="info-cell-label">Organization</div><div class="info-cell-value">${c.org}</div></div><div><div class="info-cell-label">Level</div><div class="info-cell-value">${c.level}</div></div><div><div class="info-cell-label">Action</div><div class="info-cell-value">${c.action}</div></div><div><div class="info-cell-label">Status</div><div class="info-cell-value"><span class="badge ${status.cls}">${status.label}</span></div></div><div><div class="info-cell-label">Submitted</div><div class="info-cell-value">${fmt(c.submittedDate)}</div></div><div><div class="info-cell-label">Assigned To</div><div class="info-cell-value">${assignedGroupHTML}</div></div>`;
   el.appendChild(info);
@@ -5463,7 +5496,7 @@ function renderCallings(el,role){
     {key:'org',      label:'Organization',      val:c=>c.org},
     ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
     {key:'action',   label:'Action',            val:c=>c.action},
-    {key:'assigned', label:'Assigned To',       val:c=>getCurrentAssignment(c).group},
+    {key:'assigned', label:'Assigned To',       val:c=>getEffectiveAssignment(c).group},
     {key:'next',     label:'Next Step',         val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
   ];
 
@@ -5490,7 +5523,7 @@ function renderCallings(el,role){
     const nextStep=mainDone
       ? (branchesAllDone(c)?'—':pendingBranchLabel(c))
       : (steps[c.currentStep]||'—');
-    const assignGroup=getCurrentAssignment(c).group;
+    const assignGroup=getEffectiveAssignment(c).group;
     const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
     const steps_=getSteps(c);
     const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
@@ -5563,7 +5596,7 @@ function renderCallings(el,role){
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
       ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ ${c.releaseName}</span>`:'';
     const declinedBadge=c.declined?`<span class="badge" style="font-size:10px;margin-left:4px;background:#fdecea;color:#c62828;">✗ Declined</span>`:'';
-    const assignGroup=getCurrentAssignment(c).group;
+    const assignGroup=getEffectiveAssignment(c).group;
     const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
     const assignCell=assignGroup
       ?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`
