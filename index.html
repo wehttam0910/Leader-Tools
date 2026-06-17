@@ -5456,15 +5456,15 @@ function renderCallings(el,role){
 
   if(!list.length){const es=document.createElement('div');es.className='empty-state';es.textContent='No active callings to display';el.appendChild(es);return;}
 
+  const isStakeView=role.scope==='admin'||role.scope==='stake';
+
   const COLS=[
-    {key:'calling', label:'Calling',  val:c=>c.calling},
-    {key:'name',    label:'Member',   val:c=>c.name},
-    {key:'ward',    label:'Ward',     val:c=>c.ward},
-    {key:'level',   label:'Level',    val:c=>c.level},
-    {key:'action',  label:'Action',   val:c=>c.action},
-    {key:'assigned',label:'Assigned', val:c=>getCurrentAssignment(c).group},
-    {key:'progress',label:'Progress', val:c=>c.currentStep/(getSteps(c).length-1)},
-    {key:'next',    label:'Next Step',val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
+    {key:'calling',  label:'Calling / Member', val:c=>c.calling},
+    {key:'org',      label:'Organization',      val:c=>c.org},
+    ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
+    {key:'action',   label:'Action',            val:c=>c.action},
+    {key:'assigned', label:'Assigned To',       val:c=>getCurrentAssignment(c).group},
+    {key:'next',     label:'Next Step',         val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
   ];
 
   // Apply sort
@@ -5497,19 +5497,18 @@ function renderCallings(el,role){
     const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
       ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
+    const isStakeIssued=c.level==='Stake Issued'||c.level==='Stake';
 
     const card=document.createElement('div');
-    card.style.cssText='background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07);cursor:pointer;';
+    card.style.cssText=`background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07);cursor:pointer;${isStakeIssued?'border-left:3px solid #185fa5;':''}`;
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
         <div>
-          <div style="font-weight:700;font-size:15px;color:#1c2537;">${c.calling}${holderBadge}</div>
-          <div style="font-size:13px;color:#555;margin-top:1px;">${c.name}</div>
+          <div style="font-weight:700;font-size:15px;color:#1c2537;">${c.name} <span style="font-weight:400;color:#888;">as</span> ${c.calling}${holderBadge}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px;">${c.org||''}${isStakeIssued?' · <span style="color:#185fa5;font-weight:600;">'+lvl.label+'</span>':''}</div>
         </div>
-        <span class="badge ${status.cls}" style="flex-shrink:0;margin-top:2px;white-space:nowrap;">${nextStep}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;">
-        <span class="badge ${lvl.cls}" style="font-size:10px;">${lvl.label}</span>
         <span style="font-size:11px;color:#888;">${c.action}</span>
         ${assignGroup?`<span class="assigned-group-badge" style="font-size:10px;padding:2px 7px;">${assignGroup}${assignedToName?' · '+assignedToName:''}</span>`:''}
       </div>
@@ -5531,6 +5530,8 @@ function renderCallings(el,role){
   const table=document.createElement('table');table.className='callings-table';
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
+  // Checkbox col header
+  const cbTh=document.createElement('th');cbTh.style.cssText='width:36px;padding-right:0;';hrow.appendChild(cbTh);
   COLS.forEach(col=>{
     const th=document.createElement('th');
     th.textContent=col.label;
@@ -5554,11 +5555,13 @@ function renderCallings(el,role){
     const clampedStep2=Math.min(c.currentStep,steps.length-1);
     const pct=Math.round((clampedStep2/(steps.length-1))*100);
     const tr=document.createElement('tr');
+    const isStakeIssued=c.level==='Stake Issued'||c.level==='Stake';
+    if(isStakeIssued) tr.style.cssText='background:linear-gradient(to right,rgba(24,95,165,0.04),transparent);';
     const steps_=getSteps(c);
     const releaseStepIdx=Math.max(steps_.indexOf('Extend Release'),steps_.indexOf('Release Current'));
     const releaseStepDone=releaseStepIdx>=0&&c.currentStep>releaseStepIdx;
     const holderBadge=c.currentlyFilled&&c.releaseName&&!releaseStepDone
-      ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ Release ${c.releaseName}</span>`:'';
+      ?`<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">⚠ ${c.releaseName}</span>`:'';
     const declinedBadge=c.declined?`<span class="badge" style="font-size:10px;margin-left:4px;background:#fdecea;color:#c62828;">✗ Declined</span>`:'';
     const assignGroup=getCurrentAssignment(c).group;
     const assignedToName=(c.stepMeta&&c.stepMeta[c.currentStep]?.assignedTo)||'';
@@ -5567,18 +5570,62 @@ function renderCallings(el,role){
       :'<span style="color:#ccc;font-size:11px;">—</span>';
     const mainDone2=clampedStep2>=steps.length-1;
     const nextStepLabel=mainDone2?(branchesAllDone(c)?'—':pendingBranchLabel(c)):(steps[c.currentStep]||'—');
-    tr.innerHTML=`
-      <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}${holderBadge}</td>
-      <td style="font-weight:600;">${c.name}</td>
-      <td class="td-sub">${c.ward}</td>
-      <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
-      <td class="td-sub">${c.action}</td>
-      <td class="td-sub">${assignCell}</td>
-      <td class="progress-cell">
-        <div style="font-size:11px;color:#aaa;">${clampedStep2} / ${steps.length-1}</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </td>
-      <td><span class="badge ${status.cls}">${nextStepLabel}</span></td>`;
+
+    // Checkbox cell
+    const cbTd=document.createElement('td');cbTd.style.cssText='width:36px;padding-right:0;';
+    const cb=document.createElement('input');cb.type='checkbox';cb.className='row-cb';
+    cb.checked=state.selectedCallingIds.has(c.id);
+    cb.addEventListener('change',e=>{
+      e.stopPropagation();
+      if(cb.checked)state.selectedCallingIds.add(c.id);
+      else state.selectedCallingIds.delete(c.id);
+      render();
+    });
+    cbTd.appendChild(cb);
+    tr.appendChild(cbTd);
+
+    // Calling + Member combined cell (like the agenda header style)
+    const callingTd=document.createElement('td');
+    callingTd.innerHTML=`
+      <div class="td-calling" style="line-height:1.3;">
+        <span style="font-weight:600;color:#555;">${c.name}</span>
+        <span style="font-weight:400;color:#aaa;margin:0 4px;">as</span>
+        <span style="font-weight:700;color:#1c2537;">${c.calling}</span>
+        ${c.custom?'<span class="badge badge-teal" style="font-size:10px;margin-left:4px;">Custom</span>':''}
+        ${holderBadge}${declinedBadge}
+      </div>
+      ${isStakeIssued?`<div class="td-sub" style="margin-top:2px;"><span style="color:#185fa5;font-weight:600;font-size:10px;">${lvl.label}</span></div>`:''}`;
+    tr.appendChild(callingTd);
+
+    // Organization
+    const orgTd=document.createElement('td');orgTd.className='td-sub';orgTd.textContent=c.org||'—';
+    tr.appendChild(orgTd);
+
+    // Ward — only for stake/admin view
+    if(isStakeView){
+      const wardTd=document.createElement('td');wardTd.className='td-sub';wardTd.textContent=c.ward||'—';
+      tr.appendChild(wardTd);
+    }
+
+    // Action
+    const actionTd=document.createElement('td');actionTd.className='td-sub';actionTd.textContent=c.action;
+    tr.appendChild(actionTd);
+
+    // Assigned To
+    const assignTd=document.createElement('td');assignTd.className='td-sub';assignTd.innerHTML=assignCell;
+    tr.appendChild(assignTd);
+
+    // Next Step + mini progress bar underneath
+    const nextTd=document.createElement('td');
+    nextTd.style.minWidth='140px';
+    nextTd.innerHTML=`
+      <span class="badge ${status.cls}" style="white-space:nowrap;">${nextStepLabel}</span>
+      <div style="margin-top:5px;height:3px;background:rgba(0,0,0,0.07);border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:#1c2537;border-radius:2px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:10px;color:#bbb;margin-top:2px;">${clampedStep2} / ${steps.length-1}</div>`;
+    tr.appendChild(nextTd);
+
     tr.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
     tbody.appendChild(tr);
   });
