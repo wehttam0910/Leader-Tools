@@ -840,27 +840,35 @@ function isBishopric(r){return r.scope==='ward';}
 // ── Step → Assigned Group ────────────────────────────────────────────────────
 // Returns {group, roleIds} where group is a display label and roleIds is the
 // list of ROLES ids whose profile names populate the "Assign to" dropdown.
-function getStepAssignmentDef(step, callingLevel){
+function getStepAssignmentDef(step, callingLevel, callingName){
   const isStakeCalling=callingLevel==='Stake'||callingLevel==='Stake Issued';
+  // Stake Issued callings (EQ President, YW President, etc.) can be recorded by
+  // either the Stake Clerk or the Ward Clerk — except Bishop, which is Stake Clerk only.
+  const isBishopCalling=!!(callingName&&callingName.toLowerCase().includes('bishop'));
+  const isStakeIssuedShared=callingLevel==='Stake Issued'&&!isBishopCalling;
   const STAKE_PRES_IDS=['stake_president','stake_1c','stake_2c'];
   const HC_IDS=['high_council'];
-  const SP_HC_IDS=['stake_president','stake_1c','stake_2c','high_council']; // SP or HC
+  const SP_HC_IDS=['stake_president','stake_1c','stake_2c','high_council'];
   const BISHOPRIC_IDS=['bishop','ward_1c','ward_2c'];
   const STAKE_CLERK_IDS=['stake_clerk','stake_asst_clerk'];
   const WARD_CLERK_IDS=['ward_clerk','ward_asst_clerk'];
-  // Exec secs included in appt-setting dropdowns
+  const ALL_CLERK_IDS=[...STAKE_CLERK_IDS,...WARD_CLERK_IDS];
   const STAKE_APPT_IDS=['stake_president','stake_1c','stake_2c','stake_exec_sec'];
   const WARD_APPT_IDS=['bishop','ward_1c','ward_2c','ward_exec_sec'];
+
+  // Clerk group label helper
+  const clerkGroup=isStakeIssuedShared?'S. Clerk / W. Clerk':isStakeCalling?'Stake Clerk':'Clerk';
+  const clerkRoleIds=isStakeIssuedShared?ALL_CLERK_IDS:isStakeCalling?STAKE_CLERK_IDS:WARD_CLERK_IDS;
 
   const map={
     // ── Approval steps ────────────────────────────────────────────────────────
     'Stake Presidency Approval': {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
     'Q12 Approval':              {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
     'Presidency Approval':       {group:'Stake Presidency',  roleIds:STAKE_PRES_IDS},
-    "Bishop's Approval":         {group:'Bishopric',         roleIds:BISHOPRIC_IDS},  // same for stake & ward callings
+    "Bishop's Approval":         {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
     'Sustain in HC':             {group:'High Council',      roleIds:HC_IDS},
 
-    // ── Appt-setting steps — exec sec included in dropdown ───────────────────
+    // ── Appt-setting steps ───────────────────────────────────────────────────
     'Set Appt to Extend': isStakeCalling
       ? {group:'Stake Presidency', roleIds:STAKE_APPT_IDS}
       : {group:'Bishopric',        roleIds:WARD_APPT_IDS},
@@ -871,7 +879,7 @@ function getStepAssignmentDef(step, callingLevel){
       ? {group:'Stake Presidency', roleIds:STAKE_APPT_IDS}
       : {group:'Bishopric',        roleIds:WARD_APPT_IDS},
 
-    // ── Extend / Release steps — SP or HC for stake callings ─────────────────
+    // ── Extend / Release steps ───────────────────────────────────────────────
     'Extend Calling': isStakeCalling
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
@@ -885,7 +893,7 @@ function getStepAssignmentDef(step, callingLevel){
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
 
-    // ── Pulpit steps — SP or HC for stake callings ────────────────────────────
+    // ── Pulpit steps ─────────────────────────────────────────────────────────
     'Sustain over Pulpit': isStakeCalling
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
@@ -896,15 +904,13 @@ function getStepAssignmentDef(step, callingLevel){
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
 
-    // ── Set Apart — SP or HC for stake callings ───────────────────────────────
+    // ── Set Apart ────────────────────────────────────────────────────────────
     'Set Apart': isStakeCalling
       ? {group:'SP / High Council', roleIds:SP_HC_IDS}
       : {group:'Bishopric',         roleIds:BISHOPRIC_IDS},
 
     // ── Clerk / Completed ─────────────────────────────────────────────────────
-    'Record in LCR': isStakeCalling
-      ? {group:'Clerk', roleIds:STAKE_CLERK_IDS}
-      : {group:'Clerk', roleIds:WARD_CLERK_IDS},
+    'Record in LCR': {group:clerkGroup, roleIds:clerkRoleIds},
     'Completed': {group:'', roleIds:[]},
   };
   return map[step]||{group:'',roleIds:[]};
@@ -914,32 +920,33 @@ function getStepAssignmentDef(step, callingLevel){
 function getCurrentAssignment(c){
   const steps=getSteps(c);
   const stepName=steps[Math.min(c.currentStep,steps.length-1)]||'Completed';
-  return getStepAssignmentDef(stepName,c.level);
+  return getStepAssignmentDef(stepName,c.level,c.calling);
 }
 
 // Get the effective assignment group accounting for branch steps
-// When the main workflow is done, look at the first pending branch instead
 function getEffectiveAssignment(c){
   const steps=getSteps(c);
   const mainDone=c.currentStep>=steps.length-1;
-  if(!mainDone){
-    // Still in main workflow — use current step
-    return getCurrentAssignment(c);
-  }
-  // Main done — check pending branches in order
+  if(!mainDone) return getCurrentAssignment(c);
   const branches=getBranches(c);
   const meta=c.stepMeta?.branches||{};
   const pending=branches.filter(b=>!meta[b.key]);
   if(!pending.length) return {group:'',roleIds:[]};
   const first=pending[0];
-  // Map branch keys to groups
   const isStakeCalling=c.level==='Stake'||c.level==='Stake Issued';
+  const isBishopCalling=!!(c.calling&&c.calling.toLowerCase().includes('bishop'));
+  const isStakeIssuedShared=c.level==='Stake Issued'&&!isBishopCalling;
   const STAKE_CLERK_IDS=['stake_clerk','stake_asst_clerk'];
   const WARD_CLERK_IDS=['ward_clerk','ward_asst_clerk'];
+  const ALL_CLERK_IDS=[...STAKE_CLERK_IDS,...WARD_CLERK_IDS];
   const STAKE_PRES_IDS=['stake_president','stake_1c','stake_2c'];
   const BISHOPRIC_IDS=['bishop','ward_1c','ward_2c'];
   if(first.key==='lcrSustain'||first.key==='lcrRelease'||first.key==='lcrSetApart'){
-    return{group:'Clerk',roleIds:isStakeCalling?STAKE_CLERK_IDS:WARD_CLERK_IDS};
+    return isStakeIssuedShared
+      ?{group:'S. Clerk / W. Clerk',roleIds:ALL_CLERK_IDS}
+      :isStakeCalling
+        ?{group:'Stake Clerk',roleIds:STAKE_CLERK_IDS}
+        :{group:'Clerk',roleIds:WARD_CLERK_IDS};
   }
   if(first.key==='setApart'){
     return isStakeCalling
