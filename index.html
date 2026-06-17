@@ -2195,8 +2195,10 @@ function openCallingModal(role){
       // e.g. "Gatherers of Light Class President"
       finalCallingName=data.selectedYWClass+' '+data.callingName;
     } else if(data.selectedClasses&&data.selectedClasses.length){
-      // e.g. "Primary Teacher — CTR 7, Valiant 8"
-      finalCallingName=data.callingName+' — '+data.selectedClasses.join(', ');
+      // Sort by canonical list order before storing
+      const allClasses=[...PRIMARY_CLASSES,...SS_CLASSES];
+      const sorted=data.selectedClasses.slice().sort((a,b)=>allClasses.indexOf(a)-allClasses.indexOf(b));
+      finalCallingName=data.callingName+' — '+sorted.join(', ');
     }
 
     const newCalling={
@@ -2343,7 +2345,11 @@ function openCallingEditModal(c,role){
   function buildFinalCallingName(){
     if(sub.quorum) return sub.quorum+' '+baseCallingName;
     if(sub.ywClass) return sub.ywClass+' '+baseCallingName;
-    if(sub.classes&&sub.classes.length) return baseCallingName+' — '+sub.classes.join(', ');
+    if(sub.classes&&sub.classes.length){
+      const allClasses=[...PRIMARY_CLASSES,...SS_CLASSES];
+      const sorted=sub.classes.slice().sort((a,b)=>allClasses.indexOf(a)-allClasses.indexOf(b));
+      return baseCallingName+' — '+sorted.join(', ');
+    }
     return baseCallingName;
   }
 
