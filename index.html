@@ -4499,6 +4499,8 @@ function getBranches(c){
   const action=c.action||'';
   const isCalling=action==='Calling Only'||action==='Calling & Release';
   const isRelease=action==='Release Only'||action==='Calling & Release';
+  // Also need a release record if a current holder was added to a Calling Only workflow
+  const hasCurrentHolder=!!(c.currentlyFilled&&c.releaseName);
   const steps=getSteps(c);
   const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
   if(!sustainStep) return [];
@@ -4515,7 +4517,8 @@ function getBranches(c){
       tag:'Clerk',
     });
   }
-  if(isRelease){
+  // Record Release — for Release Only/Calling & Release, OR Calling Only where a current holder was added
+  if(isRelease||(isCalling&&hasCurrentHolder)){
     const relName=c.releaseName||c.name;
     branches.push({
       key:'lcrRelease',
