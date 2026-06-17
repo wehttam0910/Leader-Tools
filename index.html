@@ -4539,25 +4539,30 @@ function getBranches(c){
   const action=c.action||'';
   const isCalling=action==='Calling Only'||action==='Calling & Release';
   const isRelease=action==='Release Only'||action==='Calling & Release';
-  // Also need a release record if a current holder was added to a Calling Only workflow
   const hasCurrentHolder=!!(c.currentlyFilled&&c.releaseName);
   const steps=getSteps(c);
   const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
   if(!sustainStep) return [];
 
+  const isStakeCalling=c.level==='Stake'||c.level==='Stake Issued';
+  const isBishopCalling=!!(c.calling&&c.calling.toLowerCase().includes('bishop'));
+  const isStakeIssuedShared=c.level==='Stake Issued'&&!isBishopCalling;
+
+  const clerkTag=isStakeIssuedShared?'S. Clerk / W. Clerk':isStakeCalling?'Stake Clerk':'Clerk';
+  const setApartTag=isStakeCalling?'SP / High Council':'Bishopric';
+
   const branches=[];
-  // Branch 1: Record Sustaining in LCR — appears after sustain step
   const sustainDate=c.stepDates[steps.indexOf(sustainStep)]||'';
+
   if(isCalling){
     branches.push({
       key:'lcrSustain',
       trigger:sustainStep,
       label:`Record Sustaining — ${c.name} as ${c.calling}${sustainDate?' ('+fmt(sustainDate)+')':''}`,
       sub:'Enter the new calling with sustained date in LCR',
-      tag:'Clerk',
+      tag:clerkTag,
     });
   }
-  // Record Release — for Release Only/Calling & Release, OR Calling Only where a current holder was added
   if(isRelease||(isCalling&&hasCurrentHolder)){
     const relName=c.releaseName||c.name;
     branches.push({
@@ -4565,25 +4570,23 @@ function getBranches(c){
       trigger:sustainStep,
       label:`Record Release — ${relName} from ${c.calling}`,
       sub:'Remove the calling from LCR',
-      tag:'Clerk',
+      tag:clerkTag,
     });
   }
-  // Branch 2: Set Apart — appears after sustain step (Bishopric task)
   if(isCalling){
     branches.push({
       key:'setApart',
       trigger:sustainStep,
       label:`Set Apart — ${c.name}`,
       sub:'Perform the setting apart blessing',
-      tag:'Bishopric',
+      tag:setApartTag,
     });
-    // Branch 3: Record Set Apart in LCR — appears after setApart is done
     branches.push({
       key:'lcrSetApart',
-      trigger:'setApart', // special: triggers when setApart branch is done
+      trigger:'setApart',
       label:'Record Set Apart in LCR',
       sub:'Check the Set Apart checkbox in LCR',
-      tag:'Clerk',
+      tag:clerkTag,
     });
   }
   return branches;
@@ -5402,12 +5405,31 @@ function renderCallingDetail(el,role){
         bBody.appendChild(bLabel);bBody.appendChild(bSub);
         bItem.appendChild(bCircle);bItem.appendChild(bBody);
 
-        if(!isDone&&canEdit){
+        // Determine if current user can check this specific branch
+        const isStakeCallingBranch=c.level==='Stake'||c.level==='Stake Issued';
+        const isSpOrHC=isStakePresidency(role)||role.scope==='admin'||role.id==='high_council';
+        const isAnyClerk=role.id==='ward_clerk'||role.id==='ward_asst_clerk'||role.id==='stake_clerk'||role.id==='stake_asst_clerk';
+        const isStakeClerkOnly=role.id==='stake_clerk'||role.id==='stake_asst_clerk';
+        const isBishopCalling2=!!(c.calling&&c.calling.toLowerCase().includes('bishop'));
+        const isStakeIssuedShared2=c.level==='Stake Issued'&&!isBishopCalling2;
+
+        let canCheckBranch=canEdit;
+        if(isStakeCallingBranch&&canEdit){
+          if(branch.key==='setApart'){
+            // SP or HC only
+            canCheckBranch=isSpOrHC;
+          } else if(branch.key==='lcrSustain'||branch.key==='lcrRelease'||branch.key==='lcrSetApart'){
+            // S. Clerk / W. Clerk for Stake Issued (shared), Stake Clerk only for pure Stake
+            canCheckBranch=isStakeIssuedShared2?isAnyClerk:isStakeClerkOnly;
+          }
+        }
+
+        if(!isDone&&canCheckBranch){
           bItem.addEventListener('click',()=>{
             bMeta[branch.key]=true;
             render();dbSaveCalling(c);
           });
-        } else if(isDone&&canEdit){
+        } else if(isDone&&canCheckBranch){
           // Allow unchecking
           bItem.addEventListener('click',()=>{
             bMeta[branch.key]=false;
@@ -5417,6 +5439,9 @@ function renderCallingDetail(el,role){
           });
           bItem.style.cursor='pointer';
           bItem.title='Click to undo';
+        } else if(!isDone&&!canCheckBranch){
+          bItem.style.opacity='0.5';
+          bItem.style.cursor='not-allowed';
         }
         bWrap.appendChild(bItem);
       });
