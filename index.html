@@ -5416,12 +5416,11 @@ function renderCallingDetail(el,role){
         let canCheckBranch=canEdit;
         if(isStakeCallingBranch&&canEdit){
           if(branch.key==='setApart'){
-            // SP or HC only
+            // SP or HC only — Bishopric cannot set apart for stake callings
             canCheckBranch=isSpOrHC;
-          } else if(branch.key==='lcrSustain'||branch.key==='lcrRelease'||branch.key==='lcrSetApart'){
-            // S. Clerk / W. Clerk for Stake Issued (shared), Stake Clerk only for pure Stake
-            canCheckBranch=isStakeIssuedShared2?isAnyClerk:isStakeClerkOnly;
           }
+          // Record tasks (lcrSustain, lcrRelease, lcrSetApart): any clerk, SP, or Bishopric can mark done
+          // No extra restriction needed — canEdit already covers SP/Bishopric/admin
         }
 
         if(!isDone&&canCheckBranch){
