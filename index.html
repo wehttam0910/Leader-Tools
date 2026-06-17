@@ -5504,7 +5504,7 @@ function renderCallings(el,role){
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
         <div>
-          <div style="font-weight:700;font-size:15px;color:#1c2537;">${c.name} <span style="font-weight:400;color:#888;">as</span> ${c.calling}${holderBadge}</div>
+          <div style="font-weight:700;font-size:15px;color:#1c2537;"><span style="font-weight:400;color:#aaa;">${c.action==='Release Only'?'Release':'Call'}</span> ${c.name} <span style="font-weight:400;color:#888;">as</span> ${c.calling}${holderBadge}</div>
           <div style="font-size:11px;color:#aaa;margin-top:2px;">${c.org||''}${isStakeIssued?' · <span style="color:#185fa5;font-weight:600;">'+lvl.label+'</span>':''}</div>
         </div>
       </div>
@@ -5586,8 +5586,10 @@ function renderCallings(el,role){
 
     // Calling + Member combined cell (like the agenda header style)
     const callingTd=document.createElement('td');
+    const actionPrefix=c.action==='Release Only'?'Release':'Call';
     callingTd.innerHTML=`
       <div class="td-calling" style="line-height:1.3;">
+        <span style="font-weight:400;color:#aaa;margin-right:3px;">${actionPrefix}</span>
         <span style="font-weight:600;color:#555;">${c.name}</span>
         <span style="font-weight:400;color:#aaa;margin:0 4px;">as</span>
         <span style="font-weight:700;color:#1c2537;">${c.calling}</span>
