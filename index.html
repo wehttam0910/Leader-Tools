@@ -2487,8 +2487,25 @@ function openCallingEditModal(c,role){
 
   rebuildCallingDropdown();
 
-  // Action
-  sel('Action',['Calling Only','Release Only','Calling & Release'],c.action,'action');
+  // Action — use a custom select so we can react to changes
+  const actionGroup=document.createElement('div');actionGroup.className='form-group';
+  const actionLbl=document.createElement('label');actionLbl.className='form-label';actionLbl.textContent='Action';
+  const actionSel=document.createElement('select');
+  ['Calling Only','Release Only','Calling & Release'].forEach(o=>{
+    const opt=document.createElement('option');opt.value=o;opt.textContent=o;
+    if(o===c.action)opt.selected=true;
+    actionSel.appendChild(opt);
+  });
+  actionSel.addEventListener('change',()=>{
+    c.action=actionSel.value;
+    // Show/hide current holder section — not relevant for Release Only
+    const isRelease=actionSel.value==='Release Only';
+    div2.style.display=isRelease?'none':'';
+    secLbl2.style.display=isRelease?'none':'';
+    filledRow.style.display=isRelease?'none':'';
+    holderNameField.style.display=isRelease?'none':(c.currentlyFilled?'block':'none');
+  });
+  actionGroup.appendChild(actionLbl);actionGroup.appendChild(actionSel);modal.appendChild(actionGroup);
 
   // Submitted date
   const dateInp=document.createElement('input');dateInp.type='date';dateInp.value=c.submittedDate||'';
@@ -2502,12 +2519,13 @@ function openCallingEditModal(c,role){
   inp('Spouse Name',c.spouseName,'spouseName');
   inp("Spouse's Calling",c.spouseCalling,'spouseCalling');
 
-  // Current holder section — always shown so user can add after the fact
-  const div2=document.createElement('div');div2.className='section-divider';modal.appendChild(div2);
-  const secLbl2=document.createElement('div');secLbl2.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:12px;';secLbl2.textContent='Current Holder (optional)';modal.appendChild(secLbl2);
+  // Current holder section — hidden for Release Only (member IS the current holder)
+  const isReleaseOnly=c.action==='Release Only';
+  const div2=document.createElement('div');div2.className='section-divider';div2.style.display=isReleaseOnly?'none':'';modal.appendChild(div2);
+  const secLbl2=document.createElement('div');secLbl2.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:12px;';secLbl2.textContent='Current Holder (optional)';secLbl2.style.display=isReleaseOnly?'none':'';modal.appendChild(secLbl2);
 
   // Toggle
-  const filledRow=document.createElement('div');filledRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px;';
+  const filledRow=document.createElement('div');filledRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px;';filledRow.style.display=isReleaseOnly?'none':'';
   const filledLbl=document.createElement('label');filledLbl.style.cssText='font-size:13px;color:#555;display:flex;align-items:center;gap:6px;cursor:pointer;';
   const filledChk=document.createElement('input');filledChk.type='checkbox';filledChk.checked=!!c.currentlyFilled;
   filledChk.style.cssText='width:16px;height:16px;accent-color:#1c2537;cursor:pointer;';
@@ -2515,7 +2533,7 @@ function openCallingEditModal(c,role){
   filledRow.appendChild(filledLbl);modal.appendChild(filledRow);
   filledChk.addEventListener('change',()=>{c.currentlyFilled=filledChk.checked;if(!filledChk.checked)c.releaseName='';holderNameField.style.display=filledChk.checked?'block':'none';});
 
-  const holderNameField=document.createElement('div');holderNameField.style.display=c.currentlyFilled?'block':'none';
+  const holderNameField=document.createElement('div');holderNameField.style.display=(isReleaseOnly||!c.currentlyFilled)?'none':'block';
   const holderInp=document.createElement('input');holderInp.type='text';holderInp.value=c.releaseName||'';holderInp.placeholder='Full name of current holder';
   holderInp.addEventListener('input',()=>{c.releaseName=holderInp.value;});
   holderNameField.appendChild(holderInp);modal.appendChild(holderNameField);
