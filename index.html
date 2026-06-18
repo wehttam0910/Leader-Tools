@@ -1165,17 +1165,21 @@ async function handleSession(session){
       state.loading = true;
       render();
       try{
-        const{callings, agendas, profiles, stakeUnits, hcRoster} = await dbLoadAll();
+        const{callings, agendas, profiles, stakeUnits, hcRoster, sacMeetings, sacSettings} = await dbLoadAll();
         state.callings = callings;
         state.agendas = agendas;
         state.profiles = profiles;
         state.stakeUnits = stakeUnits || [];
         state.hcRoster = hcRoster || [];
+        state.sacMeetings = sacMeetings || [];
+        state.sacSettings = sacSettings || null;
       }catch(e){
         console.error('Failed to load data:', e);
         state.callings = [];
         state.agendas = [];
         state.profiles = [];
+        state.sacMeetings = [];
+        state.sacSettings = null;
       }
       state.loading = false;
       render();
@@ -1464,13 +1468,98 @@ async function dbLoadAll() {
   try{const{data}=await sb.from('stake_units').select('*').order('sort_order',{ascending:true});units=data||[];}catch(e){console.error('stake_units load error:',e);}
   try{const{data}=await sb.from('high_council_roster').select('*').order('sort_order',{ascending:true});hcRows=data||[];}catch(e){console.error('hc_roster load error:',e);}
 
+  // Load sacrament meeting records and settings
+  let sacMeetings=[], sacSettings=null;
+  try{const{data}=await sb.from('sacrament_meetings').select('*').order('date',{ascending:false});sacMeetings=(data||[]).map(sacMeetingFromDb);}catch(e){console.error('sacrament_meetings load error:',e);}
+  try{const{data}=await sb.from('sacrament_settings').select('*').limit(1).maybeSingle();sacSettings=data?sacSettingsFromDb(data):null;}catch(e){console.error('sacrament_settings load error:',e);}
+
   return {
     callings: (callings || []).map(callingFromDb),
     agendas: (agendas || []).map(agendaFromDb),
     profiles: profiles || [],
     stakeUnits: units,
     hcRoster: hcRows,
+    sacMeetings,
+    sacSettings,
   };
+}
+
+// ── Sacrament Meeting DB helpers ──────────────────────────────────────────────
+function sacMeetingFromDb(r){
+  return {
+    id: r.id,
+    ward: r.ward||'',
+    date: r.date||'',
+    conducting: r.conducting||'',
+    openingPrayer: r.opening_prayer||'',
+    closingPrayer: r.closing_prayer||'',
+    speakers: Array.isArray(r.speakers)?r.speakers:(r.speakers?JSON.parse(r.speakers):[]),
+    notes: r.notes||'',
+    meetingType: r.meeting_type||'Regular',
+    agendaId: r.agenda_id||null,
+  };
+}
+function sacMeetingToDb(m){
+  return {
+    id: m.id||undefined,
+    ward: m.ward||'',
+    date: m.date||'',
+    conducting: m.conducting||'',
+    opening_prayer: m.openingPrayer||'',
+    closing_prayer: m.closingPrayer||'',
+    speakers: JSON.stringify(m.speakers||[]),
+    notes: m.notes||'',
+    meeting_type: m.meetingType||'Regular',
+    agenda_id: m.agendaId||null,
+  };
+}
+function sacSettingsFromDb(r){
+  return {
+    id: r.id,
+    ward: r.ward||'',
+    rotation: Array.isArray(r.rotation)?r.rotation:(r.rotation?JSON.parse(r.rotation):[]),
+    startMonth: r.start_month||1,
+    startYear: r.start_year||new Date().getFullYear(),
+  };
+}
+function sacSettingsToDb(s){
+  return {
+    id: s.id||undefined,
+    ward: s.ward||'',
+    rotation: JSON.stringify(s.rotation||[]),
+    start_month: s.startMonth||1,
+    start_year: s.startYear||new Date().getFullYear(),
+  };
+}
+async function dbSaveSacMeeting(m){
+  const row=sacMeetingToDb(m);
+  if(m.id){
+    const{data,error}=await sb.from('sacrament_meetings').update(row).eq('id',m.id).select().single();
+    if(error){console.error('saveSacMeeting update error:',error);return;}
+    const updated=sacMeetingFromDb(data);
+    const idx=state.sacMeetings.findIndex(x=>x.id===m.id);
+    if(idx>=0)state.sacMeetings[idx]=updated; else state.sacMeetings.unshift(updated);
+  } else {
+    const{data,error}=await sb.from('sacrament_meetings').insert(row).select().single();
+    if(error){console.error('saveSacMeeting insert error:',error);return;}
+    state.sacMeetings.unshift(sacMeetingFromDb(data));
+  }
+}
+async function dbDeleteSacMeeting(id){
+  await sb.from('sacrament_meetings').delete().eq('id',id);
+  state.sacMeetings=state.sacMeetings.filter(m=>m.id!==id);
+}
+async function dbSaveSacSettings(s){
+  const row=sacSettingsToDb(s);
+  if(s.id){
+    const{data,error}=await sb.from('sacrament_settings').update(row).eq('id',s.id).select().single();
+    if(error){console.error('saveSacSettings update error:',error);return;}
+    state.sacSettings=sacSettingsFromDb(data);
+  } else {
+    const{data,error}=await sb.from('sacrament_settings').insert(row).select().single();
+    if(error){console.error('saveSacSettings insert error:',error);return;}
+    state.sacSettings=sacSettingsFromDb(data);
+  }
 }
 
 async function dbSaveCalling(c) {
@@ -1546,6 +1635,9 @@ let state={
   stakeUnits:[],
   hcRoster:[],
   agendaCategory:null,
+  sacMeetings:[],      // loaded sacrament_meetings rows
+  sacSettings:null,    // loaded sacrament_settings row for this ward
+  sacView:'schedule',  // 'schedule' | 'configure'
   loading:true,
 };
 
@@ -3019,6 +3111,466 @@ async function generateAgendaPDF(a, role){
 }
 
 // ── Agenda category list ───────────────────────────────────────────────────────
+// ── Sacrament Meeting Record ──────────────────────────────────────────────────
+
+const SAC_MEETING_TYPES=['Regular','Fast & Testimony','Ward Conference','Stake Conference','General Conference','Special'];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Get all Sundays in a given year
+function getSundaysOfYear(year){
+  const sundays=[];
+  const d=new Date(year,0,1);
+  while(d.getDay()!==0) d.setDate(d.getDate()+1);
+  while(d.getFullYear()===year){
+    sundays.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+7);
+  }
+  return sundays;
+}
+
+// Extract last name from full_name
+function lastName(fullName){
+  if(!fullName) return '';
+  const parts=fullName.trim().split(/\s+/);
+  return parts[parts.length-1];
+}
+
+// Get bishopric member display name for a role_id
+function bishopricName(roleId, profiles, titlePrefix){
+  const p=(profiles||[]).find(x=>x.role_id===roleId);
+  if(!p) return titlePrefix;
+  return titlePrefix+' '+lastName(p.full_name);
+}
+
+// Get the assigned conductor for a given date based on settings
+function getAssignedConductor(dateStr, settings, profiles){
+  if(!settings||!settings.rotation||!settings.rotation.length) return null;
+  const d=new Date(dateStr+'T12:00:00');
+  const month=d.getMonth()+1; // 1-12
+  const year=d.getFullYear();
+
+  // Calculate how many months since start
+  const startMonth=settings.startMonth||1;
+  const startYear=settings.startYear||year;
+  const monthsElapsed=(year-startYear)*12+(month-startMonth);
+  if(monthsElapsed<0) return null;
+
+  const rotation=settings.rotation.filter(r=>r.conducts);
+  if(!rotation.length) return null;
+  const rotIdx=((monthsElapsed%rotation.length)+rotation.length)%rotation.length;
+  const assigned=rotation[rotIdx];
+
+  // Map role to display name
+  const roleMap={bishop:{id:'bishop',title:'Bishop'},c1:{id:'ward_1c',title:'1st Counselor'},c2:{id:'ward_2c',title:'2nd Counselor'}};
+  const rm=roleMap[assigned.role];
+  if(!rm) return null;
+  return {
+    role: assigned.role,
+    roleId: rm.id,
+    name: bishopricName(rm.id, profiles, rm.title.replace('1st Counselor','Bro.').replace('2nd Counselor','Bro.').replace('Bishop','Bishop')),
+    title: rm.title,
+    findsSpeakers: assigned.findsSpeakers,
+  };
+}
+
+// Check if a date is a 5th Sunday
+function isFifthSunday(dateStr){
+  const d=new Date(dateStr+'T12:00:00');
+  return Math.ceil(d.getDate()/7)===5;
+}
+
+function renderSacMeetingRecord(el, role){
+  const canEdit=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric');
+  const ward=getAgendaWard(role)||'';
+  const settings=state.sacSettings;
+  const profiles=state.profiles||[];
+
+  // ── Tab bar: Schedule | Configure ─────────────────────────────────────────
+  const tabBar=document.createElement('div');
+  tabBar.style.cssText='display:flex;gap:0;border-bottom:2px solid #e8eaf0;margin-bottom:20px;';
+  ['Schedule','Configure'].forEach(label=>{
+    const key=label.toLowerCase();
+    const tab=document.createElement('button');
+    tab.style.cssText=`background:none;border:none;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:${state.sacView===key?'#1c2537':'#aaa'};border-bottom-color:${state.sacView===key?'#1c2537':'transparent'};`;
+    tab.textContent=label;
+    tab.addEventListener('click',()=>{state.sacView=key;render();});
+    tabBar.appendChild(tab);
+  });
+  el.appendChild(tabBar);
+
+  if(state.sacView==='configure'){
+    renderSacConfigure(el, role, ward);
+    return;
+  }
+
+  // ── Schedule view ──────────────────────────────────────────────────────────
+  if(!settings){
+    const notice=document.createElement('div');
+    notice.style.cssText='background:#f8f9fc;border:1px dashed #c8d0e0;border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:20px;';
+    notice.innerHTML=`<div style="font-size:28px;margin-bottom:10px;">⚙️</div>
+      <div style="font-weight:700;font-size:15px;color:#1c2537;margin-bottom:6px;">Set up your conducting rotation</div>
+      <div style="font-size:13px;color:#888;margin-bottom:16px;">Configure who conducts each month before the schedule and auto-fill features will work. You can still create full agendas without this.</div>
+      ${canEdit?'<button class="btn-primary" id="sacConfigureBtn">Configure Rotation</button>':'<div style="font-size:12px;color:#bbb;">Ask a Bishopric member to configure this.</div>'}`;
+    el.appendChild(notice);
+    if(canEdit){
+      notice.querySelector('#sacConfigureBtn').addEventListener('click',()=>{state.sacView='configure';render();});
+    }
+  }
+
+  // Year navigator
+  const now=new Date();
+  const yearKey='sacYear_'+ward;
+  if(!window._sacYear) window._sacYear={};
+  if(!window._sacYear[ward]) window._sacYear[ward]=now.getFullYear();
+  const displayYear=window._sacYear[ward];
+
+  const yearNav=document.createElement('div');
+  yearNav.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:20px;';
+  const prevYr=document.createElement('button');prevYr.textContent='←';prevYr.style.cssText='background:none;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;';
+  prevYr.addEventListener('click',()=>{window._sacYear[ward]=displayYear-1;render();});
+  const nextYr=document.createElement('button');nextYr.textContent='→';nextYr.style.cssText='background:none;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;';
+  nextYr.addEventListener('click',()=>{window._sacYear[ward]=displayYear+1;render();});
+  const yrLabel=document.createElement('span');yrLabel.style.cssText='font-weight:700;font-size:16px;color:#1c2537;min-width:50px;text-align:center;';yrLabel.textContent=displayYear;
+  yearNav.appendChild(prevYr);yearNav.appendChild(yrLabel);yearNav.appendChild(nextYr);
+
+  if(canEdit){
+    const quickBtn=document.createElement('button');quickBtn.className='btn-primary';quickBtn.style.marginLeft='auto';quickBtn.textContent='+ Add Meeting';
+    quickBtn.addEventListener('click',()=>{openSacMeetingForm(null, null, ward, el, role);});
+    yearNav.appendChild(quickBtn);
+  }
+  el.appendChild(yearNav);
+
+  // Build list of all Sundays for the year, grouped by month
+  const sundays=getSundaysOfYear(displayYear);
+  const todayStr=now.toISOString().slice(0,10);
+
+  // Index existing records by date
+  const recordByDate={};
+  (state.sacMeetings||[]).filter(m=>!ward||m.ward===ward).forEach(m=>{recordByDate[m.date]=m;});
+
+  // Group by month
+  const byMonth={};
+  sundays.forEach(s=>{
+    const mo=new Date(s+'T12:00:00').getMonth();
+    if(!byMonth[mo]) byMonth[mo]=[];
+    byMonth[mo].push(s);
+  });
+
+  Object.entries(byMonth).forEach(([moIdx, dates])=>{
+    const mo=parseInt(moIdx);
+    const sec=document.createElement('div');sec.style.marginBottom='24px';
+
+    // Month header with assigned conductor
+    const mHdr=document.createElement('div');mHdr.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:10px;';
+    const mTitle=document.createElement('div');mTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;min-width:90px;';mTitle.textContent=MONTHS[mo];
+
+    // Assigned conductor for this month (use first Sunday of month for lookup)
+    const assigned=settings?getAssignedConductor(dates[0], settings, profiles):null;
+    if(assigned){
+      const badge=document.createElement('span');
+      badge.style.cssText='font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;background:#e6f1fb;color:#185fa5;';
+      badge.textContent=(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName((profiles||[]).find(p=>p.role_id===assigned.roleId)?.full_name||'')||assigned.title;
+      if(assigned.findsSpeakers){
+        const fsb=document.createElement('span');
+        fsb.style.cssText='font-size:10px;color:#888;margin-left:4px;';fsb.textContent='· finds speakers';
+        badge.appendChild(fsb);
+      }
+      mHdr.appendChild(mTitle);mHdr.appendChild(badge);
+    } else {
+      mHdr.appendChild(mTitle);
+    }
+    sec.appendChild(mHdr);
+
+    // Sunday rows
+    dates.forEach(dateStr=>{
+      const rec=recordByDate[dateStr];
+      const isPast=dateStr<todayStr;
+      const isToday=dateStr===todayStr;
+
+      const row=document.createElement('div');
+      row.style.cssText=`display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.12s;margin-bottom:4px;background:${isToday?'#f0f4ff':rec?'#fff':'transparent'};${rec?'box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #eee;':'border:1px solid transparent;'}${isPast&&!rec?'opacity:0.45;':''}`;
+
+      // Date
+      const dLabel=document.createElement('div');
+      dLabel.style.cssText='font-size:12px;font-weight:600;color:#555;min-width:72px;flex-shrink:0;';
+      const dObj=new Date(dateStr+'T12:00:00');
+      dLabel.textContent=dObj.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      row.appendChild(dLabel);
+
+      if(rec){
+        // Meeting type badge
+        const typBadge=document.createElement('span');
+        typBadge.style.cssText=`font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;flex-shrink:0;${rec.meetingType==='Fast & Testimony'?'background:#f0eeff;color:#5b47d6;':rec.meetingType==='Regular'?'':'background:#fff3e0;color:#e65100;'}`;
+        if(rec.meetingType&&rec.meetingType!=='Regular') typBadge.textContent=rec.meetingType;
+        row.appendChild(typBadge);
+
+        // Conducting
+        const condDiv=document.createElement('div');condDiv.style.cssText='font-size:12px;color:#555;flex-shrink:0;';
+        if(rec.conducting) condDiv.textContent='⛪ '+rec.conducting;
+        row.appendChild(condDiv);
+
+        // Speakers summary
+        const spkrs=(rec.speakers||[]).filter(s=>s.name);
+        if(spkrs.length){
+          const spkDiv=document.createElement('div');spkDiv.style.cssText='font-size:11px;color:#888;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
+          spkDiv.textContent=spkrs.map(s=>(s.isYouth?'★ ':'')+s.name).join(' · ');
+          row.appendChild(spkDiv);
+        } else if(rec.notes){
+          const noteDiv=document.createElement('div');noteDiv.style.cssText='font-size:11px;color:#aaa;flex:1;font-style:italic;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
+          noteDiv.textContent=rec.notes;
+          row.appendChild(noteDiv);
+        }
+      } else {
+        // Empty row — future or unrecorded
+        const emptyDiv=document.createElement('div');emptyDiv.style.cssText='font-size:11px;color:#bbb;flex:1;';
+        if(!isPast) emptyDiv.textContent='No meeting recorded yet';
+        row.appendChild(emptyDiv);
+
+        // Conducting assignment hint for future
+        if(!isPast&&assigned){
+          const aHint=document.createElement('div');aHint.style.cssText='font-size:10px;color:#185fa5;flex-shrink:0;';
+          aHint.textContent='→ '+(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName((profiles||[]).find(p=>p.role_id===assigned.roleId)?.full_name||'');
+          row.appendChild(aHint);
+        }
+      }
+
+      if(canEdit){
+        row.addEventListener('mouseenter',()=>{row.style.background=isToday?'#e8edff':'#f5f7fa';});
+        row.addEventListener('mouseleave',()=>{row.style.background=isToday?'#f0f4ff':rec?'#fff':'transparent';});
+        row.addEventListener('click',()=>openSacMeetingForm(rec, dateStr, ward, el, role));
+      }
+      sec.appendChild(row);
+    });
+    el.appendChild(sec);
+  });
+}
+
+// ── Configure Panel ───────────────────────────────────────────────────────────
+function renderSacConfigure(el, role, ward){
+  const canEdit=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric');
+  const profiles=state.profiles||[];
+  const existing=state.sacSettings;
+
+  const card=document.createElement('div');card.style.cssText='background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.08);max-width:520px;';
+
+  const title=document.createElement('div');title.style.cssText='font-weight:700;font-size:15px;color:#1c2537;margin-bottom:4px;';title.textContent='Conducting Rotation Settings';
+  const sub=document.createElement('div');sub.style.cssText='font-size:12px;color:#888;margin-bottom:20px;';sub.textContent='Configure how your bishopric rotates conducting and speaker assignments.';
+  card.appendChild(title);card.appendChild(sub);
+
+  // Draft rotation state
+  const defaultRotation=[
+    {role:'bishop',conducts:true,findsSpeakers:true},
+    {role:'c1',conducts:true,findsSpeakers:true},
+    {role:'c2',conducts:true,findsSpeakers:true},
+  ];
+  const draft={
+    rotation: existing?JSON.parse(JSON.stringify(existing.rotation)):defaultRotation,
+    startMonth: existing?existing.startMonth:1,
+    startYear: existing?existing.startYear:new Date().getFullYear(),
+  };
+
+  // Role display names
+  function roleName(r){
+    const map={bishop:bishopricName('bishop',profiles,'Bishop'),c1:bishopricName('ward_1c',profiles,'1st Counselor'),c2:bishopricName('ward_2c',profiles,'2nd Counselor')};
+    return map[r]||r;
+  }
+
+  function buildRotationUI(){
+    rotWrap.innerHTML='';
+    draft.rotation.forEach((item,i)=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:8px;background:#fafbfc;';
+
+      const grip=document.createElement('span');grip.style.cssText='color:#ccc;cursor:grab;font-size:14px;user-select:none;';grip.textContent='⠿';
+      const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${roleName(item.role)}`;
+
+      const mkToggle=(label,field)=>{
+        const lbl=document.createElement('label');lbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer;white-space:nowrap;';
+        const cb=document.createElement('input');cb.type='checkbox';cb.checked=item[field];cb.style.cssText='accent-color:#1c2537;';
+        cb.addEventListener('change',()=>{item[field]=cb.checked;});
+        lbl.appendChild(cb);lbl.appendChild(document.createTextNode(label));
+        return lbl;
+      };
+
+      const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+      upBtn.disabled=i===0;
+      upBtn.addEventListener('click',()=>{if(i>0){const t=draft.rotation.splice(i,1)[0];draft.rotation.splice(i-1,0,t);buildRotationUI();}});
+      const downBtn=document.createElement('button');downBtn.textContent='↓';downBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+      downBtn.disabled=i===draft.rotation.length-1;
+      downBtn.addEventListener('click',()=>{if(i<draft.rotation.length-1){const t=draft.rotation.splice(i,1)[0];draft.rotation.splice(i+1,0,t);buildRotationUI();}});
+
+      row.appendChild(grip);row.appendChild(nameEl);
+      row.appendChild(mkToggle('Conducts','conducts'));
+      row.appendChild(mkToggle('Finds Speakers','findsSpeakers'));
+      row.appendChild(upBtn);row.appendChild(downBtn);
+      rotWrap.appendChild(row);
+    });
+  }
+
+  // Rotation order section
+  const rotLbl=document.createElement('div');rotLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:8px;';rotLbl.textContent='Monthly Rotation Order';
+  card.appendChild(rotLbl);
+  const rotWrap=document.createElement('div');
+  card.appendChild(rotWrap);
+  buildRotationUI();
+
+  // Start month/year
+  const divider=document.createElement('div');divider.style.cssText='border-top:1px solid #eee;margin:16px 0;';card.appendChild(divider);
+  const startLbl=document.createElement('div');startLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:8px;';startLbl.textContent='Rotation Start';
+  card.appendChild(startLbl);
+
+  const startRow=document.createElement('div');startRow.style.cssText='display:flex;gap:10px;';
+  const moSel=document.createElement('select');moSel.style.cssText='flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;';
+  MONTHS.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;if(i+1===draft.startMonth)o.selected=true;moSel.appendChild(o);});
+  moSel.addEventListener('change',()=>{draft.startMonth=parseInt(moSel.value);});
+
+  const yrInp=document.createElement('input');yrInp.type='number';yrInp.value=draft.startYear;yrInp.style.cssText='width:90px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;';
+  yrInp.addEventListener('input',()=>{draft.startYear=parseInt(yrInp.value)||new Date().getFullYear();});
+
+  const startNote=document.createElement('div');startNote.style.cssText='font-size:11px;color:#888;margin-top:6px;';startNote.textContent='Set this to the month when your current conducting rotation began (usually January of the first year).';
+  startRow.appendChild(moSel);startRow.appendChild(yrInp);card.appendChild(startRow);card.appendChild(startNote);
+
+  if(canEdit){
+    const saveBtn=document.createElement('button');saveBtn.className='btn-primary';saveBtn.style.marginTop='20px';saveBtn.textContent='Save Settings';
+    saveBtn.addEventListener('click',async()=>{
+      saveBtn.disabled=true;saveBtn.textContent='Saving…';
+      const toSave={
+        id:existing?.id||undefined,
+        ward,
+        rotation:draft.rotation,
+        startMonth:draft.startMonth,
+        startYear:draft.startYear,
+      };
+      await dbSaveSacSettings(toSave);
+      state.sacView='schedule';
+      render();
+    });
+    card.appendChild(saveBtn);
+  }
+  el.appendChild(card);
+}
+
+// ── Quick entry / edit form (modal) ──────────────────────────────────────────
+function openSacMeetingForm(existing, dateStr, ward, parentEl, role){
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  const modal=document.createElement('div');modal.className='modal-card';modal.style.maxWidth='480px';
+  overlay.appendChild(modal);document.body.appendChild(overlay);
+  const close=()=>document.body.removeChild(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+
+  const title=document.createElement('div');title.className='modal-title';
+  title.textContent=existing?'Edit Meeting Record':'Add Meeting Record';
+  modal.appendChild(title);
+
+  // Draft
+  const d={
+    id:existing?.id||null,
+    ward,
+    date:existing?.date||dateStr||'',
+    conducting:existing?.conducting||'',
+    openingPrayer:existing?.openingPrayer||'',
+    closingPrayer:existing?.closingPrayer||'',
+    speakers:existing?.speakers?.length?JSON.parse(JSON.stringify(existing.speakers)):[{name:'',topic:'',isYouth:false}],
+    notes:existing?.notes||'',
+    meetingType:existing?.meetingType||'Regular',
+  };
+
+  // If no conducting set and settings exist, auto-fill from rotation
+  if(!d.conducting&&d.date&&state.sacSettings){
+    const assigned=getAssignedConductor(d.date, state.sacSettings, state.profiles||[]);
+    if(assigned){
+      const p=(state.profiles||[]).find(x=>x.role_id===assigned.roleId);
+      if(p) d.conducting=p.full_name;
+    }
+  }
+
+  function fg(lbl,child){const g=document.createElement('div');g.className='form-group';const l=document.createElement('label');l.className='form-label';l.textContent=lbl;g.appendChild(l);g.appendChild(child);modal.appendChild(g);}
+  function ti(field,ph,val){const i=document.createElement('input');i.type='text';i.placeholder=ph;i.value=val||'';i.addEventListener('input',()=>{d[field]=i.value;});return i;}
+
+  // Date
+  const dateInp=document.createElement('input');dateInp.type='date';dateInp.value=d.date;dateInp.addEventListener('change',()=>{d.date=dateInp.value;});
+  fg('Date',dateInp);
+
+  // Meeting type
+  const typeSel=document.createElement('select');
+  SAC_MEETING_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===d.meetingType)o.selected=true;typeSel.appendChild(o);});
+  typeSel.addEventListener('change',()=>{d.meetingType=typeSel.value;});
+  fg('Meeting Type',typeSel);
+
+  fg('Conducting',ti('conducting','Full name',d.conducting));
+  fg('Opening Prayer',ti('openingPrayer','Full name',d.openingPrayer));
+  fg('Closing Prayer',ti('closingPrayer','Full name',d.closingPrayer));
+
+  // Speakers — dynamic list
+  const spkLbl=document.createElement('div');spkLbl.className='form-label';spkLbl.textContent='Speakers';modal.appendChild(spkLbl);
+  const spkWrap=document.createElement('div');modal.appendChild(spkWrap);
+
+  function renderSpeakers(){
+    spkWrap.innerHTML='';
+    d.speakers.forEach((spk,i)=>{
+      const row=document.createElement('div');row.style.cssText='border:1px solid #eee;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#fafbfc;';
+
+      // Youth checkbox + name row
+      const topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+      const youthLbl=document.createElement('label');youthLbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+      const youthCb=document.createElement('input');youthCb.type='checkbox';youthCb.checked=spk.isYouth;youthCb.style.cssText='accent-color:#1c2537;';
+      youthCb.addEventListener('change',()=>{spk.isYouth=youthCb.checked;});
+      youthLbl.appendChild(youthCb);youthLbl.appendChild(document.createTextNode('Youth'));
+
+      const nameInp=document.createElement('input');nameInp.type='text';nameInp.placeholder='Name';nameInp.value=spk.name||'';nameInp.style.cssText='flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;';
+      nameInp.addEventListener('input',()=>{spk.name=nameInp.value;});
+
+      const rmBtn=document.createElement('button');rmBtn.textContent='✕';rmBtn.style.cssText='background:none;border:none;color:#bbb;cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;';
+      rmBtn.addEventListener('click',()=>{d.speakers.splice(i,1);if(!d.speakers.length)d.speakers.push({name:'',topic:'',isYouth:false});renderSpeakers();});
+
+      topRow.appendChild(youthLbl);topRow.appendChild(nameInp);topRow.appendChild(rmBtn);
+
+      // Topic row
+      const topicInp=document.createElement('input');topicInp.type='text';topicInp.placeholder='Topic / Title (optional)';topicInp.value=spk.topic||'';topicInp.style.cssText='width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;color:#555;';
+      topicInp.addEventListener('input',()=>{spk.topic=topicInp.value;});
+
+      row.appendChild(topRow);row.appendChild(topicInp);
+      spkWrap.appendChild(row);
+    });
+
+    const addBtn=document.createElement('button');addBtn.style.cssText='background:none;border:1px dashed #ccc;color:#888;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;width:100%;margin-bottom:4px;';
+    addBtn.textContent='+ Add Speaker';
+    addBtn.addEventListener('click',()=>{d.speakers.push({name:'',topic:'',isYouth:false});renderSpeakers();});
+    spkWrap.appendChild(addBtn);
+  }
+  renderSpeakers();
+
+  // Notes
+  const notesInp=document.createElement('textarea');notesInp.placeholder='Notes (Fast Sunday, special meeting notes, etc.)';notesInp.value=d.notes||'';notesInp.style.cssText='width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;min-height:60px;resize:vertical;';
+  notesInp.addEventListener('input',()=>{d.notes=notesInp.value;});
+  fg('Notes',notesInp);
+
+  // Save + Delete buttons
+  const btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:10px;margin-top:4px;';
+  const saveBtn=document.createElement('button');saveBtn.className='btn-primary';saveBtn.textContent='Save';
+  saveBtn.addEventListener('click',async()=>{
+    if(!d.date){alert('Please set a date.');return;}
+    saveBtn.disabled=true;saveBtn.textContent='Saving…';
+    d.speakers=d.speakers.filter(s=>s.name.trim());
+    await dbSaveSacMeeting(d);
+    close();render();
+  });
+  btnRow.appendChild(saveBtn);
+
+  if(existing){
+    const delBtn=document.createElement('button');delBtn.style.cssText='background:none;border:1px solid #e57373;color:#c62828;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;';delBtn.textContent='Delete';
+    delBtn.addEventListener('click',async()=>{
+      if(!confirm('Delete this meeting record?')) return;
+      await dbDeleteSacMeeting(existing.id);
+      close();render();
+    });
+    btnRow.appendChild(delBtn);
+  }
+
+  modal.appendChild(btnRow);
+  document.body.appendChild(overlay);
+}
+
 function renderAgendaCategory(el,role,categoryKey){
   const types=getMeetingTypes(role);
   const mt=types.find(t=>t.key===categoryKey)||{label:categoryKey,icon:'📋'};
@@ -3040,6 +3592,25 @@ function renderAgendaCategory(el,role,categoryKey){
     });
     hdr.appendChild(newBtn);
   }  el.appendChild(hdr);
+
+  // For sacrament, add a "Meeting Record" tab
+  if(categoryKey==='sacrament'){
+    if(!window._sacTab) window._sacTab='agendas';
+    const tabBar=document.createElement('div');tabBar.style.cssText='display:flex;gap:0;border-bottom:2px solid #e8eaf0;margin-bottom:20px;';
+    [['agendas','Agendas'],['record','Meeting Record']].forEach(([key,label])=>{
+      const tab=document.createElement('button');
+      tab.style.cssText=`background:none;border:none;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:${window._sacTab===key?'#1c2537':'#aaa'};border-bottom-color:${window._sacTab===key?'#1c2537':'transparent'};`;
+      tab.textContent=label;
+      tab.addEventListener('click',()=>{window._sacTab=key;render();});
+      tabBar.appendChild(tab);
+    });
+    el.appendChild(tabBar);
+
+    if(window._sacTab==='record'){
+      renderSacMeetingRecord(el, role);
+      return;
+    }
+  }
 
   // Filter agendas to this category
   const roleWard=getAgendaWard(role);
@@ -3768,6 +4339,7 @@ function renderAgendaWizard(el,role,editingAgenda){
       window._agendaDraft=null;
       state.view='detail';render();
       dbSaveAgenda(editingAgenda);
+      syncAgendaToSacRecord(editingAgenda);
     } else {
       const tempId=Date.now();
       const agenda={id:tempId,...JSON.parse(JSON.stringify(d))};
@@ -3779,6 +4351,7 @@ function renderAgendaWizard(el,role,editingAgenda){
         if(realId){
           const a=state.agendas.find(x=>x.id===tempId);
           if(a){a.id=realId;state.detailId=realId;}
+          syncAgendaToSacRecord({...agenda,id:realId||tempId});
         }
       });
     }
@@ -3786,6 +4359,38 @@ function renderAgendaWizard(el,role,editingAgenda){
   el.appendChild(submitBtn);
 }
 
+
+// Auto-populate sacrament_meetings from a saved sacrament agenda
+async function syncAgendaToSacRecord(agenda){
+  if(!agenda.date) return;
+  if((agenda.meetingCategory||'sacrament')!=='sacrament') return;
+
+  // Build speakers array from agenda fields
+  const speakers=[];
+  if(agenda.speaker1) speakers.push({name:agenda.speaker1,topic:agenda.speaker1Topic||'',isYouth:false});
+  if(agenda.speaker2) speakers.push({name:agenda.speaker2,topic:agenda.speaker2Topic||'',isYouth:false});
+
+  // Check for existing record on this date+ward
+  const existing=state.sacMeetings.find(m=>m.date===agenda.date&&m.ward===agenda.ward);
+
+  const m={
+    id: existing?.id||null,
+    ward: agenda.ward||'',
+    date: agenda.date,
+    conducting: agenda.conducting||'',
+    openingPrayer: agenda.openingPrayer||'',
+    closingPrayer: agenda.closingPrayer||'',
+    speakers,
+    notes: '',
+    meetingType: agenda.meetingType||'Regular',
+    agendaId: agenda.id||null,
+  };
+
+  // Preserve manual notes if existing record has them
+  if(existing?.notes) m.notes=existing.notes;
+
+  await dbSaveSacMeeting(m);
+}
 
 // ── Build Script ──────────────────────────────────────────────────────────────
 function buildScript(a){
