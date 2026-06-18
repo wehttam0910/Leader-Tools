@@ -5524,7 +5524,7 @@ function renderCallings(el,role){
   const isStakeView=role.scope==='admin'||role.scope==='stake';
 
   const COLS=[
-    {key:'calling',  label:'Calling / Member', val:c=>c.calling},
+    {key:'calling',  label:'Calling / Member', val:c=>`${c.action==='Release Only'?'Release':'Call'} ${c.name} as ${c.calling}`},
     {key:'org',      label:'Organization',      val:c=>c.org},
     ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
     {key:'action',   label:'Action',            val:c=>c.action},
