@@ -826,6 +826,9 @@ function getSteps(c){
   }
   const t=(c.level==='Stake'||c.level==='Stake Issued')?'Stake':'Ward';
   let action=c.action||'Calling Only';
+  // New unified actions: 'Release' maps to the Release Only workflow
+  if(action==='Release') action='Release Only';
+  if(action==='Calling') action='Calling Only';
   // Upgrade to Calling & Release workflow ONLY if the calling has a current holder
   // (Release Current step is for releasing the current holder, not the member's own prior calling)
   if(c.currentlyFilled&&action==='Calling Only') action='Calling & Release';
@@ -1183,6 +1186,12 @@ async function handleSession(session){
       }
       state.loading = false;
       render();
+      // Phase 1: convert legacy releases into linked Release rows (admin/bishopric only)
+      try{
+        const r=currentProfile?.role_id||state.activeRoleId;
+        const canMigrate=r==='admin'||r==='bishop'||r==='ward_1c'||r==='ward_2c'||r==='stake_president'||r==='stake_1c'||r==='stake_2c';
+        if(canMigrate) await migrateLegacyReleases();
+      }catch(e){console.error('release migration error:',e);}
     } else {
       currentUser = null;
       currentProfile = null;
@@ -1334,6 +1343,8 @@ function callingToDb(c) {
     spouse_calling: c.spouseCalling || '',
     release_name: c.releaseName || '',
     currently_filled: !!c.currentlyFilled,
+    linked_release_ids: c.linkedReleaseIds || [],
+    release_for: c.releaseFor || null,
     declined: !!c.declined,
     declined_snapshot: c._declinedSnapshot || null,
     archived: !!c.archived,
@@ -1362,10 +1373,130 @@ function callingFromDb(r) {
     spouseCalling: r.spouse_calling || '',
     releaseName: r.release_name || '',
     currentlyFilled: !!r.currently_filled,
+    linkedReleaseIds: r.linked_release_ids || [],
+    releaseFor: r.release_for || null,
     declined: !!r.declined,
     _declinedSnapshot: r.declined_snapshot || null,
     archived: !!r.archived,
   };
+}
+
+// ── Shared Release linking (Phase 1) ──────────────────────────────────────────
+// A "release" is a calling row with action==='Release'. Calling-type rows may
+// reference one or more release rows via linkedReleaseIds. This lets multiple
+// workflows share a single canonical release of (person + calling).
+
+// Normalize a name/calling for matching (case-insensitive, trimmed)
+function normRel(s){return (s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+
+// Find an existing active (non-archived, non-declined) Release row for name+calling+ward
+function findMatchingRelease(name, calling, ward, excludeId){
+  return (state.callings||[]).find(c=>
+    c.action==='Release' &&
+    !c.archived && !c.declined &&
+    c.id!==excludeId &&
+    normRel(c.name)===normRel(name) &&
+    normRel(c.calling)===normRel(calling) &&
+    (!ward || normRel(c.ward)===normRel(ward))
+  );
+}
+
+// Get the release rows linked to a calling
+function getLinkedReleases(c){
+  if(!c.linkedReleaseIds||!c.linkedReleaseIds.length) return [];
+  return (state.callings||[]).filter(x=>c.linkedReleaseIds.includes(x.id));
+}
+
+// Get all calling rows that reference a given release row
+function getReleaseReferrers(releaseId){
+  return (state.callings||[]).filter(c=>(c.linkedReleaseIds||[]).includes(releaseId));
+}
+
+// Create a new standalone Release row (returns the new row, not yet saved)
+function buildReleaseRow({name, calling, org, ward, level, custom, releaseFor}){
+  return {
+    id:null,
+    name,
+    calling,
+    org:org||'',
+    ward:ward||'',
+    level:level||'Ward',
+    action:'Release',
+    submittedDate:today(),
+    currentStep:0,
+    stepDates:[],
+    stepMeta:{},
+    notes:'',
+    custom:!!custom,
+    memberCurrentCalling:'',
+    memberCallings:[],
+    memberNeedsRelease:false,
+    spouseName:'',
+    spouseCalling:'',
+    releaseName:'',
+    currentlyFilled:false,
+    linkedReleaseIds:[],
+    releaseFor:releaseFor||null,
+    declined:false,
+    archived:false,
+  };
+}
+
+// One-time migration: convert legacy currentlyFilled+releaseName into linked Release rows.
+// Idempotent — guarded by localStorage flag and by checking for existing links.
+async function migrateLegacyReleases(){
+  const MIGRATION_KEY='leadertools_release_migration_v1';
+  if(localStorage.getItem(MIGRATION_KEY)==='done') return;
+
+  const toCreate=[]; // {parentCalling, releaseRow}
+  for(const c of (state.callings||[])){
+    if(c.action==='Release') continue;              // releases themselves skip
+    if(c.archived) continue;
+    if((c.linkedReleaseIds||[]).length) continue;   // already linked
+    // Legacy "current holder to be released" on this calling
+    if(c.currentlyFilled && c.releaseName && c.releaseName.trim()){
+      const existing=findMatchingRelease(c.releaseName, c.calling, c.ward);
+      if(existing){
+        // Link to existing rather than duplicate
+        c.linkedReleaseIds=[...(c.linkedReleaseIds||[]), existing.id];
+        toCreate.push({parent:c, release:null});
+      } else {
+        const rel=buildReleaseRow({
+          name:c.releaseName,
+          calling:c.calling,
+          org:c.org,
+          ward:c.ward,
+          level:c.level,
+          custom:c.custom,
+          releaseFor:c.id,
+        });
+        toCreate.push({parent:c, release:rel});
+      }
+    }
+  }
+
+  // Persist: insert new release rows, then update parents with linked ids
+  let hadError=false;
+  for(const item of toCreate){
+    if(item.release){
+      const{data,error}=await sb.from('callings').insert(callingToDb(item.release)).select().single();
+      if(error){console.error('migration insert error:',error);hadError=true;continue;}
+      const newRel=callingFromDb(data);
+      state.callings.push(newRel);
+      item.parent.linkedReleaseIds=[...(item.parent.linkedReleaseIds||[]), newRel.id];
+    }
+    // Save parent with updated links
+    const{error:upErr}=await sb.from('callings').update({linked_release_ids:item.parent.linkedReleaseIds||[]}).eq('id',item.parent.id);
+    if(upErr){console.error('migration update error:',upErr);hadError=true;}
+  }
+
+  // Only mark done if nothing errored — otherwise allow retry on next load
+  if(!hadError){
+    localStorage.setItem(MIGRATION_KEY,'done');
+    if(toCreate.length) console.log(`Release migration: processed ${toCreate.length} legacy releases.`);
+  } else {
+    console.warn('Release migration had errors; will retry on next load. Ensure linked_release_ids and release_for columns exist on the callings table.');
+  }
 }
 
 function agendaToDb(a) {
