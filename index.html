@@ -1401,6 +1401,96 @@ function findMatchingRelease(name, calling, ward, excludeId){
   );
 }
 
+// Levenshtein edit distance between two strings
+function editDistance(a,b){
+  a=a||'';b=b||'';
+  const m=a.length,n=b.length;
+  if(!m) return n; if(!n) return m;
+  const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){
+    const cost=a[i-1]===b[j-1]?0:1;
+    dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+cost);
+  }
+  return dp[m][n];
+}
+
+// Find fuzzy release matches: same calling (exact), name within edit distance threshold,
+// but NOT an exact name match (those are handled by findMatchingRelease).
+function fuzzyMatchReleases(name, calling, ward, excludeId){
+  const nm=normRel(name);
+  return (state.callings||[]).filter(c=>
+    c.action==='Release' &&
+    !c.archived && !c.declined &&
+    c.id!==excludeId &&
+    normRel(c.calling)===normRel(calling) &&
+    (!ward || normRel(c.ward)===normRel(ward)) &&
+    normRel(c.name)!==nm &&
+    editDistance(normRel(c.name), nm)<=2
+  );
+}
+
+// All in-progress (not complete) releases in a ward — for the browse picker
+function getInProgressReleases(ward){
+  return (state.callings||[]).filter(c=>{
+    if(c.action!=='Release') return false;
+    if(c.archived||c.declined) return false;
+    if(ward&&normRel(c.ward)!==normRel(ward)) return false;
+    const steps=getSteps(c);
+    const done=c.currentStep>=steps.length-1&&branchesAllDone(c);
+    return !done;
+  });
+}
+
+// Browse-picker modal: lists in-progress releases for a ward; calls onPick(releaseRow) when chosen.
+function openReleasePickerModal(ward, onPick){
+  const overlay=document.createElement('div');overlay.className='modal-overlay';
+  const modal=document.createElement('div');modal.className='modal-card';modal.style.maxWidth='460px';
+  overlay.appendChild(modal);document.body.appendChild(overlay);
+  const close=()=>{if(document.body.contains(overlay))document.body.removeChild(overlay);};
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+
+  const title=document.createElement('div');title.className='modal-title';title.textContent='Link Existing Release';modal.appendChild(title);
+  const sub=document.createElement('div');sub.style.cssText='font-size:12px;color:#888;margin-bottom:14px;';sub.textContent='Select an in-progress release to link to this calling.';modal.appendChild(sub);
+
+  const search=document.createElement('input');search.type='text';search.placeholder='Search by name or calling…';
+  search.style.cssText='width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:12px;';
+  modal.appendChild(search);
+
+  const listWrap=document.createElement('div');listWrap.style.cssText='max-height:340px;overflow-y:auto;';modal.appendChild(listWrap);
+
+  const all=getInProgressReleases(ward);
+  function renderList(){
+    listWrap.innerHTML='';
+    const q=normRel(search.value);
+    const filtered=all.filter(r=>!q||normRel(r.name).includes(q)||normRel(r.calling).includes(q));
+    if(!filtered.length){
+      const e=document.createElement('div');e.style.cssText='font-size:13px;color:#aaa;text-align:center;padding:24px;';
+      e.textContent=all.length?'No releases match your search.':'No in-progress releases in this ward.';
+      listWrap.appendChild(e);return;
+    }
+    filtered.forEach(r=>{
+      const steps=getSteps(r);
+      const nextLabel=r.currentStep<steps.length?steps[r.currentStep]:'Complete';
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.12s,background 0.12s;';
+      row.innerHTML=`<div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#1c2537;">${r.name} <span style="font-weight:400;color:#999;">from</span> ${r.calling}</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">${r.ward} · ${nextLabel}</div>
+        </div>
+        <span style="font-size:12px;color:#185fa5;font-weight:600;flex-shrink:0;">Link →</span>`;
+      row.addEventListener('mouseenter',()=>{row.style.borderColor='#185fa5';row.style.background='#f5f9ff';});
+      row.addEventListener('mouseleave',()=>{row.style.borderColor='#eee';row.style.background='';});
+      row.addEventListener('click',()=>{close();onPick(r);});
+      listWrap.appendChild(row);
+    });
+  }
+  search.addEventListener('input',renderList);
+  renderList();
+
+  const cancel=document.createElement('button');cancel.style.cssText='margin-top:12px;background:none;border:1px solid #ddd;color:#666;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;width:100%;';cancel.textContent='Cancel';
+  cancel.addEventListener('click',close);modal.appendChild(cancel);
+}
+
 // Get the release rows linked to a calling
 function getLinkedReleases(c){
   if(!c.linkedReleaseIds||!c.linkedReleaseIds.length) return [];
@@ -1974,6 +2064,7 @@ function openCallingModal(role){
     isCustom:false,
     // Release current holder (intent=both)
     releaseName:'',
+    linkedHolderReleaseId:null,  // if linked via picker, the existing release id
     // New member info
     memberName:'',
     memberCurrentCalling:'',
@@ -2322,6 +2413,36 @@ function openCallingModal(role){
       rinp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;margin-top:6px;';
       rinp.addEventListener('input',()=>{data.releaseName=rinp.value;});
       rb.appendChild(rlbl);rb.appendChild(rinp);
+
+      // "Link existing release" button — Bishopric / Stake Presidency / admin only
+      const canSeePicker=role.scope==='admin'||isStakePresidency(role)||(role.scope==='ward'&&role.org==='Bishopric');
+      if(canSeePicker){
+        const finalName=data.callingName?(
+          data.selectedQuorum?data.selectedQuorum+' '+data.callingName:
+          data.selectedYWClass?data.selectedYWClass+' '+data.callingName:
+          (data.selectedClasses&&data.selectedClasses.length)?data.callingName+' — '+data.selectedClasses.slice().sort((a,b)=>[...PRIMARY_CLASSES,...SS_CLASSES].indexOf(a)-[...PRIMARY_CLASSES,...SS_CLASSES].indexOf(b)).join(', '):
+          data.callingName
+        ):'';
+        const linkBtn=document.createElement('button');linkBtn.type='button';
+        linkBtn.style.cssText='margin-top:10px;background:none;border:1px dashed #185fa5;color:#185fa5;font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;cursor:pointer;width:100%;';
+        linkBtn.textContent='⛓ Link an existing in-progress release';
+        const linkedNote=document.createElement('div');linkedNote.style.cssText='font-size:11px;color:#1a7a4c;margin-top:6px;font-weight:600;';
+        if(data.linkedHolderReleaseId){
+          const lr=(state.callings||[]).find(x=>x.id===data.linkedHolderReleaseId);
+          if(lr) linkedNote.textContent=`✓ Linked: ${lr.name} from ${lr.calling}`;
+        }
+        linkBtn.addEventListener('click',()=>{
+          const wardForPicker=data.ward||(isWard||isWardOrg?role.ward:'');
+          openReleasePickerModal(wardForPicker,(chosen)=>{
+            data.linkedHolderReleaseId=chosen.id;
+            data.releaseName=chosen.name;
+            rinp.value=chosen.name;
+            linkedNote.textContent=`✓ Linked: ${chosen.name} from ${chosen.calling}`;
+          });
+        });
+        rb.appendChild(linkBtn);rb.appendChild(linkedNote);
+      }
+
       modal.appendChild(rb);
 
       // Show/hide release box when radio changes
@@ -2500,7 +2621,7 @@ function openCallingModal(role){
 
     // (a) Vacancy release — current holder of the NEW position
     if(hasCurrentHolder){
-      const id=await createOrLinkRelease(data.releaseName, finalCallingName, org, ward, level, data.isCustom, newCalling.id);
+      const id=await createOrLinkRelease(data.releaseName, finalCallingName, org, ward, level, data.isCustom, newCalling.id, data.linkedHolderReleaseId);
       if(id) linkedIds.push(id);
     }
     // (b) Prior-calling release — the called person from their existing calling
@@ -2518,10 +2639,28 @@ function openCallingModal(role){
   }
 
   // Create a new release row or link to an existing matching one. Returns release id.
-  async function createOrLinkRelease(name, calling, org, ward, level, custom, releaseFor){
+  // Exact match → auto-link. Fuzzy match → ask (Bishopric/SP/admin only). Else create new.
+  async function createOrLinkRelease(name, calling, org, ward, level, custom, releaseFor, preLinkedId){
     if(!name||!calling) return null;
-    const existing=findMatchingRelease(name, calling, ward);
-    if(existing) return existing.id;
+    // If a release was already chosen via the browse picker, use it directly
+    if(preLinkedId){
+      const chosen=(state.callings||[]).find(x=>x.id===preLinkedId);
+      if(chosen) return chosen.id;
+    }
+    // Exact match → silent auto-link
+    const exact=findMatchingRelease(name, calling, ward);
+    if(exact) return exact.id;
+    // Fuzzy match → ask, but only for roles allowed to see the picker
+    const canSeePicker=role.scope==='admin'||isStakePresidency(role)||(role.scope==='ward'&&role.org==='Bishopric');
+    if(canSeePicker){
+      const fuzzy=fuzzyMatchReleases(name, calling, ward);
+      if(fuzzy.length){
+        const f=fuzzy[0];
+        const ok=confirm(`A similar release already exists:\n\n  ${f.name} from ${f.calling}\n\nYou entered "${name}". Link to the existing release instead of creating a new one?`);
+        if(ok) return f.id;
+      }
+    }
+    // No match (or declined) → create new
     const rel=buildReleaseRow({name,calling,org,ward,level,custom,releaseFor});
     const tempId=Date.now()+Math.floor(Math.random()*1000);rel.id=tempId;
     state.callings.push(rel);
@@ -2876,7 +3015,39 @@ function openCallingEditModal(c,role){
   saveBtn.className='btn-primary';
   saveBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;margin-top:4px;';
   saveBtn.textContent='Save Changes';
-  saveBtn.addEventListener('click',()=>{closeModal();render();dbSaveCalling(c);});
+  saveBtn.addEventListener('click',async()=>{
+    saveBtn.disabled=true;saveBtn.textContent='Saving…';
+    // If a current holder is set but no linked release exists yet, create-or-link one
+    if(c.currentlyFilled&&c.releaseName&&c.releaseName.trim()&&c.action!=='Release'){
+      const already=(c.linkedReleaseIds||[]).some(id=>{
+        const r=(state.callings||[]).find(x=>x.id===id);
+        return r&&normRel(r.name)===normRel(c.releaseName)&&normRel(r.calling)===normRel(c.calling);
+      });
+      if(!already){
+        const exact=findMatchingRelease(c.releaseName, c.calling, c.ward);
+        let relId=exact?exact.id:null;
+        if(!relId){
+          // Fuzzy ask for privileged roles
+          const canSeePicker=role.scope==='admin'||isStakePresidency(role)||(role.scope==='ward'&&role.org==='Bishopric');
+          if(canSeePicker){
+            const fuzzy=fuzzyMatchReleases(c.releaseName, c.calling, c.ward);
+            if(fuzzy.length){
+              const f=fuzzy[0];
+              if(confirm(`A similar release already exists:\n\n  ${f.name} from ${f.calling}\n\nLink to it instead of creating a new one?`)) relId=f.id;
+            }
+          }
+        }
+        if(!relId){
+          const rel=buildReleaseRow({name:c.releaseName,calling:c.calling,org:c.org,ward:c.ward,level:c.level,custom:c.custom,releaseFor:c.id});
+          const tempId=Date.now();rel.id=tempId;state.callings.push(rel);
+          const realId=await dbSaveCalling(rel);
+          if(realId){const x=state.callings.find(y=>y.id===tempId);if(x)x.id=realId;relId=realId;}else relId=tempId;
+        }
+        c.linkedReleaseIds=[...(c.linkedReleaseIds||[]), relId];
+      }
+    }
+    closeModal();render();await dbSaveCalling(c);render();
+  });
   modal.appendChild(saveBtn);
 }
 
