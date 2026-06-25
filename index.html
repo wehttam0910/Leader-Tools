@@ -1962,7 +1962,8 @@ function openCallingModal(role){
 
   // ── Wizard data ──────────────────────────────────────────────────────────
   const data={
-    intent:null,           // 'fill' | 'release' | 'both'
+    intent:null,           // 'fill' (Calling) | 'release' (Release)
+    releaseThenCall:null,  // 'yes'|'no' — for release path, are they also being called?
     currentlyFilledAnswer:null, // 'yes' | 'no'
     callingLevel:null,     // 'Stake' | 'Stake Issued' (stake/admin only)
     org:null,
@@ -2011,25 +2012,44 @@ function openCallingModal(role){
   // ── Build step list based on role + intent ───────────────────────────────
   function buildSteps(){
     const steps=['intent'];
+
+    // Release path: ask if they're also being called
+    if(data.intent==='release'){
+      steps.push('release-then-call');
+      // If NOT also being called → simple release flow
+      if(data.releaseThenCall!=='yes'){
+        if(isAdmin||isStake){steps.push('calling-level');steps.push('org-or-ward');}
+        else if(isWard){steps.push('org');}
+        steps.push('calling');
+        if(needsQuorumPicker()) steps.push('quorum-picker');
+        else if(needsYWClassPicker()) steps.push('yw-class-picker');
+        else if(needsPrimaryClassPicker()) steps.push('class-picker-primary');
+        else if(needsSSClassPicker()) steps.push('class-picker-ss');
+        steps.push('member');
+        steps.push('notes');
+        return steps;
+      }
+      // else fall through to calling flow below (releaseThenCall === 'yes')
+    }
+
+    // Calling path (intent==='fill' OR release-then-call==='yes')
     if(isAdmin||isStake){
       steps.push('calling-level');
       steps.push('org-or-ward');
     } else if(isWard){
       steps.push('org');
     }
-    // ward_org: no org/ward step — org is known
     steps.push('calling');
-    // Sub-picker steps inserted after calling selection
     if(needsQuorumPicker()) steps.push('quorum-picker');
     else if(needsYWClassPicker()) steps.push('yw-class-picker');
     else if(needsPrimaryClassPicker()) steps.push('class-picker-primary');
     else if(needsSSClassPicker()) steps.push('class-picker-ss');
-    // For any calling (fill or both), ask if the calling is currently filled
-    if(data.intent==='fill'||data.intent==='both') steps.push('filled');
-    // Member info step
+    // Is there a current holder of the new position to release?
+    steps.push('filled');
+    // Member info
     steps.push('member');
-    // If member has a current calling and intent isn't release-only, ask about their release
-    if(data.intent==='fill'||data.intent==='both') steps.push('member-release');
+    // Does the called person need releasing from a prior calling?
+    steps.push('member-release');
     steps.push('notes');
     return steps;
   }
@@ -2063,14 +2083,12 @@ function openCallingModal(role){
   }
 
   function derived(){
-    // Action describes what happens to the NEW member being called:
-    // - 'fill' or 'both' intent: Calling Only UNLESS the new member also needs releasing from a prior calling
-    // - 'release' intent: Release Only
-    // Action type maps directly from the user's intent selection
+    // Two-action model:
+    // - intent 'release' + not also-called → 'Release' (standalone release record)
+    // - intent 'fill' OR release-then-call 'yes' → 'Calling' (may have linked releases)
     let action;
-    if(data.intent==='release')action='Release Only';
-    else if(data.intent==='both')action='Calling & Release';
-    else action='Calling Only';
+    const isReleaseOnly=data.intent==='release'&&data.releaseThenCall!=='yes';
+    action=isReleaseOnly?'Release':'Calling';
     const level=data.callingLevelFinal||(data.callingLevel==='Stake Issued'?'Stake Issued':data.callingLevel==='Stake'?'Stake':'Ward');
     const ward=data.ward||(isWard||isWardOrg?role.ward:'Stake');
     const org=data.callingOrg||data.org||role.org||'';
@@ -2133,10 +2151,20 @@ function openCallingModal(role){
     if(stepId==='intent'){
       title('What are you doing?');
       radioGroup([
-        {value:'fill',   label:'Calling Only',     sub:'The member is only receiving a new calling'},
-        {value:'release',label:'Release Only',      sub:'The member is only being released from a calling'},
-        {value:'both',   label:'Calling & Release', sub:'New calling + release from current'},
+        {value:'fill',   label:'Calling',  sub:'Call someone to a new position'},
+        {value:'release',label:'Release',  sub:'Release someone from a calling'},
       ],'intent');
+    }
+
+    // ── RELEASE → also being called? (release path only) ────────────────────
+    else if(stepId==='release-then-call'){
+      title('Being Called to a New Position?');
+      subtitle('Is this person also being called to a new calling right now?');
+      radioGroup([
+        {value:'no', label:'No — release only'},
+        {value:'yes',label:'Yes — they are being called to a new position',
+         sub:'This will switch to the Calling workflow'},
+      ],'releaseThenCall');
     }
 
     // ── CALLING LEVEL (stake/admin) ─────────────────────────────────────────
@@ -2307,64 +2335,16 @@ function openCallingModal(role){
 
     // ── MEMBER INFO ─────────────────────────────────────────────────────────
     else if(stepId==='member'){
-      if(data.intent==='release'){
+      const isReleaseOnly=data.intent==='release'&&data.releaseThenCall!=='yes';
+      if(isReleaseOnly){
         title('Person Being Released');
-        subtitle('Enter the details of the person being released.');
+        subtitle('Enter the details of the person being released from this calling.');
+        textInp('Full Name<span class="req">*</span>','First and last name','memberName');
       } else {
         title('Member Being Called');
         subtitle('Enter the details of the person receiving this calling.');
-      }
-      textInp('Full Name<span class="req">*</span>','First and last name','memberName');
-      // Pre-populate memberCallings array if not set
-      if(!data.memberCallings) data.memberCallings=[''];
-      if(data.intent==='both'){
-        // Calling & Release — amber multi-calling release section
-        if(!data.memberCallings||!data.memberCallings.length) data.memberCallings=[''];
-        const releaseSection=document.createElement('div');
-        releaseSection.className='currently-filled-box';
-        releaseSection.style.marginBottom='12px';
-
-        const rsTitle=document.createElement('div');
-        rsTitle.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a5400;margin-bottom:8px;';
-        rsTitle.textContent='Calling(s) to be released from';
-        releaseSection.appendChild(rsTitle);
-
-        const callingsWrap=document.createElement('div');callingsWrap.id='callings-wrap';
-        releaseSection.appendChild(callingsWrap);
-
-        function renderCallingFields(){
-          callingsWrap.innerHTML='';
-          data.memberCallings.forEach((val,idx)=>{
-            const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-            const inp=document.createElement('input');inp.type='text';
-            inp.placeholder='Calling title';inp.value=val;
-            inp.style.cssText='flex:1;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;';
-            inp.addEventListener('input',()=>{data.memberCallings[idx]=inp.value;});
-            row.appendChild(inp);
-            if(data.memberCallings.length>1){
-              const rm=document.createElement('button');
-              rm.type='button';
-              rm.style.cssText='background:transparent;border:none;color:#c62828;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0;';
-              rm.textContent='×';
-              rm.addEventListener('click',()=>{data.memberCallings.splice(idx,1);renderCallingFields();});
-              row.appendChild(rm);
-            }
-            callingsWrap.appendChild(row);
-          });
-        }
-        renderCallingFields();
-
-        const addBtn=document.createElement('button');
-        addBtn.type='button';
-        addBtn.style.cssText='display:flex;align-items:center;gap:6px;background:transparent;border:none;color:#a05c00;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;margin-top:2px;';
-        addBtn.innerHTML='<span style="font-size:16px;line-height:1">+</span> Add calling';
-        addBtn.addEventListener('click',()=>{data.memberCallings.push('');renderCallingFields();});
-        releaseSection.appendChild(addBtn);
-
-        const fg2=document.createElement('div');fg2.className='form-group';fg2.appendChild(releaseSection);
-        modal.appendChild(fg2);
-
-      } else if(data.intent==='fill'){
+        textInp('Full Name<span class="req">*</span>','First and last name','memberName');
+        // Current calling (for prior-release question)
         textInp('Current Calling (if any)','Leave blank if none','memberCurrentCalling');
       }
       textInp('Spouse Name (optional)','','spouseName');
@@ -2373,12 +2353,6 @@ function openCallingModal(role){
 
     // ── MEMBER RELEASE (does new member need to be released from prior calling?) ──
     else if(stepId==='member-release'){
-      // Skip for 'both' — release callings already captured on member step
-      if(data.intent==='both'){
-        idx++;steps=buildSteps();
-        if(idx>=steps.length){submitCalling();return;}
-        renderWizard();return;
-      }
       if(!data.memberCurrentCalling){
         // Skip this step automatically — no prior calling
         idx++;steps=buildSteps();
@@ -2389,7 +2363,7 @@ function openCallingModal(role){
       subtitle(`${data.memberName||'This member'} currently holds: ${data.memberCurrentCalling}`);
       radioGroup([
         {value:'yes',label:'Yes — Release from current calling',
-         sub:'A release step will be added to the Extend Calling stage'},
+         sub:'A linked release will be created and tracked'},
         {value:'no', label:'No — Keep current calling'},
       ],'memberNeedsRelease');
     }
@@ -2419,6 +2393,7 @@ function openCallingModal(role){
     nextBtn.addEventListener('click',()=>{
       // Validate
       if(stepId==='intent'&&!data.intent){alert('Please select what you are doing.');return;}
+      if(stepId==='release-then-call'&&!data.releaseThenCall){alert('Please answer the question.');return;}
       if(stepId==='calling-level'&&!data.callingLevel){alert('Please select a calling level.');return;}
       if(stepId==='org-or-ward'&&data.callingLevel==='Stake'&&!data.org){alert('Please select an organization.');return;}
       if(stepId==='org'&&!data.org){alert('Please select an organization.');return;}
@@ -2436,6 +2411,10 @@ function openCallingModal(role){
         // Rebuild steps now that intent is known
         steps=buildSteps();
       }
+      if(stepId==='release-then-call'){
+        // Rebuild steps now that we know if release is also a calling
+        steps=buildSteps();
+      }
 
       if(isLast){submitCalling();}
       else{idx++;steps=buildSteps();renderWizard();}
@@ -2446,54 +2425,109 @@ function openCallingModal(role){
     if(!overlay.contains(modal)) overlay.appendChild(modal);
   }
 
-  function submitCalling(){
+  async function submitCalling(){
     const {action,level,ward,org}=derived();
-    // hasCurrentHolder = the calling is currently occupied by someone who needs replacing
-    const hasCurrentHolder=(data.intent==='fill'||data.intent==='both')&&data.currentlyFilledAnswer==='yes';
+    const isReleaseOnly=action==='Release';
+    // hasCurrentHolder = the new position is currently occupied by someone needing release
+    const hasCurrentHolder=!isReleaseOnly&&data.currentlyFilledAnswer==='yes'&&!!data.releaseName.trim();
+    // memberPriorRelease = the called person is released from their own prior calling
+    const memberPriorRelease=!isReleaseOnly&&!!data.memberCurrentCalling&&data.memberNeedsRelease==='yes';
 
     // Build the final calling name incorporating sub-picker selections
     let finalCallingName=data.callingName;
     if(data.selectedQuorum){
-      // e.g. "Priests Quorum Adviser"
       finalCallingName=data.selectedQuorum+' '+data.callingName;
     } else if(data.selectedYWClass){
-      // e.g. "Gatherers of Light Class President"
       finalCallingName=data.selectedYWClass+' '+data.callingName;
     } else if(data.selectedClasses&&data.selectedClasses.length){
-      // Sort by canonical list order before storing
       const allClasses=[...PRIMARY_CLASSES,...SS_CLASSES];
       const sorted=data.selectedClasses.slice().sort((a,b)=>allClasses.indexOf(a)-allClasses.indexOf(b));
       finalCallingName=data.callingName+' — '+sorted.join(', ');
     }
 
+    closeModal();
+
+    if(isReleaseOnly){
+      // Standalone Release — but check for an existing matching release first
+      const existing=findMatchingRelease(data.memberName, finalCallingName, ward);
+      if(existing){
+        alert(`A release for ${data.memberName} from ${finalCallingName} already exists and is in progress. No duplicate was created.`);
+        return;
+      }
+      const rel=buildReleaseRow({
+        name:data.memberName,
+        calling:finalCallingName,
+        org,ward,level,
+        custom:data.isCustom,
+      });
+      rel.notes=data.notes;
+      rel.spouseName=data.spouseName;
+      rel.spouseCalling=data.spouseCalling;
+      const tempId=Date.now();rel.id=tempId;
+      state.callings.push(rel);render();
+      const realId=await dbSaveCalling(rel);
+      if(realId){const c=state.callings.find(x=>x.id===tempId);if(c)c.id=realId;}
+      render();
+      return;
+    }
+
+    // ── Calling path ──────────────────────────────────────────────────────────
     const newCalling={
-      id:null, // will be assigned by DB
+      id:null,
       name:data.memberName,
       calling:finalCallingName,
-      org,ward,level,action,
+      org,ward,level,action:'Calling',
       submittedDate:today(),
       currentStep:0,stepDates:[],stepMeta:{},
       notes:data.notes,custom:data.isCustom,
-      memberCurrentCalling:data.intent==='both'?(data.memberCallings||[]).filter(Boolean).join(', '):data.memberCurrentCalling,
-      memberCallings:data.intent==='both'?(data.memberCallings||[]).filter(Boolean):[],
-      memberNeedsRelease:data.intent==='both'||data.memberNeedsRelease==='yes',
+      memberCurrentCalling:data.memberCurrentCalling||'',
+      memberCallings:[],
+      memberNeedsRelease:memberPriorRelease,
       spouseName:data.spouseName,
       spouseCalling:data.spouseCalling,
       releaseName:hasCurrentHolder?data.releaseName:'',
       currentlyFilled:hasCurrentHolder,
+      linkedReleaseIds:[],
+      releaseFor:null,
     };
-    closeModal();
-    // Optimistically add to state with temp id, then update with real DB id
-    const tempId = Date.now();
-    newCalling.id = tempId;
-    state.callings.push(newCalling);
+    const tempId=Date.now();newCalling.id=tempId;
+    state.callings.push(newCalling);render();
+    const realId=await dbSaveCalling(newCalling);
+    if(realId){newCalling.id=realId;const c=state.callings.find(x=>x.id===tempId);if(c)c.id=realId;}
+
+    // Create or link shared releases for: (a) vacancy holder, (b) member's prior calling
+    const linkedIds=[];
+
+    // (a) Vacancy release — current holder of the NEW position
+    if(hasCurrentHolder){
+      const id=await createOrLinkRelease(data.releaseName, finalCallingName, org, ward, level, data.isCustom, newCalling.id);
+      if(id) linkedIds.push(id);
+    }
+    // (b) Prior-calling release — the called person from their existing calling
+    if(memberPriorRelease){
+      // Prior calling has no sub-picker context; use the raw memberCurrentCalling text + member's name
+      const id=await createOrLinkRelease(data.memberName, data.memberCurrentCalling, '', ward, level, false, newCalling.id);
+      if(id) linkedIds.push(id);
+    }
+
+    if(linkedIds.length){
+      newCalling.linkedReleaseIds=linkedIds;
+      await sb.from('callings').update({linked_release_ids:linkedIds}).eq('id',newCalling.id);
+    }
     render();
-    dbSaveCalling(newCalling).then(realId=>{
-      if(realId){
-        const c=state.callings.find(x=>x.id===tempId);
-        if(c) c.id=realId;
-      }
-    });
+  }
+
+  // Create a new release row or link to an existing matching one. Returns release id.
+  async function createOrLinkRelease(name, calling, org, ward, level, custom, releaseFor){
+    if(!name||!calling) return null;
+    const existing=findMatchingRelease(name, calling, ward);
+    if(existing) return existing.id;
+    const rel=buildReleaseRow({name,calling,org,ward,level,custom,releaseFor});
+    const tempId=Date.now()+Math.floor(Math.random()*1000);rel.id=tempId;
+    state.callings.push(rel);
+    const realId=await dbSaveCalling(rel);
+    if(realId){const c=state.callings.find(x=>x.id===tempId);if(c)c.id=realId;return realId;}
+    return tempId;
   }
 
   renderWizard();
@@ -2785,7 +2819,7 @@ function openCallingEditModal(c,role){
   inp("Spouse's Calling",c.spouseCalling,'spouseCalling');
 
   // Current holder section — hidden for Release Only (member IS the current holder)
-  const isReleaseOnly=c.action==='Release Only';
+  const isReleaseOnly=c.action==='Release Only'||c.action==='Release';
   const div2=document.createElement('div');div2.className='section-divider';div2.style.display=isReleaseOnly?'none':'';modal.appendChild(div2);
   const secLbl2=document.createElement('div');secLbl2.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin-bottom:12px;';secLbl2.textContent='Current Holder (optional)';secLbl2.style.display=isReleaseOnly?'none':'';modal.appendChild(secLbl2);
 
@@ -4864,7 +4898,7 @@ function renderAgendaDetail(el,role){
 
           // Build the label with full context
           let label='';
-          if(c.action==='Release Only'){
+          if(c.action==='Release Only'||c.action==='Release'){
             label=`Release ${c.releaseName||c.name} from ${c.calling}`;
           } else {
             label=`Call ${c.name} as ${c.calling}`;
@@ -5275,8 +5309,8 @@ function renderAgendaDetail(el,role){
 // Stored in c.stepMeta.branches = { lcrSustain: bool, setApart: bool, lcrSetApart: bool }
 function getBranches(c){
   const action=c.action||'';
-  const isCalling=action==='Calling Only'||action==='Calling & Release';
-  const isRelease=action==='Release Only'||action==='Calling & Release';
+  const isCalling=action==='Calling Only'||action==='Calling & Release'||action==='Calling';
+  const isRelease=action==='Release Only'||action==='Calling & Release'||action==='Release';
   const hasCurrentHolder=!!(c.currentlyFilled&&c.releaseName);
   const steps=getSteps(c);
   const sustainStep=['Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit'].find(s=>steps.includes(s));
@@ -6262,7 +6296,7 @@ function renderCallings(el,role){
   const isStakeView=role.scope==='admin'||role.scope==='stake';
 
   const COLS=[
-    {key:'calling',  label:'Calling / Member', val:c=>`${c.action==='Release Only'?'Release':'Call'} ${c.name} as ${c.calling}`},
+    {key:'calling',  label:'Calling / Member', val:c=>`${(c.action==='Release Only'||c.action==='Release')?'Release':'Call'} ${c.name} as ${c.calling}`},
     {key:'org',      label:'Organization',      val:c=>c.org},
     ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
     {key:'action',   label:'Action',            val:c=>c.action},
@@ -6307,7 +6341,7 @@ function renderCallings(el,role){
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
         <div>
-          <div style="font-weight:700;font-size:15px;color:#1c2537;"><span style="font-weight:400;color:#aaa;">${c.action==='Release Only'?'Release':'Call'}</span> ${c.name} <span style="font-weight:400;color:#888;">as</span> ${c.calling}${holderBadge}</div>
+          <div style="font-weight:700;font-size:15px;color:#1c2537;"><span style="font-weight:400;color:#aaa;">${(c.action==='Release Only'||c.action==='Release')?'Release':'Call'}</span> ${c.name} <span style="font-weight:400;color:#888;">as</span> ${c.calling}${holderBadge}</div>
           <div style="font-size:11px;color:#aaa;margin-top:2px;">${c.org||''}${isStakeIssued?' · <span style="color:#185fa5;font-weight:600;">'+lvl.label+'</span>':''}</div>
         </div>
       </div>
@@ -6389,7 +6423,7 @@ function renderCallings(el,role){
 
     // Calling + Member combined cell (like the agenda header style)
     const callingTd=document.createElement('td');
-    const actionPrefix=c.action==='Release Only'?'Release':'Call';
+    const actionPrefix=(c.action==='Release Only'||c.action==='Release')?'Release':'Call';
     callingTd.innerHTML=`
       <div class="td-calling" style="line-height:1.3;">
         <span style="font-weight:400;color:#aaa;margin-right:3px;">${actionPrefix}</span>
