@@ -1389,10 +1389,13 @@ function callingFromDb(r) {
 // Normalize a name/calling for matching (case-insensitive, trimmed)
 function normRel(s){return (s||'').trim().toLowerCase().replace(/\s+/g,' ');}
 
+// Is this calling row a release-type record?
+function isReleaseRow(c){return c.action==='Release'||c.action==='Release Only';}
+
 // Find an existing active (non-archived, non-declined) Release row for name+calling+ward
 function findMatchingRelease(name, calling, ward, excludeId){
   return (state.callings||[]).find(c=>
-    c.action==='Release' &&
+    isReleaseRow(c) &&
     !c.archived && !c.declined &&
     c.id!==excludeId &&
     normRel(c.name)===normRel(name) &&
@@ -1420,7 +1423,7 @@ function editDistance(a,b){
 function fuzzyMatchReleases(name, calling, ward, excludeId){
   const nm=normRel(name);
   return (state.callings||[]).filter(c=>
-    c.action==='Release' &&
+    isReleaseRow(c) &&
     !c.archived && !c.declined &&
     c.id!==excludeId &&
     normRel(c.calling)===normRel(calling) &&
@@ -1433,7 +1436,7 @@ function fuzzyMatchReleases(name, calling, ward, excludeId){
 // All in-progress (not complete) releases in a ward — for the browse picker
 function getInProgressReleases(ward){
   return (state.callings||[]).filter(c=>{
-    if(c.action!=='Release') return false;
+    if(!isReleaseRow(c)) return false;
     if(c.archived||c.declined) return false;
     if(ward&&normRel(c.ward)!==normRel(ward)) return false;
     const steps=getSteps(c);
@@ -1540,7 +1543,7 @@ async function migrateLegacyReleases(){
 
   const toCreate=[]; // {parentCalling, releaseRow}
   for(const c of (state.callings||[])){
-    if(c.action==='Release') continue;              // releases themselves skip
+    if(isReleaseRow(c)) continue;              // releases themselves skip
     if(c.archived) continue;
     if((c.linkedReleaseIds||[]).length) continue;   // already linked
     // Legacy "current holder to be released" on this calling
@@ -2411,8 +2414,56 @@ function openCallingModal(role){
       const rlbl=document.createElement('label');rlbl.className='form-label';rlbl.style.color='#7a5400';rlbl.innerHTML='Name of current holder to be released<span class="req">*</span>';
       const rinp=document.createElement('input');rinp.type='text';rinp.placeholder='Full name';rinp.value=data.releaseName||'';
       rinp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;margin-top:6px;';
-      rinp.addEventListener('input',()=>{data.releaseName=rinp.value;});
       rb.appendChild(rlbl);rb.appendChild(rinp);
+
+      // Live match indicator — shows exact or fuzzy match as you type
+      const matchNote=document.createElement('div');matchNote.style.cssText='font-size:12px;margin-top:8px;display:none;';
+      rb.appendChild(matchNote);
+
+      function currentFinalCalling(){
+        if(!data.callingName) return '';
+        if(data.selectedQuorum) return data.selectedQuorum+' '+data.callingName;
+        if(data.selectedYWClass) return data.selectedYWClass+' '+data.callingName;
+        if(data.selectedClasses&&data.selectedClasses.length){
+          const allC=[...PRIMARY_CLASSES,...SS_CLASSES];
+          return data.callingName+' — '+data.selectedClasses.slice().sort((a,b)=>allC.indexOf(a)-allC.indexOf(b)).join(', ');
+        }
+        return data.callingName;
+      }
+
+      function updateMatchNote(){
+        const nm=(rinp.value||'').trim();
+        const cal=currentFinalCalling();
+        const wardForMatch=data.ward||(isWard||isWardOrg?role.ward:'');
+        if(!nm||!cal){matchNote.style.display='none';data.linkedHolderReleaseId=null;return;}
+        const exact=findMatchingRelease(nm, cal, wardForMatch);
+        if(exact){
+          data.linkedHolderReleaseId=exact.id;
+          matchNote.style.display='block';matchNote.style.color='#1a7a4c';
+          matchNote.innerHTML=`✓ Will link to existing release: <strong>${exact.name} from ${exact.calling}</strong>`;
+          return;
+        }
+        const canSeePicker=role.scope==='admin'||isStakePresidency(role)||(role.scope==='ward'&&role.org==='Bishopric');
+        if(canSeePicker){
+          const fuzzy=fuzzyMatchReleases(nm, cal, wardForMatch);
+          if(fuzzy.length){
+            const f=fuzzy[0];
+            matchNote.style.display='block';matchNote.style.color='#a05c00';
+            matchNote.innerHTML=`⚠ Similar release exists: <strong>${f.name} from ${f.calling}</strong>. `;
+            const linkA=document.createElement('a');linkA.href='#';linkA.style.cssText='color:#185fa5;font-weight:600;text-decoration:underline;';linkA.textContent='Link to it';
+            linkA.addEventListener('click',e=>{e.preventDefault();data.linkedHolderReleaseId=f.id;data.releaseName=f.name;rinp.value=f.name;updateMatchNote();});
+            matchNote.appendChild(linkA);
+            data.linkedHolderReleaseId=null;
+            return;
+          }
+        }
+        data.linkedHolderReleaseId=null;
+        matchNote.style.display='block';matchNote.style.color='#888';
+        matchNote.innerHTML='A new release record will be created for this person.';
+      }
+
+      rinp.addEventListener('input',()=>{data.releaseName=rinp.value;data.linkedHolderReleaseId=null;updateMatchNote();});
+      if(data.releaseName) updateMatchNote();
 
       // "Link existing release" button — Bishopric / Stake Presidency / admin only
       const canSeePicker=role.scope==='admin'||isStakePresidency(role)||(role.scope==='ward'&&role.org==='Bishopric');
