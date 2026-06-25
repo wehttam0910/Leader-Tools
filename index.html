@@ -1479,7 +1479,9 @@ async function migrateLegacyReleases(){
   let hadError=false;
   for(const item of toCreate){
     if(item.release){
-      const{data,error}=await sb.from('callings').insert(callingToDb(item.release)).select().single();
+      const insertRow={...callingToDb(item.release)};
+      delete insertRow.id; // let DB auto-generate the id
+      const{data,error}=await sb.from('callings').insert(insertRow).select().single();
       if(error){console.error('migration insert error:',error);hadError=true;continue;}
       const newRel=callingFromDb(data);
       state.callings.push(newRel);
