@@ -5460,6 +5460,50 @@ function renderCallingDetail(el,role){
     el.appendChild(nb);
   }
 
+  // ── Linked releases (shared release records this calling references) ─────────
+  const linkedReleases=getLinkedReleases(c);
+  if(linkedReleases.length){
+    const lrBox=document.createElement('div');lrBox.style.cssText='margin:12px 0;border:1px solid #d8e4f0;border-radius:10px;overflow:hidden;';
+    const lrHdr=document.createElement('div');lrHdr.style.cssText='background:#eef4fb;padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#185fa5;';
+    lrHdr.textContent='Linked Releases';
+    lrBox.appendChild(lrHdr);
+    linkedReleases.forEach(rel=>{
+      const steps=getSteps(rel);
+      const clamped=Math.min(rel.currentStep,steps.length-1);
+      const relDone=clamped>=steps.length-1&&branchesAllDone(rel);
+      const nextLabel=relDone?'Complete':(steps[rel.currentStep]||'—');
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-top:1px solid #eef2f7;';
+      row.innerHTML=`<span style="color:#185fa5;flex-shrink:0;">↳</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:#1c2537;">${rel.name} <span style="font-weight:400;color:#999;">from</span> ${rel.calling}</div>
+          <div style="font-size:11px;color:#888;margin-top:1px;">${relDone?'<span style="color:#1a7a4c;font-weight:600;">✓ Released</span>':'In progress · '+nextLabel}</div>
+        </div>
+        <span class="badge ${relDone?'badge-green':'badge-amber'}" style="font-size:10px;flex-shrink:0;">${relDone?'Done':nextLabel}</span>`;
+      row.addEventListener('click',()=>{state.detailId=rel.id;render();});
+      lrBox.appendChild(row);
+    });
+    el.appendChild(lrBox);
+  }
+
+  // ── If this IS a release, show which callings reference it ──────────────────
+  if(c.action==='Release'||c.action==='Release Only'){
+    const referrers=getReleaseReferrers(c.id);
+    if(referrers.length){
+      const rfBox=document.createElement('div');rfBox.style.cssText='margin:12px 0;border:1px solid #e0dcf0;border-radius:10px;overflow:hidden;';
+      const rfHdr=document.createElement('div');rfHdr.style.cssText='background:#f2eefb;padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#5b47d6;';
+      rfHdr.textContent='Required By These Callings';
+      rfBox.appendChild(rfHdr);
+      referrers.forEach(ref=>{
+        const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-top:1px solid #f0edf7;';
+        row.innerHTML=`<span style="color:#5b47d6;flex-shrink:0;">↰</span>
+          <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:#1c2537;">${ref.name} <span style="font-weight:400;color:#999;">as</span> ${ref.calling}</div></div>`;
+        row.addEventListener('click',()=>{state.detailId=ref.id;render();});
+        rfBox.appendChild(row);
+      });
+      el.appendChild(rfBox);
+    }
+  }
+
   const dv=document.createElement('div');dv.className='divider';el.appendChild(dv);
   const wl=document.createElement('div');wl.style.cssText='font-size:13px;font-weight:700;color:#1c2537;margin-bottom:8px;';wl.textContent='Workflow Progress';el.appendChild(wl);
 
@@ -6424,6 +6468,16 @@ function renderCallings(el,role){
     // Calling + Member combined cell (like the agenda header style)
     const callingTd=document.createElement('td');
     const actionPrefix=(c.action==='Release Only'||c.action==='Release')?'Release':'Call';
+    // Linked release indicators
+    const linkedRels=getLinkedReleases(c);
+    let linkedHTML='';
+    if(linkedRels.length){
+      linkedHTML=linkedRels.map(rel=>{
+        const rs=getSteps(rel);
+        const rDone=rel.currentStep>=rs.length-1&&branchesAllDone(rel);
+        return `<div class="td-sub" style="margin-top:2px;font-size:11px;color:#185fa5;">↳ linked release: ${rel.name} from ${rel.calling} <span style="color:${rDone?'#1a7a4c':'#a05c00'};">(${rDone?'released':'in progress'})</span></div>`;
+      }).join('');
+    }
     callingTd.innerHTML=`
       <div class="td-calling" style="line-height:1.3;">
         <span style="font-weight:400;color:#aaa;margin-right:3px;">${actionPrefix}</span>
@@ -6433,6 +6487,7 @@ function renderCallings(el,role){
         ${c.custom?'<span class="badge badge-teal" style="font-size:10px;margin-left:4px;">Custom</span>':''}
         ${holderBadge}${declinedBadge}
       </div>
+      ${linkedHTML}
       ${isStakeIssued?`<div class="td-sub" style="margin-top:2px;"><span style="color:#185fa5;font-weight:600;font-size:10px;">${lvl.label}</span></div>`:''}`;
     tr.appendChild(callingTd);
 
