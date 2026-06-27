@@ -1808,6 +1808,12 @@ async function dbSaveCalling(c) {
 async function dbDeleteCalling(id) {
   const { error } = await sb.from('callings').delete().eq('id', id);
   if (error) console.error('Error deleting calling:', error);
+  // Propagation: if this was a release, remove its id from any calling that linked to it
+  const referrers=(state.callings||[]).filter(c=>(c.linkedReleaseIds||[]).includes(id));
+  for(const ref of referrers){
+    ref.linkedReleaseIds=(ref.linkedReleaseIds||[]).filter(x=>x!==id);
+    await sb.from('callings').update({linked_release_ids:ref.linkedReleaseIds}).eq('id',ref.id);
+  }
 }
 
 async function dbSaveAgenda(a) {
@@ -4384,31 +4390,52 @@ function renderAgendaWizard(el,role,editingAgenda){
     window._agendaDraft._autoPopulated=true;
     const autoSustain=[];
       const autoRelease=[];
+      // Track releases already added, keyed by normalized person+calling, to dedupe
+      const seenReleases=new Set();
+      const relKey=(name,calling)=>normRel(name)+'|'+normRel(calling);
+      const addRelease=(name,calling,id)=>{
+        const k=relKey(name,calling);
+        if(seenReleases.has(k))return; // already on the agenda — dedupe
+        seenReleases.add(k);
+        autoRelease.push({member:name,calling:calling,_callingId:id,_auto:true});
+      };
+
       (state.callings||[]).forEach(c=>{
         if(c.ward!==ward)return; // only this ward
         const steps=getSteps(c);
         const nextStep=steps[Math.min(c.currentStep,steps.length-1)];
 
-        // Sustain over Pulpit — add to sustainings
-        if(nextStep==='Sustain over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
-          autoSustain.push({member:c.name,calling:c.calling,_callingId:c.id,_auto:true});
-          // C&R: also release the current holder
-          if(nextStep==='Sustain & Release over Pulpit'&&c.currentlyFilled&&c.releaseName){
-            autoRelease.push({member:c.releaseName,calling:c.calling,_callingId:c.id,_auto:true});
+        // ── Calling-type rows: sustainings ──────────────────────────────────
+        if(!isReleaseRow(c)){
+          if(nextStep==='Sustain over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
+            autoSustain.push({member:c.name,calling:c.calling,_callingId:c.id,_auto:true});
+            // Legacy inline release (current holder) — only if NOT represented by a linked release row
+            if(nextStep==='Sustain & Release over Pulpit'&&c.currentlyFilled&&c.releaseName){
+              const hasLinked=(c.linkedReleaseIds||[]).some(id=>{
+                const r=state.callings.find(x=>x.id===id);
+                return r&&normRel(r.name)===normRel(c.releaseName)&&normRel(r.calling)===normRel(c.calling);
+              });
+              if(!hasLinked) addRelease(c.releaseName,c.calling,c.id);
+            }
+            // Legacy member prior-calling release — only if NOT represented by a linked release
+            if(c.memberNeedsRelease){
+              const priorCallings=(c.memberCallings&&c.memberCallings.filter(Boolean).length)
+                ?c.memberCallings.filter(Boolean):(c.memberCurrentCalling?[c.memberCurrentCalling]:[]);
+              priorCallings.forEach(mc=>{
+                const hasLinked=(c.linkedReleaseIds||[]).some(id=>{
+                  const r=state.callings.find(x=>x.id===id);
+                  return r&&normRel(r.name)===normRel(c.name)&&normRel(r.calling)===normRel(mc);
+                });
+                if(!hasLinked) addRelease(c.name,mc,c.id);
+              });
+            }
           }
-          // Member's own prior calling to release
-          if(c.memberNeedsRelease&&c.memberCallings&&c.memberCallings.filter(Boolean).length){
-            c.memberCallings.filter(Boolean).forEach(mc=>{
-              autoRelease.push({member:c.name,calling:mc,_callingId:c.id,_auto:true});
-            });
-          } else if(c.memberNeedsRelease&&c.memberCurrentCalling){
-            autoRelease.push({member:c.name,calling:c.memberCurrentCalling,_callingId:c.id,_auto:true});
-          }
+          return;
         }
 
-        // Release over Pulpit — add to releases only
-        if(nextStep==='Release over Pulpit'){
-          autoRelease.push({member:c.releaseName||c.name,calling:c.calling,_callingId:c.id,_auto:true});
+        // ── Release-type rows (canonical shared releases): releases ─────────
+        if(nextStep==='Release over Pulpit'||nextStep==='Sustain & Release over Pulpit'){
+          addRelease(c.releaseName||c.name,c.calling,c.id);
         }
       });
 
