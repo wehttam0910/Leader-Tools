@@ -6678,6 +6678,9 @@ function renderCallings(el,role){
     const cbTd=document.createElement('td');cbTd.style.cssText='width:36px;padding-right:0;';
     const cb=document.createElement('input');cb.type='checkbox';cb.className='row-cb';
     cb.checked=state.selectedCallingIds.has(c.id);
+    // Stop the click from bubbling to the row (which navigates to detail)
+    cb.addEventListener('click',e=>{e.stopPropagation();});
+    cbTd.addEventListener('click',e=>{e.stopPropagation();});
     cb.addEventListener('change',e=>{
       e.stopPropagation();
       if(cb.checked)state.selectedCallingIds.add(c.id);
