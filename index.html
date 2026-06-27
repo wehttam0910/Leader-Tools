@@ -6559,6 +6559,46 @@ function renderCallings(el,role){
 
   if(!list.length){const es=document.createElement('div');es.className='empty-state';es.textContent='No active callings to display';el.appendChild(es);return;}
 
+  // ── Bulk action bar (shows when callings are selected) ──────────────────────
+  // Prune selections that are no longer in the visible list
+  const visibleIds=new Set(list.map(c=>c.id));
+  [...state.selectedCallingIds].forEach(id=>{if(!visibleIds.has(id))state.selectedCallingIds.delete(id);});
+  if(state.selectedCallingIds.size&&!isReadOnly(role)){
+    const bar=document.createElement('div');bar.className='bulk-bar';
+    const count=document.createElement('div');count.className='bulk-bar-count';
+    count.textContent=`${state.selectedCallingIds.size} selected`;
+    bar.appendChild(count);
+
+    const archiveBtn=document.createElement('button');archiveBtn.className='bulk-bar-btn';archiveBtn.textContent='📥 Archive Selected';
+    archiveBtn.addEventListener('click',async()=>{
+      if(!confirm(`Archive ${state.selectedCallingIds.size} selected calling(s)? They'll move to the archive.`))return;
+      const ids=[...state.selectedCallingIds];
+      for(const id of ids){
+        const c=state.callings.find(x=>x.id===id);
+        if(c){c.archived=true;await dbSaveCalling(c);}
+      }
+      state.selectedCallingIds.clear();render();
+    });
+    bar.appendChild(archiveBtn);
+
+    const delBtn=document.createElement('button');delBtn.className='bulk-bar-btn danger';delBtn.textContent='🗑 Delete Selected';
+    delBtn.addEventListener('click',async()=>{
+      if(!confirm(`Permanently delete ${state.selectedCallingIds.size} selected calling(s)? This cannot be undone.`))return;
+      const ids=[...state.selectedCallingIds];
+      for(const id of ids){
+        await dbDeleteCalling(id);
+        state.callings=state.callings.filter(x=>x.id!==id);
+      }
+      state.selectedCallingIds.clear();render();
+    });
+    bar.appendChild(delBtn);
+
+    const cancelBtn=document.createElement('button');cancelBtn.className='bulk-bar-btn';cancelBtn.textContent='✕ Clear';
+    cancelBtn.addEventListener('click',()=>{state.selectedCallingIds.clear();render();});
+    bar.appendChild(cancelBtn);
+    el.appendChild(bar);
+  }
+
   const isStakeView=role.scope==='admin'||role.scope==='stake';
 
   const COLS=[
@@ -6633,8 +6673,21 @@ function renderCallings(el,role){
   const table=document.createElement('table');table.className='callings-table';
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
-  // Checkbox col header
-  const cbTh=document.createElement('th');cbTh.style.cssText='width:36px;padding-right:0;';hrow.appendChild(cbTh);
+  // Checkbox col header — select all
+  const cbTh=document.createElement('th');cbTh.style.cssText='width:36px;padding-right:0;';
+  if(!isReadOnly(role)){
+    const allCb=document.createElement('input');allCb.type='checkbox';allCb.className='row-cb';
+    const allSelected=list.length>0&&list.every(c=>state.selectedCallingIds.has(c.id));
+    allCb.checked=allSelected;
+    allCb.addEventListener('click',e=>{e.stopPropagation();});
+    allCb.addEventListener('change',()=>{
+      if(allCb.checked) list.forEach(c=>state.selectedCallingIds.add(c.id));
+      else state.selectedCallingIds.clear();
+      render();
+    });
+    cbTh.appendChild(allCb);
+  }
+  hrow.appendChild(cbTh);
   COLS.forEach(col=>{
     const th=document.createElement('th');
     th.textContent=col.label;
