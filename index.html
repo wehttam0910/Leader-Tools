@@ -5879,12 +5879,35 @@ function pendingBranchLabel(c){
   const meta=c.stepMeta?.branches||{};
   const pending=branches.filter(b=>!meta[b.key]);
   if(!pending.length) return '—';
-  // Return the first pending branch label, shortened
+
+  // If a non-clerk action is the next pending branch (Set Apart blessing), show it first
+  const firstSetApart=pending.find(b=>b.key==='setApart');
+  if(firstSetApart&&pending.indexOf(firstSetApart)===0) return 'Set Apart';
+
+  // Gather which LCR (clerk) records are still pending
+  const lcrPending=pending.filter(b=>b.key==='lcrSustain'||b.key==='lcrRelease'||b.key==='lcrSetApart');
+  const hasSustain=lcrPending.some(b=>b.key==='lcrSustain');
+  const hasRelease=lcrPending.some(b=>b.key==='lcrRelease');
+  const hasSetApart=lcrPending.some(b=>b.key==='lcrSetApart');
+
+  // If a Set Apart blessing is still pending (not yet performed), the set-apart LCR
+  // record can't happen yet — describe what's actionable now.
+  const setApartStillPending=pending.some(b=>b.key==='setApart');
+
+  // Build a concise LCR label
+  if(lcrPending.length){
+    const parts=[];
+    if(hasSustain) parts.push('Sustaining');
+    if(hasRelease) parts.push('Release');
+    if(hasSetApart&&!setApartStillPending) parts.push('Set Apart');
+    if(parts.length) return 'Record in LCR: '+parts.join(' + ');
+    // Only the set-apart LCR remains but the blessing hasn't been done yet
+    if(hasSetApart&&setApartStillPending) return 'Set Apart';
+  }
+
+  // Fallback to first pending branch's short label
   const first=pending[0];
-  if(first.key==='lcrSustain') return 'Record in LCR';
-  if(first.key==='lcrRelease') return 'Record Release in LCR';
   if(first.key==='setApart') return 'Set Apart';
-  if(first.key==='lcrSetApart') return 'Record Set Apart in LCR';
   return first.label.split('—')[0].trim();
 }
 
