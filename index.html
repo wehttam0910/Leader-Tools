@@ -3733,10 +3733,19 @@ async function generateAgendaPDF(a, role){
     doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
     doc.text('AGENDA ITEMS',lm,y);
     doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
-    a.announcementList.filter(Boolean).forEach((item,i)=>{
+    let mainNum=0;
+    a.announcementList.filter(l=>typeof l==='string'&&l.replace(/^\t+/,'').trim()!=='').forEach(item=>{
       if(y>260){doc.addPage();y=tm;}
-      const lines=doc.splitTextToSize(`${i+1}. ${item}`,pw-lm-rm);
-      lines.forEach(l=>{doc.text(l,lm,y);y+=5.5;});
+      const isSub=item.startsWith('\t');
+      const text=item.replace(/^\t+/,'');
+      if(isSub){
+        const lines=doc.splitTextToSize('•  '+text,pw-lm-rm-10);
+        lines.forEach((l,li)=>{doc.text(l,lm+10,y);y+=5.5;});
+      } else {
+        mainNum++;
+        const lines=doc.splitTextToSize(`${mainNum}. ${text}`,pw-lm-rm);
+        lines.forEach(l=>{doc.text(l,lm,y);y+=5.5;});
+      }
     });
     y+=3;
   }
@@ -4349,10 +4358,11 @@ function renderAgendaCategory(el,role,categoryKey){
       const speakers=(a.speakers||[]).map(s=>s.name).filter(Boolean).join(', ')||'—';
       tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
     } else {
-      const hasItems=a.announcementList&&a.announcementList.filter(Boolean).length;
+      const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
+      const hasItems=topLevelItems.length;
       const notesPlain=(a.speaker1Topic||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
       const notesSnippet=hasItems
-        ? a.announcementList.filter(Boolean).slice(0,3).join(', ')+(a.announcementList.filter(Boolean).length>3?'…':'')
+        ? topLevelItems.slice(0,3).join(', ')+(topLevelItems.length>3?'…':'')
         : notesPlain?(notesPlain.substring(0,60)+(notesPlain.length>60?'…':'')):'—';
       const thought=a.spiritualThought||a.openingPrayer||'—';
       tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#888;">${notesSnippet}</td>`;
@@ -4507,45 +4517,92 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   card.appendChild(minutesWrap);
 
   if(fields.agendaItems){
-    // On edit, seed agendaItems from the saved announcementList
-    if(!d.agendaItems||!Array.isArray(d.agendaItems)){
-      d.agendaItems=(d.announcementList&&d.announcementList.length)
-        ? [...d.announcementList]
-        : [''];
+    // Agenda items support a main line plus optional sub-items.
+    // Stored format (backward compatible): flat string array where sub-items are
+    // prefixed with a tab character. e.g. ["Budget review", "\tApprove Q3", "\tDefer travel"]
+    // On edit, parse the saved announcementList into structured {text, subs:[]} groups.
+    if(!d._aiGroups){
+      const src=(d.agendaItems&&Array.isArray(d.agendaItems))?d.agendaItems
+               :(d.announcementList&&d.announcementList.length)?d.announcementList:[''];
+      const groups=[];
+      src.forEach(line=>{
+        if(typeof line!=='string'){return;}
+        if(line.startsWith('\t')){
+          // sub-item — attach to last group
+          if(groups.length) groups[groups.length-1].subs.push(line.replace(/^\t+/,''));
+          else groups.push({text:'',subs:[line.replace(/^\t+/,'')]});
+        } else {
+          groups.push({text:line,subs:[]});
+        }
+      });
+      if(!groups.length) groups.push({text:'',subs:[]});
+      d._aiGroups=groups;
     }
+
+    function syncGroupsToFlat(){
+      const flat=[];
+      d._aiGroups.forEach(g=>{
+        flat.push(g.text);
+        g.subs.forEach(s=>flat.push('\t'+s));
+      });
+      d.agendaItems=flat;
+    }
+
     const aiWrap=document.createElement('div');aiWrap.className='agenda-field';aiWrap.innerHTML='<label>Agenda Items</label>';
-    const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:6px;';
-    let focusIdx=null;
+    const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:12px;';
+
+    function autosize(ta){ta.style.height='auto';ta.style.height=Math.max(38,ta.scrollHeight)+'px';}
+
     function renderAI(){
       aiList.innerHTML='';
-      d.agendaItems.forEach((val,idx)=>{
-        const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center;';
-        const inp=document.createElement('input');inp.type='text';inp.placeholder=`Item ${idx+1}`;inp.value=val||'';
-        inp.style.cssText='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;';
-        inp.addEventListener('input',()=>{d.agendaItems[idx]=inp.value;});
-        inp.addEventListener('keydown',e=>{
-          if(e.key==='Enter'){
-            e.preventDefault();
-            d.agendaItems[idx]=inp.value; // save current
-            d.agendaItems.splice(idx+1,0,''); // insert blank after
-            focusIdx=idx+1;
-            renderAI();
-          } else if(e.key==='Backspace'&&inp.value===''&&d.agendaItems.length>1){
-            e.preventDefault();
-            d.agendaItems.splice(idx,1);
-            focusIdx=Math.max(0,idx-1);
-            renderAI();
-          }
-        });
-        if(focusIdx===idx){setTimeout(()=>inp.focus(),0);focusIdx=null;}
-        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:0 4px;line-height:1;flex-shrink:0;';
-        rm.addEventListener('click',()=>{d.agendaItems.splice(idx,1);if(!d.agendaItems.length)d.agendaItems=[''];focusIdx=null;renderAI();});
-        row.appendChild(inp);row.appendChild(rm);aiList.appendChild(row);
+      d._aiGroups.forEach((group,gi)=>{
+        const groupBox=document.createElement('div');
+        groupBox.style.cssText='border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:10px 12px;background:#fcfcfd;';
+
+        // Main item — multiline textarea
+        const mainRow=document.createElement('div');mainRow.style.cssText='display:flex;gap:6px;align-items:flex-start;';
+        const num=document.createElement('span');num.style.cssText='font-size:13px;font-weight:700;color:#1c2537;padding-top:8px;flex-shrink:0;min-width:18px;';num.textContent=(gi+1)+'.';
+        const ta=document.createElement('textarea');ta.placeholder='Agenda item';ta.value=group.text||'';
+        ta.rows=1;ta.style.cssText='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;';
+        ta.addEventListener('input',()=>{group.text=ta.value;autosize(ta);});
+        setTimeout(()=>autosize(ta),0);
+        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:4px;line-height:1;flex-shrink:0;';
+        rm.addEventListener('click',()=>{d._aiGroups.splice(gi,1);if(!d._aiGroups.length)d._aiGroups=[{text:'',subs:[]}];syncGroupsToFlat();renderAI();});
+        mainRow.appendChild(num);mainRow.appendChild(ta);mainRow.appendChild(rm);
+        groupBox.appendChild(mainRow);
+
+        // Sub-items
+        if(group.subs.length){
+          const subWrap=document.createElement('div');subWrap.style.cssText='display:flex;flex-direction:column;gap:5px;margin:8px 0 4px 26px;';
+          group.subs.forEach((sub,si)=>{
+            const subRow=document.createElement('div');subRow.style.cssText='display:flex;gap:6px;align-items:flex-start;';
+            const bullet=document.createElement('span');bullet.style.cssText='color:#999;padding-top:7px;flex-shrink:0;';bullet.textContent='↳';
+            const sta=document.createElement('textarea');sta.placeholder='Sub-item';sta.value=sub||'';
+            sta.rows=1;sta.style.cssText='flex:1;padding:6px 9px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;font-size:12px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:#fff;';
+            sta.addEventListener('input',()=>{group.subs[si]=sta.value;autosize(sta);});
+            setTimeout(()=>autosize(sta),0);
+            const srm=document.createElement('button');srm.textContent='×';srm.style.cssText='background:none;border:none;font-size:15px;color:#bbb;cursor:pointer;padding:2px;line-height:1;flex-shrink:0;';
+            srm.addEventListener('click',()=>{group.subs.splice(si,1);syncGroupsToFlat();renderAI();});
+            subRow.appendChild(bullet);subRow.appendChild(sta);subRow.appendChild(srm);subWrap.appendChild(subRow);
+          });
+          groupBox.appendChild(subWrap);
+        }
+
+        // Add sub-item button
+        const addSub=document.createElement('button');addSub.textContent='+ Add sub-item';
+        addSub.style.cssText='background:none;border:none;color:#888;font-size:11px;font-weight:600;cursor:pointer;padding:2px 0;margin-left:26px;';
+        addSub.addEventListener('click',()=>{group.subs.push('');syncGroupsToFlat();renderAI();});
+        groupBox.appendChild(addSub);
+
+        aiList.appendChild(groupBox);
       });
-      const addBtn=document.createElement('button');addBtn.textContent='+ Add item';
-      addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;';
-      addBtn.addEventListener('click',()=>{d.agendaItems.push('');focusIdx=d.agendaItems.length-1;renderAI();});
+
+      const addBtn=document.createElement('button');addBtn.textContent='+ Add agenda item';
+      addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;text-align:left;';
+      addBtn.addEventListener('click',()=>{d._aiGroups.push({text:'',subs:[]});syncGroupsToFlat();renderAI();});
       aiList.appendChild(addBtn);
+
+      syncGroupsToFlat();
     }
     renderAI();aiWrap.appendChild(aiList);card.appendChild(aiWrap);
   }
@@ -4578,7 +4635,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     if(!d.date){alert('Please enter a date.');dateEl.focus();return;}
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
     try{
-      const agendaItems=(d.agendaItems||[]).filter(Boolean);
+      const agendaItems=(d.agendaItems||[]).filter(line=>typeof line==='string'&&line.replace(/^\t+/,'').trim()!=='');
       const payload={
         ward,
         date:d.date,
@@ -5367,9 +5424,20 @@ function renderAgendaDetail(el,role){
     // Agenda items from announcement_list
     if(a.announcementList&&a.announcementList.length){
       const sec=document.createElement('div');sec.style.cssText='margin-top:16px;margin-bottom:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;';sec.textContent='Agenda Items';doc.appendChild(sec);
-      a.announcementList.filter(Boolean).forEach((item,i)=>{
-        const p=document.createElement('div');p.style.cssText='font-size:13px;color:#333;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);';
-        p.textContent=`${i+1}. ${item}`;doc.appendChild(p);
+      let mainNum=0;
+      a.announcementList.filter(l=>typeof l==='string'&&l.replace(/^\t+/,'').trim()!=='').forEach(item=>{
+        const isSub=item.startsWith('\t');
+        const text=item.replace(/^\t+/,'');
+        const p=document.createElement('div');
+        if(isSub){
+          p.style.cssText='font-size:12px;color:#555;padding:4px 0 4px 28px;';
+          p.textContent='• '+text;
+        } else {
+          mainNum++;
+          p.style.cssText='font-size:13px;color:#333;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);';
+          p.textContent=`${mainNum}. ${text}`;
+        }
+        doc.appendChild(p);
       });
     }
 
