@@ -1865,6 +1865,7 @@ async function dbLoadAll() {
   let sacMeetings=[], sacSettings=null;
   try{const{data}=await sb.from('sacrament_meetings').select('*').order('date',{ascending:false});sacMeetings=(data||[]).map(sacMeetingFromDb);}catch(e){console.error('sacrament_meetings load error:',e);}
   try{const{data}=await sb.from('sacrament_settings').select('*').limit(1).maybeSingle();sacSettings=data?sacSettingsFromDb(data):null;}catch(e){console.error('sacrament_settings load error:',e);}
+  if(!sacSettings){try{const ls=localStorage.getItem('leadertools_sacSettings');if(ls)sacSettings=JSON.parse(ls);}catch(_){}}
 
   return {
     callings: (callings || []).map(callingFromDb),
@@ -1961,6 +1962,8 @@ async function dbSaveSacSettings(s){
     console.error('saveSacSettings reload error:',e);
     state.sacSettings=sacSettingsFromDb({...row,id:s.id});
   }
+  // Refresh-safe local fallback (survives reloads even if the DB write is blocked)
+  try{ if(state.sacSettings) localStorage.setItem('leadertools_sacSettings', JSON.stringify(state.sacSettings)); }catch(_){}
 }
 
 async function dbSaveCalling(c) {
