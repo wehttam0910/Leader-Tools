@@ -3850,12 +3850,34 @@ function getAssignedConductor(dateStr, settings, profiles){
   const roleMap={bishop:{id:'bishop',title:'Bishop'},c1:{id:'ward_1c',title:'1st Counselor'},c2:{id:'ward_2c',title:'2nd Counselor'}};
   const rm=roleMap[assigned.role];
   if(!rm) return null;
+
+  // Determine who finds speakers this month.
+  // If the conductor finds their own speakers, it's them. Otherwise rotate the
+  // responsibility among the members flagged "Finds Speakers".
+  let speakerFinder=null;
+  if(assigned.findsSpeakers){
+    speakerFinder={role:assigned.role, roleId:rm.id, title:rm.title};
+  } else {
+    const finders=(settings.rotation||[]).filter(r=>r.findsSpeakers);
+    if(finders.length){
+      const needsPerCycle=rotation.filter(r=>!r.findsSpeakers).length||1;
+      const fullCycles=Math.floor(monthsElapsed/rotation.length);
+      let withinBefore=0;
+      for(let i=0;i<rotIdx;i++){ if(!rotation[i].findsSpeakers) withinBefore++; }
+      const k=fullCycles*needsPerCycle+withinBefore;
+      const finder=finders[((k%finders.length)+finders.length)%finders.length];
+      const fm=roleMap[finder.role];
+      if(fm) speakerFinder={role:finder.role, roleId:fm.id, title:fm.title};
+    }
+  }
+
   return {
     role: assigned.role,
     roleId: rm.id,
     name: bishopricName(rm.id, profiles, rm.title.replace('1st Counselor','Bro.').replace('2nd Counselor','Bro.').replace('Bishop','Bishop')),
     title: rm.title,
     findsSpeakers: assigned.findsSpeakers,
+    speakerFinder,
   };
 }
 
@@ -3936,7 +3958,15 @@ function renderSacMeetingRecord(el, role){
       badge.style.cssText='font-size:12px;font-weight:600;padding:3px 12px;border-radius:20px;background:#e6f1fb;color:#185fa5;';
       badge.textContent=(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName(nm)||assigned.title;
       cond.appendChild(badge);
-      if(assigned.findsSpeakers){const fs=document.createElement('span');fs.style.cssText='font-size:10px;color:#999;';fs.textContent='finds speakers';cond.appendChild(fs);}
+      const finder=assigned.speakerFinder;
+      if(finder&&finder.roleId===assigned.roleId){
+        const fs=document.createElement('span');fs.style.cssText='font-size:10px;color:#999;';fs.textContent='finds speakers';cond.appendChild(fs);
+      } else if(finder){
+        const fnm=(profiles.find(p=>p.role_id===finder.roleId)?.full_name)||'';
+        const fb=document.createElement('span');fb.style.cssText='font-size:11px;color:#777;white-space:nowrap;';
+        fb.innerHTML=`speakers: <span style="font-weight:600;color:#185fa5;">${(finder.title==='Bishop'?'Bishop ':'Bro. ')+lastName(fnm)}</span>`;
+        cond.appendChild(fb);
+      }
     } else {
       const dash=document.createElement('span');dash.style.cssText='font-size:13px;color:#ccc;';dash.textContent='—';cond.appendChild(dash);
     }
