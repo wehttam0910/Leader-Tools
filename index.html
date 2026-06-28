@@ -4564,9 +4564,9 @@ function renderSimpleAgendaForm(el,role,categoryKey){
         const mainRow=document.createElement('div');mainRow.style.cssText='display:flex;gap:6px;align-items:flex-start;';
         const num=document.createElement('span');num.style.cssText='font-size:13px;font-weight:700;color:#1c2537;padding-top:5px;flex-shrink:0;min-width:18px;text-align:right;';num.textContent=(gi+1)+'.';
         const ta=document.createElement('textarea');ta.placeholder='Agenda item';ta.value=group.text||'';
-        ta.rows=1;ta.style.cssText='flex:1;padding:4px 8px;border:1px solid transparent;border-radius:6px;font-size:13px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:transparent;';
-        ta.addEventListener('focus',()=>{ta.style.borderColor='rgba(0,0,0,0.15)';ta.style.background='#fff';});
-        ta.addEventListener('blur',()=>{ta.style.borderColor='transparent';ta.style.background='transparent';});
+        ta.rows=1;ta.style.cssText='flex:1;padding:4px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:13px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:#fff;min-height:0;';
+        ta.addEventListener('focus',()=>{ta.style.borderColor='#1c2537';});
+        ta.addEventListener('blur',()=>{ta.style.borderColor='rgba(0,0,0,0.15)';});
         ta.addEventListener('input',()=>{group.text=ta.value;autosize(ta);});
         setTimeout(()=>autosize(ta),0);
         const addSub=document.createElement('button');addSub.textContent='↳';addSub.title='Add sub-item';
@@ -4582,9 +4582,9 @@ function renderSimpleAgendaForm(el,role,categoryKey){
           const subRow=document.createElement('div');subRow.style.cssText='display:flex;gap:6px;align-items:flex-start;margin-left:26px;';
           const bullet=document.createElement('span');bullet.style.cssText='color:#bbb;padding-top:5px;flex-shrink:0;font-size:12px;';bullet.textContent='•';
           const sta=document.createElement('textarea');sta.placeholder='Sub-item';sta.value=sub||'';
-          sta.rows=1;sta.style.cssText='flex:1;padding:3px 8px;border:1px solid transparent;border-radius:6px;font-size:12px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:transparent;color:#555;';
-          sta.addEventListener('focus',()=>{sta.style.borderColor='rgba(0,0,0,0.12)';sta.style.background='#fff';});
-          sta.addEventListener('blur',()=>{sta.style.borderColor='transparent';sta.style.background='transparent';});
+          sta.rows=1;sta.style.cssText='flex:1;padding:3px 8px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;font-size:12px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:#fff;min-height:0;color:#555;';
+          sta.addEventListener('focus',()=>{sta.style.borderColor='#1c2537';});
+          sta.addEventListener('blur',()=>{sta.style.borderColor='rgba(0,0,0,0.15)';});
           sta.addEventListener('input',()=>{group.subs[si]=sta.value;autosize(sta);});
           setTimeout(()=>autosize(sta),0);
           const srm=document.createElement('button');srm.textContent='×';srm.style.cssText='background:none;border:none;font-size:14px;color:#ccc;cursor:pointer;padding:3px;line-height:1;flex-shrink:0;';
