@@ -393,6 +393,12 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .page-title{font-size:17px;}
   .section-header{flex-wrap:wrap;gap:8px;}
   .user-table th,.user-table td{padding:8px 8px;font-size:12px;}
+  .user-table th:nth-child(4),.user-table td:nth-child(4),
+  .user-table th:nth-child(5),.user-table td:nth-child(5),
+  .user-table th:nth-child(6),.user-table td:nth-child(6){display:none;}
+  .user-table td:nth-child(2){word-break:break-word;}
+  .user-table tbody tr{cursor:pointer;}
+  .user-table tbody tr:active td{background:#eef1f6;}
   .step-circle{width:26px;height:26px;}
   .step-circle.active::after{width:10px;height:10px;}
 }
@@ -8143,13 +8149,15 @@ async function renderUsers(el,role){
       <td><span class="user-status-badge ${st.cls}" title="${st.title}">${st.label}</span></td>
       <td style="text-align:right;"></td>
     `;
-    // Edit button
+    // Edit button (desktop affordance) + whole-row tap (works on mobile where columns are hidden)
     const editTd=tr.querySelector('td:last-child');
     const editBtn=document.createElement('button');
     editBtn.style.cssText='background:transparent;border:1px solid rgba(0,0,0,0.12);color:#1c2537;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
     editBtn.textContent='Edit';
-    editBtn.addEventListener('click',()=>openEditUserModal(p,role,()=>{state.tab='users';render();}));
+    const openEdit=()=>openEditUserModal(p,role,()=>{state.tab='users';render();});
+    editBtn.addEventListener('click',e=>{e.stopPropagation();openEdit();});
     editTd.appendChild(editBtn);
+    tr.addEventListener('click',openEdit);
     tbody.appendChild(tr);
   });
   tbl.appendChild(tbody);
