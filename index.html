@@ -233,13 +233,17 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .mobile-cards{display:none!important;}
   .desktop-table{display:block;}
 }
-.callings-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);}
-.callings-table thead tr{background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
-.callings-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;}
+.callings-topbar{position:sticky;top:52px;z-index:40;background:#f0f2f5;padding-bottom:6px;}
+.callings-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);}
+.callings-table thead tr{background:#f8f9fb;}
+.callings-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
+.callings-table thead th:first-child{border-top-left-radius:12px;}
+.callings-table thead th:last-child{border-top-right-radius:12px;}
 .callings-table th:hover{color:#1c2537;}
 .callings-table th.sort-asc::after{content:" ↑";color:#1c2537;}
 .callings-table th.sort-desc::after{content:" ↓";color:#1c2537;}
-.callings-table tbody tr{border-bottom:1px solid rgba(0,0,0,0.06);cursor:pointer;transition:background 0.12s;}
+.callings-table tbody tr{cursor:pointer;transition:background 0.12s;}
+.callings-table tbody td{border-bottom:1px solid rgba(0,0,0,0.06);}
 .callings-table tbody tr:last-child{border-bottom:none;}
 .callings-table tbody tr:hover{background:#f5f7ff;}
 .callings-table td{padding:11px 14px;font-size:13px;color:#1c2537;vertical-align:middle;}
@@ -6986,25 +6990,26 @@ function renderCallingDetail(el,role){
 
 
 function renderCallings(el,role){
-  el.innerHTML=`<div class="page-title">Callings Tracker</div><div class="page-sub">${scopeLabel(role)}</div>`;
-  const hdr=document.createElement('div');hdr.className='section-header';hdr.innerHTML='<span class="section-title">All Callings</span>';
+  el.innerHTML='';
+  const topBar=document.createElement('div');topBar.className='callings-topbar';
+  topBar.innerHTML=`<div class="page-title" style="margin-bottom:1px;">Callings Tracker</div><div class="page-sub" style="margin-bottom:8px;">${scopeLabel(role)}</div>`;
+  const hdr=document.createElement('div');hdr.className='section-header';hdr.style.marginBottom='8px';hdr.innerHTML='<span class="section-title">All Callings</span>';
   if(!isReadOnly(role)){const btn=document.createElement('button');btn.className='btn-primary';btn.textContent='+ New Calling';btn.addEventListener('click',()=>openCallingModal(role));hdr.appendChild(btn);}
-  el.appendChild(hdr);
-  if(isReadOnly(role)){const ro=document.createElement('div');ro.className='read-only-notice';ro.innerHTML='<span>&#128065;</span><span>View only.</span>';el.appendChild(ro);}
-  const lf=getLevelFilters(role);
-  if(lf.length>1){const fr=document.createElement('div');fr.className='filter-row';lf.forEach(f=>{const chip=document.createElement('button');chip.className='filter-chip'+(state.filterLevel===f?' active':'');chip.textContent=f;chip.addEventListener('click',()=>{state.filterLevel=f;render();});fr.appendChild(chip);});el.appendChild(fr);}
+  topBar.appendChild(hdr);
+  if(isReadOnly(role)){const ro=document.createElement('div');ro.className='read-only-notice';ro.innerHTML='<span>&#128065;</span><span>View only.</span>';topBar.appendChild(ro);}
+  el.appendChild(topBar);
   let list=filterCallings(state.callings,role);
   // Only show active (non-completed) callings here
   list=list.filter(c=>c.currentStep<getSteps(c).length-1||!branchesAllDone(c));
   if(state.filterLevel!=='All')list=list.filter(c=>c.level===state.filterLevel);
 
-  // Archive link
-  const archiveRow=document.createElement('div');archiveRow.style.cssText='display:flex;justify-content:flex-end;margin-bottom:10px;';
+  // Archive link (inside the sticky bar)
+  const archiveRow=document.createElement('div');archiveRow.style.cssText='display:flex;justify-content:flex-end;margin-bottom:6px;';
   const archiveLink=document.createElement('a');archiveLink.href='#';archiveLink.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
   const completedCount=filterCallings(state.callings,role).filter(c=>c.currentStep>=getSteps(c).length-1&&branchesAllDone(c)).length;
   archiveLink.textContent=`Callings Archive (${completedCount}) →`;
   archiveLink.addEventListener('click',e=>{e.preventDefault();state.view='archive';render();});
-  archiveRow.appendChild(archiveLink);el.appendChild(archiveRow);
+  archiveRow.appendChild(archiveLink);topBar.appendChild(archiveRow);
 
   if(!list.length){const es=document.createElement('div');es.className='empty-state';es.textContent='No active callings to display';el.appendChild(es);return;}
 
@@ -7045,7 +7050,7 @@ function renderCallings(el,role){
     const cancelBtn=document.createElement('button');cancelBtn.className='bulk-bar-btn';cancelBtn.textContent='✕ Clear';
     cancelBtn.addEventListener('click',()=>{state.selectedCallingIds.clear();render();});
     bar.appendChild(cancelBtn);
-    el.appendChild(bar);
+    topBar.appendChild(bar);
   }
 
   const isStakeView=role.scope==='admin'||role.scope==='stake';
@@ -7224,7 +7229,7 @@ function renderCallings(el,role){
     const lbl=document.createElement('span');lbl.style.color='#888';lbl.textContent=`${n} filter${n>1?'s':''} active`;
     const clr=document.createElement('a');clr.href='#';clr.textContent='Clear all filters';clr.style.cssText='color:#185fa5;text-decoration:none;font-weight:600;';
     clr.addEventListener('click',e=>{e.preventDefault();state.callingsFilters={};render();});
-    fb.appendChild(lbl);fb.appendChild(clr);el.appendChild(fb);
+    fb.appendChild(lbl);fb.appendChild(clr);topBar.appendChild(fb);
   }
 
   el.appendChild(mobileCards);
@@ -7474,6 +7479,15 @@ function renderArchive(el,role){
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);tableWrap.appendChild(table);el.appendChild(tableWrap);
+
+  // Make the column header row sticky just below the sticky topbar.
+  requestAnimationFrame(()=>{
+    const tb=el.querySelector('.callings-topbar');
+    const ths=table.querySelectorAll('thead th');
+    if(!tb||!ths.length) return;
+    const off=52+Math.round(tb.getBoundingClientRect().height);
+    ths.forEach(th=>{th.style.position='sticky';th.style.top=off+'px';th.style.zIndex='20';});
+  });
 }
 
 // ── History-based back navigation ────────────────────────────────────────────
