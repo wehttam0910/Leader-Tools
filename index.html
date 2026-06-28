@@ -237,6 +237,7 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .callings-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);}
 .callings-table thead tr{background:#f8f9fb;}
 .callings-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
+.callings-table thead th{position:sticky;z-index:20;}
 .callings-table thead th:first-child{border-top-left-radius:12px;}
 .callings-table thead th:last-child{border-top-right-radius:12px;}
 .callings-table th:hover{color:#1c2537;}
@@ -7480,13 +7481,22 @@ function renderArchive(el,role){
   });
   table.appendChild(tbody);tableWrap.appendChild(table);el.appendChild(tableWrap);
 
-  // Make the column header row sticky just below the sticky topbar.
-  requestAnimationFrame(()=>{
-    const tb=el.querySelector('.callings-topbar');
-    const ths=table.querySelectorAll('thead th');
+  // Pin the column-header row directly below the sticky topbar (52px topbar + bar height).
+  const stickyTop=52+Math.round(topBar.offsetHeight);
+  table.querySelectorAll('thead th').forEach(th=>{th.style.top=stickyTop+'px';});
+  bindCallingsStickyResize();
+}
+
+// Keep the sticky column headers aligned under the topbar when the window resizes.
+let _callingsStickyBound=false;
+function bindCallingsStickyResize(){
+  if(_callingsStickyBound) return; _callingsStickyBound=true;
+  window.addEventListener('resize',()=>{
+    const tb=document.querySelector('.callings-topbar');
+    const ths=document.querySelectorAll('.callings-table thead th');
     if(!tb||!ths.length) return;
-    const off=52+Math.round(tb.getBoundingClientRect().height);
-    ths.forEach(th=>{th.style.position='sticky';th.style.top=off+'px';th.style.zIndex='20';});
+    const top=52+Math.round(tb.getBoundingClientRect().height);
+    ths.forEach(th=>{th.style.top=top+'px';});
   });
 }
 
