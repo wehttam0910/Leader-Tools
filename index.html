@@ -1944,14 +1944,22 @@ async function dbDeleteSacMeeting(id){
 }
 async function dbSaveSacSettings(s){
   const row=sacSettingsToDb(s);
+  let err=null;
   if(s.id){
-    const{data,error}=await sb.from('sacrament_settings').update(row).eq('id',s.id).select().single();
-    if(error){console.error('saveSacSettings update error:',error);return;}
-    state.sacSettings=sacSettingsFromDb(data);
+    ({error:err}=await sb.from('sacrament_settings').update(row).eq('id',s.id));
   } else {
-    const{data,error}=await sb.from('sacrament_settings').insert(row).select().single();
-    if(error){console.error('saveSacSettings insert error:',error);return;}
-    state.sacSettings=sacSettingsFromDb(data);
+    delete row.id;
+    ({error:err}=await sb.from('sacrament_settings').insert(row));
+  }
+  if(err){console.error('saveSacSettings error:',err);return;}
+  // Write succeeded — re-load the canonical row (avoids RLS read-back-on-insert
+  // quirks where insert().select() returns no rows). Fall back to what we saved.
+  try{
+    const{data}=await sb.from('sacrament_settings').select('*').limit(1).maybeSingle();
+    state.sacSettings = data ? sacSettingsFromDb(data) : sacSettingsFromDb({...row,id:s.id});
+  }catch(e){
+    console.error('saveSacSettings reload error:',e);
+    state.sacSettings=sacSettingsFromDb({...row,id:s.id});
   }
 }
 
