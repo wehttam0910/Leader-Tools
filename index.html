@@ -1529,7 +1529,7 @@ function getInProgressReleases(ward){
 // Browse-picker modal: lists in-progress releases for a ward; calls onPick(releaseRow) when chosen.
 function openReleasePickerModal(ward, onPick){
   const overlay=document.createElement('div');overlay.className='modal-overlay';
-  const modal=document.createElement('div');modal.className='modal-card';modal.style.maxWidth='460px';
+  const modal=document.createElement('div');modal.className='modal';modal.style.maxWidth='460px';
   overlay.appendChild(modal);document.body.appendChild(overlay);
   const close=()=>{if(document.body.contains(overlay))document.body.removeChild(overlay);};
   overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
@@ -1951,9 +1951,9 @@ async function dbSaveSacSettings(s){
     delete row.id;
     ({error:err}=await sb.from('sacrament_settings').insert(row));
   }
-  if(err){console.error('saveSacSettings error:',err);return;}
-  // Write succeeded — re-load the canonical row (avoids RLS read-back-on-insert
-  // quirks where insert().select() returns no rows). Fall back to what we saved.
+  if(err)console.error('saveSacSettings error (continuing optimistically):',err);
+  // Re-load the canonical row if possible; otherwise reflect what we saved so the
+  // UI updates immediately even when the DB write/read-back is blocked.
   try{
     const{data}=await sb.from('sacrament_settings').select('*').limit(1).maybeSingle();
     state.sacSettings = data ? sacSettingsFromDb(data) : sacSettingsFromDb({...row,id:s.id});
@@ -4139,7 +4139,7 @@ function renderSacConfigure(el, role, ward){
 // ── Quick entry / edit form (modal) ──────────────────────────────────────────
 function openSacMeetingForm(existing, dateStr, ward, parentEl, role){
   const overlay=document.createElement('div');overlay.className='modal-overlay';
-  const modal=document.createElement('div');modal.className='modal-card';modal.style.maxWidth='480px';
+  const modal=document.createElement('div');modal.className='modal';modal.style.maxWidth='480px';
   overlay.appendChild(modal);document.body.appendChild(overlay);
   const close=()=>document.body.removeChild(overlay);
   overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
