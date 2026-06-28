@@ -3871,36 +3871,33 @@ function renderSacMeetingRecord(el, role){
   const settings=state.sacSettings;
   const profiles=state.profiles||[];
 
-  // ── Tab bar: Schedule | Configure ─────────────────────────────────────────
-  const tabBar=document.createElement('div');
-  tabBar.style.cssText='display:flex;gap:0;border-bottom:2px solid #e8eaf0;margin-bottom:20px;';
-  ['Schedule','Configure'].forEach(label=>{
-    const key=label.toLowerCase();
-    const tab=document.createElement('button');
-    tab.style.cssText=`background:none;border:none;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:${state.sacView===key?'#1c2537':'#aaa'};border-bottom-color:${state.sacView===key?'#1c2537':'transparent'};`;
-    tab.textContent=label;
-    tab.addEventListener('click',()=>{state.sacView=key;render();});
-    tabBar.appendChild(tab);
-  });
-  el.appendChild(tabBar);
-
+  // Configure (rotation settings) — reached via the cog button
   if(state.sacView==='configure'){
+    const backWrap=document.createElement('div');backWrap.style.marginBottom='14px';
+    const back=document.createElement('a');back.href='#';back.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
+    back.textContent='← Back to Schedule';
+    back.addEventListener('click',e=>{e.preventDefault();state.sacView='schedule';render();});
+    backWrap.appendChild(back);el.appendChild(backWrap);
     renderSacConfigure(el, role, ward);
     return;
   }
 
-  // ── Schedule view ──────────────────────────────────────────────────────────
+  // Header: title + cog settings button (top right)
+  const recHead=document.createElement('div');recHead.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;';
+  const recH=document.createElement('div');recH.style.cssText='font-weight:700;font-size:15px;color:#1c2537;';recH.textContent='Conducting Schedule';
+  recHead.appendChild(recH);
+  if(canEdit){
+    const cog=document.createElement('button');cog.title='Rotation settings';cog.innerHTML='⚙️';
+    cog.style.cssText='background:#fff;border:1px solid #ddd;border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer;line-height:1;';
+    cog.addEventListener('click',()=>{state.sacView='configure';render();});
+    recHead.appendChild(cog);
+  }
+  el.appendChild(recHead);
+
   if(!settings){
-    const notice=document.createElement('div');
-    notice.style.cssText='background:#f8f9fc;border:1px dashed #c8d0e0;border-radius:12px;padding:28px 24px;text-align:center;margin-bottom:20px;';
-    notice.innerHTML=`<div style="font-size:28px;margin-bottom:10px;">⚙️</div>
-      <div style="font-weight:700;font-size:15px;color:#1c2537;margin-bottom:6px;">Set up your conducting rotation</div>
-      <div style="font-size:13px;color:#888;margin-bottom:16px;">Configure who conducts each month before the schedule and auto-fill features will work. You can still create full agendas without this.</div>
-      ${canEdit?'<button class="btn-primary" id="sacConfigureBtn">Configure Rotation</button>':'<div style="font-size:12px;color:#bbb;">Ask a Bishopric member to configure this.</div>'}`;
-    el.appendChild(notice);
-    if(canEdit){
-      notice.querySelector('#sacConfigureBtn').addEventListener('click',()=>{state.sacView='configure';render();});
-    }
+    const hint=document.createElement('div');hint.style.cssText='font-size:13px;color:#888;background:#f8f9fc;border:1px dashed #c8d0e0;border-radius:10px;padding:14px 16px;margin-bottom:16px;';
+    hint.textContent=canEdit?'No conducting rotation set up yet. Tap the ⚙️ button above to configure who conducts each month.':'No conducting rotation has been set up yet.';
+    el.appendChild(hint);
   }
 
   // Year navigator
@@ -3918,116 +3915,33 @@ function renderSacMeetingRecord(el, role){
   nextYr.addEventListener('click',()=>{window._sacYear[ward]=displayYear+1;render();});
   const yrLabel=document.createElement('span');yrLabel.style.cssText='font-weight:700;font-size:16px;color:#1c2537;min-width:50px;text-align:center;';yrLabel.textContent=displayYear;
   yearNav.appendChild(prevYr);yearNav.appendChild(yrLabel);yearNav.appendChild(nextYr);
-
-  if(canEdit){
-    const quickBtn=document.createElement('button');quickBtn.className='btn-primary';quickBtn.style.marginLeft='auto';quickBtn.textContent='+ Add Meeting';
-    quickBtn.addEventListener('click',()=>{openSacMeetingForm(null, null, ward, el, role);});
-    yearNav.appendChild(quickBtn);
-  }
   el.appendChild(yearNav);
 
-  // Build list of all Sundays for the year, grouped by month
+  // Month-by-month conductor list
   const sundays=getSundaysOfYear(displayYear);
-  const todayStr=now.toISOString().slice(0,10);
-
-  // Index existing records by date
-  const recordByDate={};
-  (state.sacMeetings||[]).filter(m=>!ward||m.ward===ward).forEach(m=>{recordByDate[m.date]=m;});
-
-  // Group by month
   const byMonth={};
-  sundays.forEach(s=>{
-    const mo=new Date(s+'T12:00:00').getMonth();
-    if(!byMonth[mo]) byMonth[mo]=[];
-    byMonth[mo].push(s);
-  });
+  sundays.forEach(s=>{const mo=new Date(s+'T12:00:00').getMonth();(byMonth[mo]=byMonth[mo]||[]).push(s);});
 
-  Object.entries(byMonth).forEach(([moIdx, dates])=>{
+  Object.entries(byMonth).forEach(([moIdx,dates])=>{
     const mo=parseInt(moIdx);
-    const sec=document.createElement('div');sec.style.marginBottom='24px';
-
-    // Month header with assigned conductor
-    const mHdr=document.createElement('div');mHdr.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:10px;';
-    const mTitle=document.createElement('div');mTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;min-width:90px;';mTitle.textContent=MONTHS[mo];
-
-    // Assigned conductor for this month (use first Sunday of month for lookup)
     const assigned=settings?getAssignedConductor(dates[0], settings, profiles):null;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:#fff;border:1px solid #eee;border-radius:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);';
+    const mName=document.createElement('div');mName.style.cssText='font-weight:700;font-size:14px;color:#1c2537;';mName.textContent=`${MONTHS[mo]} ${displayYear}`;
+    row.appendChild(mName);
+    const cond=document.createElement('div');cond.style.cssText='display:flex;align-items:center;gap:8px;';
     if(assigned){
+      const nm=(profiles.find(p=>p.role_id===assigned.roleId)?.full_name)||'';
       const badge=document.createElement('span');
-      badge.style.cssText='font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;background:#e6f1fb;color:#185fa5;';
-      badge.textContent=(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName((profiles||[]).find(p=>p.role_id===assigned.roleId)?.full_name||'')||assigned.title;
-      if(assigned.findsSpeakers){
-        const fsb=document.createElement('span');
-        fsb.style.cssText='font-size:10px;color:#888;margin-left:4px;';fsb.textContent='· finds speakers';
-        badge.appendChild(fsb);
-      }
-      mHdr.appendChild(mTitle);mHdr.appendChild(badge);
+      badge.style.cssText='font-size:12px;font-weight:600;padding:3px 12px;border-radius:20px;background:#e6f1fb;color:#185fa5;';
+      badge.textContent=(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName(nm)||assigned.title;
+      cond.appendChild(badge);
+      if(assigned.findsSpeakers){const fs=document.createElement('span');fs.style.cssText='font-size:10px;color:#999;';fs.textContent='finds speakers';cond.appendChild(fs);}
     } else {
-      mHdr.appendChild(mTitle);
+      const dash=document.createElement('span');dash.style.cssText='font-size:13px;color:#ccc;';dash.textContent='—';cond.appendChild(dash);
     }
-    sec.appendChild(mHdr);
-
-    // Sunday rows
-    dates.forEach(dateStr=>{
-      const rec=recordByDate[dateStr];
-      const isPast=dateStr<todayStr;
-      const isToday=dateStr===todayStr;
-
-      const row=document.createElement('div');
-      row.style.cssText=`display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.12s;margin-bottom:4px;background:${isToday?'#f0f4ff':rec?'#fff':'transparent'};${rec?'box-shadow:0 1px 3px rgba(0,0,0,0.07);border:1px solid #eee;':'border:1px solid transparent;'}${isPast&&!rec?'opacity:0.45;':''}`;
-
-      // Date
-      const dLabel=document.createElement('div');
-      dLabel.style.cssText='font-size:12px;font-weight:600;color:#555;min-width:72px;flex-shrink:0;';
-      const dObj=new Date(dateStr+'T12:00:00');
-      dLabel.textContent=dObj.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      row.appendChild(dLabel);
-
-      if(rec){
-        // Meeting type badge
-        const typBadge=document.createElement('span');
-        typBadge.style.cssText=`font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;flex-shrink:0;${rec.meetingType==='Fast & Testimony'?'background:#f0eeff;color:#5b47d6;':rec.meetingType==='Regular'?'':'background:#fff3e0;color:#e65100;'}`;
-        if(rec.meetingType&&rec.meetingType!=='Regular') typBadge.textContent=rec.meetingType;
-        row.appendChild(typBadge);
-
-        // Conducting
-        const condDiv=document.createElement('div');condDiv.style.cssText='font-size:12px;color:#555;flex-shrink:0;';
-        if(rec.conducting) condDiv.textContent='⛪ '+rec.conducting;
-        row.appendChild(condDiv);
-
-        // Speakers summary
-        const spkrs=(rec.speakers||[]).filter(s=>s.name);
-        if(spkrs.length){
-          const spkDiv=document.createElement('div');spkDiv.style.cssText='font-size:11px;color:#888;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
-          spkDiv.textContent=spkrs.map(s=>(s.isYouth?'★ ':'')+s.name).join(' · ');
-          row.appendChild(spkDiv);
-        } else if(rec.notes){
-          const noteDiv=document.createElement('div');noteDiv.style.cssText='font-size:11px;color:#aaa;flex:1;font-style:italic;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;';
-          noteDiv.textContent=rec.notes;
-          row.appendChild(noteDiv);
-        }
-      } else {
-        // Empty row — future or unrecorded
-        const emptyDiv=document.createElement('div');emptyDiv.style.cssText='font-size:11px;color:#bbb;flex:1;';
-        if(!isPast) emptyDiv.textContent='No meeting recorded yet';
-        row.appendChild(emptyDiv);
-
-        // Conducting assignment hint for future
-        if(!isPast&&assigned){
-          const aHint=document.createElement('div');aHint.style.cssText='font-size:10px;color:#185fa5;flex-shrink:0;';
-          aHint.textContent='→ '+(assigned.title==='Bishop'?'Bishop ':'Bro. ')+lastName((profiles||[]).find(p=>p.role_id===assigned.roleId)?.full_name||'');
-          row.appendChild(aHint);
-        }
-      }
-
-      if(canEdit){
-        row.addEventListener('mouseenter',()=>{row.style.background=isToday?'#e8edff':'#f5f7fa';});
-        row.addEventListener('mouseleave',()=>{row.style.background=isToday?'#f0f4ff':rec?'#fff':'transparent';});
-        row.addEventListener('click',()=>openSacMeetingForm(rec, dateStr, ward, el, role));
-      }
-      sec.appendChild(row);
-    });
-    el.appendChild(sec);
+    row.appendChild(cond);
+    el.appendChild(row);
   });
 }
 
@@ -4287,7 +4201,7 @@ function renderAgendaCategory(el,role,categoryKey){
       const tab=document.createElement('button');
       tab.style.cssText=`background:none;border:none;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:${window._sacTab===key?'#1c2537':'#aaa'};border-bottom-color:${window._sacTab===key?'#1c2537':'transparent'};`;
       tab.textContent=label;
-      tab.addEventListener('click',()=>{window._sacTab=key;render();});
+      tab.addEventListener('click',()=>{window._sacTab=key;if(key==='record')state.sacView='schedule';render();});
       tabBar.appendChild(tab);
     });
     el.appendChild(tabBar);
@@ -4359,7 +4273,7 @@ function renderAgendaCategory(el,role,categoryKey){
   const thead=document.createElement('thead');
   // Checkbox col + action col
   if(isSacrament){
-    thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Speakers</th><th style="width:70px;"></th></tr>';
+    thead.innerHTML='<tr><th style="width:28px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Opening Prayer</th><th>Closing Prayer</th><th>Youth / Speaker 1</th><th>Speaker 2</th><th>Speaker 3</th><th style="width:56px;"></th></tr>';
   } else {
     thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th><th style="width:70px;"></th></tr>';
   }
@@ -4383,8 +4297,9 @@ function renderAgendaCategory(el,role,categoryKey){
     // Data cells
     if(isSacrament){
       const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
-      const speakers=(a.speakers||[]).map(s=>s.name).filter(Boolean).join(', ')||'—';
-      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td>${a.conducting||'—'}</td><td>${a.presiding||'—'}</td><td style="color:#555;font-size:12px;">${speakers}</td>`;
+      const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#999;margin-top:1px;">${topic}</div>`:''}`;};
+      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||'—'}</td><td style="font-size:12px;">${a.presiding||'—'}</td><td style="font-size:12px;color:#555;">${a.openingPrayer||'—'}</td><td style="font-size:12px;color:#555;">${a.closingPrayer||'—'}</td><td>${spk(a.speaker1,a.speaker1Topic)}</td><td>${spk(a.speaker2,a.speaker2Topic)}</td><td>${spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
       const hasItems=topLevelItems.length;
@@ -4419,7 +4334,9 @@ function renderAgendaCategory(el,role,categoryKey){
     tbody.appendChild(tr);
   });
 
-  table.appendChild(tbody);el.appendChild(table);
+  table.appendChild(tbody);
+  const aWrap=document.createElement('div');aWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;';
+  aWrap.appendChild(table);el.appendChild(aWrap);
 }
 
 // ── Agenda Wizard ─────────────────────────────────────────────────────────────
