@@ -7072,8 +7072,8 @@ function renderCallings(el,role){
   const anyFilterActive=COLS.some(col=>!!state.callingsFilters[col.key]);
 
   function filterIconSVG(active){
-    const c=active?'#185fa5':'#b8b8b8';
-    return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" ${active?'fill="'+c+'"':''}></polygon></svg>`;
+    const c=active?'#185fa5':'#9aa0a6';
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="${c}"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"></path></svg>`;
   }
 
   // Build + show the filter popover anchored to a column's filter icon.
@@ -7155,7 +7155,7 @@ function renderCallings(el,role){
     document.body.appendChild(pop);
     const r=anchorEl.getBoundingClientRect();
     pop.style.top=(r.bottom+6)+'px';
-    pop.style.left=Math.max(8,Math.min(r.left-180,window.innerWidth-pop.offsetWidth-8))+'px';
+    pop.style.left=Math.max(8,Math.min(r.left,window.innerWidth-pop.offsetWidth-8))+'px';
     const pr=pop.getBoundingClientRect();
     if(pr.bottom>window.innerHeight-8)pop.style.top=Math.max(8,window.innerHeight-pr.height-8)+'px';
   }
@@ -7251,8 +7251,16 @@ function renderCallings(el,role){
   hrow.appendChild(cbTh);
   COLS.forEach(col=>{
     const th=document.createElement('th');
-    if(sortCol===col.key) th.className=sortDir==='asc'?'sort-asc':'sort-desc';
-    const wrap=document.createElement('div');wrap.style.cssText='display:flex;align-items:center;gap:5px;';
+    const wrap=document.createElement('div');wrap.style.cssText='display:flex;align-items:center;gap:5px;white-space:nowrap;';
+    // Filter icon (left of label)
+    const fActive=!!state.callingsFilters[col.key];
+    const fbtn=document.createElement('button');
+    fbtn.innerHTML=filterIconSVG(fActive);
+    fbtn.title=fActive?'Filter (active)':'Filter';
+    fbtn.style.cssText='background:none;border:none;cursor:pointer;padding:2px 3px;line-height:0;border-radius:4px;flex-shrink:0;'+(fActive?'background:rgba(24,95,165,0.13);':'');
+    fbtn.addEventListener('click',e=>{e.stopPropagation();openFilterPopover(col,fbtn);});
+    wrap.appendChild(fbtn);
+    // Label (click to sort)
     const labelSpan=document.createElement('span');labelSpan.textContent=col.label;labelSpan.style.cursor='pointer';
     labelSpan.addEventListener('click',()=>{
       if(state.callingsSort.col===col.key){state.callingsSort.dir=state.callingsSort.dir==='asc'?'desc':'asc';}
@@ -7260,13 +7268,12 @@ function renderCallings(el,role){
       render();
     });
     wrap.appendChild(labelSpan);
-    const fActive=!!state.callingsFilters[col.key];
-    const fbtn=document.createElement('button');
-    fbtn.innerHTML=filterIconSVG(fActive);
-    fbtn.title=fActive?'Filter (active)':'Filter';
-    fbtn.style.cssText='background:none;border:none;cursor:pointer;padding:2px 3px;line-height:0;border-radius:4px;'+(fActive?'background:rgba(24,95,165,0.13);':'');
-    fbtn.addEventListener('click',e=>{e.stopPropagation();openFilterPopover(col,fbtn);});
-    wrap.appendChild(fbtn);
+    // Sort arrow (inline, only when sorted by this column)
+    if(sortCol===col.key){
+      const arrow=document.createElement('span');arrow.textContent=sortDir==='asc'?'↑':'↓';
+      arrow.style.cssText='color:#1c2537;flex-shrink:0;font-weight:700;';
+      wrap.appendChild(arrow);
+    }
     th.appendChild(wrap);
     hrow.appendChild(th);
   });
