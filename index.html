@@ -7105,14 +7105,15 @@ function renderArchive(el,role){
     const es=document.createElement('div');es.className='empty-state';es.textContent='No completed callings yet';el.appendChild(es);return;
   }
 
+  const isStakeView=role.scope==='admin'||role.scope==='stake';
+
   const COLS=[
-    {key:'calling', label:'Calling',      val:c=>c.calling},
-    {key:'name',    label:'Member',        val:c=>c.name},
-    {key:'ward',    label:'Ward',          val:c=>c.ward},
-    {key:'level',   label:'Level',         val:c=>c.level},
-    {key:'action',  label:'Action',        val:c=>c.action},
-    {key:'submitted',label:'Submitted',   val:c=>c.submittedDate},
-    {key:'completed',label:'Completed',   val:c=>c.stepDates[getSteps(c).length-2]||''},
+    {key:'calling',  label:'Calling / Member', val:c=>`${(c.action==='Release Only'||c.action==='Release')?'Release':'Call'} ${c.name} as ${c.calling}`},
+    {key:'org',      label:'Organization',      val:c=>c.org},
+    ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
+    {key:'action',   label:'Action',            val:c=>c.action},
+    {key:'submitted',label:'Submitted',         val:c=>c.submittedDate},
+    {key:'completed',label:'Completed',         val:c=>c.stepDates[getSteps(c).length-2]||''},
   ];
 
   const {col:sortCol,dir:sortDir}=state.archiveSort;
@@ -7121,6 +7122,7 @@ function renderArchive(el,role){
     if(colDef) list=[...list].sort((a,b)=>{const av=colDef.val(a),bv=colDef.val(b);const cmp=String(av).localeCompare(String(bv));return sortDir==='asc'?cmp:-cmp;});
   }
 
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
   const table=document.createElement('table');table.className='callings-table';
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
@@ -7141,19 +7143,36 @@ function renderArchive(el,role){
     const steps=getSteps(c);
     const completedDate=c.stepDates[steps.length-2]||'';
     const lvl=getLevelBadge(c.level);
+    const isStakeIssued=c.level==='Stake Issued'||c.level==='Stake';
+    const actionPrefix=(c.action==='Release Only'||c.action==='Release')?'Release':'Call';
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td class="td-calling">${c.calling}${c.custom?' <span class="badge badge-teal" style="font-size:10px">Custom</span>':''}</td>
-      <td style="font-weight:600;">${c.name}</td>
-      <td class="td-sub">${c.ward}</td>
-      <td><span class="badge ${lvl.cls}">${lvl.label}</span></td>
-      <td class="td-sub">${c.action}</td>
-      <td class="td-sub">${fmt(c.submittedDate)}</td>
-      <td class="td-sub">${completedDate?fmt(completedDate):'—'}</td>`;
+    if(isStakeIssued) tr.style.cssText='background:linear-gradient(to right,rgba(24,95,165,0.04),transparent);';
+
+    // Calling + Member combined cell
+    const callingTd=document.createElement('td');
+    callingTd.innerHTML=`
+      <div class="td-calling" style="line-height:1.3;">
+        <span style="font-weight:400;color:#aaa;margin-right:3px;">${actionPrefix}</span>
+        <span style="font-weight:600;color:#555;">${c.name}</span>
+        <span style="font-weight:400;color:#aaa;margin:0 4px;">as</span>
+        <span style="font-weight:700;color:#1c2537;">${c.calling}</span>
+        ${c.custom?'<span class="badge badge-teal" style="font-size:10px;margin-left:4px;">Custom</span>':''}
+      </div>
+      ${isStakeIssued?`<div class="td-sub" style="margin-top:2px;"><span style="color:#185fa5;font-weight:600;font-size:10px;">${lvl.label}</span></div>`:''}`;
+    tr.appendChild(callingTd);
+
+    const orgTd=document.createElement('td');orgTd.className='td-sub';orgTd.textContent=c.org||'—';tr.appendChild(orgTd);
+
+    if(isStakeView){const wardTd=document.createElement('td');wardTd.className='td-sub';wardTd.textContent=c.ward||'—';tr.appendChild(wardTd);}
+
+    const actionTd=document.createElement('td');actionTd.className='td-sub';actionTd.textContent=c.action;tr.appendChild(actionTd);
+    const subTd=document.createElement('td');subTd.className='td-sub';subTd.textContent=fmt(c.submittedDate);tr.appendChild(subTd);
+    const compTd=document.createElement('td');compTd.className='td-sub';compTd.textContent=completedDate?fmt(completedDate):'—';tr.appendChild(compTd);
+
     tr.addEventListener('click',()=>{state.view='detail';state.detailId=c.id;render();});
     tbody.appendChild(tr);
   });
-  table.appendChild(tbody);el.appendChild(table);
+  table.appendChild(tbody);tableWrap.appendChild(table);el.appendChild(tableWrap);
 }
 
 // ── History-based back navigation ────────────────────────────────────────────
