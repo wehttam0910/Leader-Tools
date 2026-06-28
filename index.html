@@ -726,28 +726,58 @@ const CALLING_DIR=[
   {name:'Elders Quorum Assistant Secretary',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Teacher',level:'Ward',org:"Elder's Quorum"},
   {name:'Elders Quorum Ministering Secretary',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Activity Coordinator',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Assistant Activity Coordinator',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Activity Committee Member',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Service Coordinator',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Assistant Service Coordinator',level:'Ward',org:"Elder's Quorum"},
+  {name:'Elders Quorum Service Committee Member',level:'Ward',org:"Elder's Quorum"},
+  {name:'Social Media Specialist',level:'Ward',org:"Elder's Quorum",custom:true},
   {name:'Relief Society President',level:'Ward',org:'Relief Society'},
   {name:'Relief Society First Counselor',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Second Counselor',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Secretary',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Assistant Secretary',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Teacher',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Ministering Secretary',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Music Leader',level:'Ward',org:'Relief Society'},
   {name:'Relief Society Pianist',level:'Ward',org:'Relief Society'},
-  {name:'Relief Society Compassionate Service Coordinator',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Activity Coordinator',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Assistant Activity Coordinator',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Activity Committee Member',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Service Coordinator',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Assistant Service Coordinator',level:'Ward',org:'Relief Society'},
+  {name:'Relief Society Service Committee Member',level:'Ward',org:'Relief Society'},
   // Aaronic Priesthood — quorum is selected as a sub-step in the wizard
   {name:'Quorum Adviser',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   {name:'Quorum President',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   {name:'Quorum First Counselor',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   {name:'Quorum Second Counselor',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum First Assistant',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Quorum Second Assistant',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   {name:'Quorum Secretary',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
   {name:'Quorum Specialist',level:'Ward',org:'Aaronic Priesthood',quorumPicker:true},
+  {name:'Aaronic Priesthood Quorums Specialist',level:'Ward',org:'Aaronic Priesthood'},
+  {name:'Aaronic Priesthood Quorums Specialist - Camp Director',level:'Ward',org:'Aaronic Priesthood'},
+  {name:'Aaronic Priesthood Quorums Specialist - Assistant Camp Director',level:'Ward',org:'Aaronic Priesthood'},
+  {name:'Young Men Specialist - Sports',level:'Ward',org:'Aaronic Priesthood'},
+  {name:'Young Men Specialist - Sports Assistant',level:'Ward',org:'Aaronic Priesthood'},
+  {name:'Young Men Stake Youth Committee Member',level:'Ward',org:'Aaronic Priesthood'},
+  {name:"Young Men's Specialist",level:'Ward',org:'Aaronic Priesthood',custom:true},
   // Young Women — main presidency (no class picker)
   {name:'Young Women President',level:'Ward',org:'Young Women'},
   {name:'Young Women First Counselor',level:'Ward',org:'Young Women'},
   {name:'Young Women Second Counselor',level:'Ward',org:'Young Women'},
   {name:'Young Women Secretary',level:'Ward',org:'Young Women'},
   {name:'Young Women Specialist',level:'Ward',org:'Young Women'},
+  {name:'Young Women Class Adviser',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist - Activities',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist - Camp Director',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist - Assistant Camp Director',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist - Sports',level:'Ward',org:'Young Women'},
+  {name:'Young Women Specialist - Sports Assistant',level:'Ward',org:'Young Women'},
+  {name:'Young Women Stake Youth Committee',level:'Ward',org:'Young Women'},
+  {name:'Young Women Adviser',level:'Ward',org:'Young Women',custom:true},
   // Young Women — class callings (class is selected as a sub-step)
   {name:'Class President',level:'Ward',org:'Young Women',classPicker:true},
   {name:'Class First Counselor',level:'Ward',org:'Young Women',classPicker:true},
@@ -774,22 +804,59 @@ const CALLING_DIR=[
   // Primary Teacher — class(es) selected as extra metadata in wizard
   {name:'Primary Teacher',level:'Ward',org:'Primary',classPicker:true,classPickerType:'primary'},
   {name:'Nursery Leader',level:'Ward',org:'Primary'},
-  {name:'Nursery Worker',level:'Ward',org:'Primary'},
+  {name:'Valiant Activities Leader',level:'Ward',org:'Primary'},
+  {name:'Nursery Worker',level:'Ward',org:'Primary',custom:true},
+  {name:'Special Needs: Child specific',level:'Ward',org:'Primary',custom:true},
   {name:'Ward Mission Leader',level:'Ward',org:'Ward Mission'},
+  {name:'Assistant Ward Mission Leader',level:'Ward',org:'Ward Mission'},
   {name:'Ward Missionary',level:'Ward',org:'Ward Mission'},
   {name:'Ward Temple and Family History Leader',level:'Ward',org:'Ward Temple and Family History'},
   {name:'Ward Temple and Family History Consultant',level:'Ward',org:'Ward Temple and Family History'},
-  {name:'Young Single Adult Adviser',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Disability Specialist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Welfare Specialist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Employment Specialist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Choir Director',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Music Director',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Organist or Pianist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Ward Emergency Preparedness Coordinator',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Ward Single Adult Representative/Specialist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Seminary Specialist',level:'Ward',org:'Additional Ward Callings'},
-  {name:'Ward Bulletin Specialist',level:'Ward',org:'Additional Ward Callings'},
+  {name:'Indexing Worker',level:'Ward',org:'Ward Temple and Family History'},
+  {name:'Assistant Ward Temple and Family History Leader',level:'Ward',org:'Ward Temple and Family History',custom:true},
+  {name:'Temple Preparation Instructor',level:'Ward',org:'Ward Temple and Family History',custom:true},
+  {name:'Youth Family History and Temple Consultant',level:'Ward',org:'Ward Temple and Family History',custom:true},
+  // Young Single Adult
+  {name:'Young Single Adult Adviser',level:'Ward',org:'Young Single Adult'},
+  {name:'Young Single Adult Leader',level:'Ward',org:'Young Single Adult'},
+  {name:'Young Single Adult Committee Chair',level:'Ward',org:'Young Single Adult'},
+  {name:'Young Single Adult Committee Member',level:'Ward',org:'Young Single Adult'},
+  {name:'Relief Society Adviser to Young Single Adult Sisters',level:'Ward',org:'Young Single Adult'},
+  {name:'Magazine Representative',level:'Ward',org:'Young Single Adult'},
+  // Facilities
+  {name:'Building Representative',level:'Ward',org:'Facilities'},
+  {name:'Scheduler--Building 1',level:'Ward',org:'Facilities'},
+  {name:'Scheduler--Building 2',level:'Ward',org:'Facilities'},
+  {name:'Scheduler--Building 3',level:'Ward',org:'Facilities'},
+  {name:'Building Cleaning Coordinator/Security',level:'Ward',org:'Facilities',custom:true},
+  {name:'FSY Conferences Representative',level:'Ward',org:'Facilities'},
+  {name:'History Specialist',level:'Ward',org:'Facilities'},
+  // Music
+  {name:'Priesthood Pianist or Organist',level:'Ward',org:'Music'},
+  {name:'Priesthood Music Director',level:'Ward',org:'Music'},
+  {name:'Choir Accompanist',level:'Ward',org:'Music'},
+  {name:'Music Adviser',level:'Ward',org:'Music'},
+  {name:'Choir Director',level:'Ward',org:'Music'},
+  {name:'Accompanist',level:'Ward',org:'Music'},
+  {name:'Music Leader',level:'Ward',org:'Music'},
+  {name:'Music Coordinator',level:'Ward',org:'Music'},
+  {name:'Chorister',level:'Ward',org:'Music',custom:true},
+  // Technology
+  {name:'Email Communication Specialist',level:'Ward',org:'Technology'},
+  {name:'Technology Specialist',level:'Ward',org:'Technology'},
+  {name:'Ward/Branch Interpreter',level:'Ward',org:'Technology'},
+  // Welfare and Self-Reliance
+  {name:'Disability Activity Leader',level:'Ward',org:'Welfare and Self-Reliance'},
+  {name:'Disability Specialist',level:'Ward',org:'Welfare and Self-Reliance'},
+  {name:'Welfare and Self-Reliance Specialist',level:'Ward',org:'Welfare and Self-Reliance'},
+  {name:'Self-Reliance Group Facilitator',level:'Ward',org:'Welfare and Self-Reliance'},
+  {name:'Blood Drive Specialist',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Building Security Specialist',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Employment Specialist',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Prison Letter Writer',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Social Media Specialist',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Ward Activity Chairman',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
+  {name:'Ward Technology Specialist',level:'Ward',org:'Welfare and Self-Reliance',custom:true},
 ];
 // ── Aaronic Priesthood quorums ────────────────────────────────────────────
 const AP_QUORUMS=['Priests','Teachers','Deacons'];
@@ -2399,7 +2466,7 @@ function openCallingModal(role){
       Object.entries(groups).forEach(([orgName,group])=>{
         const og=document.createElement('optgroup');og.label=orgName;
         group.items.forEach(c=>{
-          const o=document.createElement('option');o.value=`${c.name}||${c.org}||${c.level}`;o.textContent=c.name;
+          const o=document.createElement('option');o.value=`${c.name}||${c.org}||${c.level}`;o.textContent=c.name+(c.custom?'  (Custom)':'');
           if(data.callingName===c.name&&!data.isCustom)o.selected=true;
           og.appendChild(o);
         });
@@ -2409,10 +2476,19 @@ function openCallingModal(role){
       sel.addEventListener('change',()=>{
         const raw=sel.value;if(!raw)return;
         const parts=raw.split('||');
-        data.isCustom=parts[0]==='__custom__';
+        const isFreeText=parts[0]==='__custom__';
         data.callingOrg=parts[1];data.callingLevelFinal=parts[2];
-        data.callingName=data.isCustom?'':parts[0];
-        customWrap.classList.toggle('hidden',!data.isCustom);
+        if(isFreeText){
+          data.isCustom=true;
+          data.callingName='';
+          customWrap.classList.remove('hidden');
+        } else {
+          data.callingName=parts[0];
+          // A dir entry flagged custom marks the record custom, but no free-text box
+          const dirEntry=CALLING_DIR.find(d=>d.name===parts[0]&&d.org===parts[1]);
+          data.isCustom=!!(dirEntry&&dirEntry.custom);
+          customWrap.classList.add('hidden');
+        }
       });
       fg('Calling<span class="req">*</span>',sel);
       const customWrap=document.createElement('div');customWrap.className='custom-box'+(data.isCustom?'':' hidden');
@@ -3030,7 +3106,7 @@ function openCallingEditModal(c,role){
       group.items.forEach(d=>{
         const o=document.createElement('option');
         o.value=`${d.name}||${d.org}`;
-        o.textContent=d.name;
+        o.textContent=d.name+(d.custom?'  (Custom)':'');
         // Match on base name (without sub-selection prefix/suffix)
         if(d.name===baseCallingName&&!c.isCustom) o.selected=true;
         og.appendChild(o);
