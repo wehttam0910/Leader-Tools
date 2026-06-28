@@ -6888,7 +6888,7 @@ function renderCallings(el,role){
     ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
     {key:'action',   label:'Action',            val:c=>c.action},
     {key:'assigned', label:'Assigned To',       val:c=>getEffectiveAssignment(c).group},
-    {key:'next',     label:'Next Step',         val:c=>c.currentStep<getSteps(c).length?getSteps(c)[c.currentStep]:''},
+    {key:'next',     label:'Next Step',         val:c=>Math.min(c.currentStep,getSteps(c).length-1)},
   ];
 
   // Apply sort
