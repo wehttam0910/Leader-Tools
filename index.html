@@ -4549,56 +4549,48 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     }
 
     const aiWrap=document.createElement('div');aiWrap.className='agenda-field';aiWrap.innerHTML='<label>Agenda Items</label>';
-    const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:12px;';
+    const aiList=document.createElement('div');aiList.style.cssText='display:flex;flex-direction:column;gap:2px;';
 
-    function autosize(ta){ta.style.height='auto';ta.style.height=Math.max(38,ta.scrollHeight)+'px';}
+    function autosize(ta){ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';}
 
     function renderAI(){
       aiList.innerHTML='';
       d._aiGroups.forEach((group,gi)=>{
-        const groupBox=document.createElement('div');
-        groupBox.style.cssText='border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:10px 12px;background:#fcfcfd;';
-
-        // Main item — multiline textarea
+        // Main item — single-line textarea that grows on overflow, no box
         const mainRow=document.createElement('div');mainRow.style.cssText='display:flex;gap:6px;align-items:flex-start;';
-        const num=document.createElement('span');num.style.cssText='font-size:13px;font-weight:700;color:#1c2537;padding-top:8px;flex-shrink:0;min-width:18px;';num.textContent=(gi+1)+'.';
+        const num=document.createElement('span');num.style.cssText='font-size:13px;font-weight:700;color:#1c2537;padding-top:5px;flex-shrink:0;min-width:18px;text-align:right;';num.textContent=(gi+1)+'.';
         const ta=document.createElement('textarea');ta.placeholder='Agenda item';ta.value=group.text||'';
-        ta.rows=1;ta.style.cssText='flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;';
+        ta.rows=1;ta.style.cssText='flex:1;padding:4px 8px;border:1px solid transparent;border-radius:6px;font-size:13px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:transparent;';
+        ta.addEventListener('focus',()=>{ta.style.borderColor='rgba(0,0,0,0.15)';ta.style.background='#fff';});
+        ta.addEventListener('blur',()=>{ta.style.borderColor='transparent';ta.style.background='transparent';});
         ta.addEventListener('input',()=>{group.text=ta.value;autosize(ta);});
         setTimeout(()=>autosize(ta),0);
-        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:4px;line-height:1;flex-shrink:0;';
-        rm.addEventListener('click',()=>{d._aiGroups.splice(gi,1);if(!d._aiGroups.length)d._aiGroups=[{text:'',subs:[]}];syncGroupsToFlat();renderAI();});
-        mainRow.appendChild(num);mainRow.appendChild(ta);mainRow.appendChild(rm);
-        groupBox.appendChild(mainRow);
-
-        // Sub-items
-        if(group.subs.length){
-          const subWrap=document.createElement('div');subWrap.style.cssText='display:flex;flex-direction:column;gap:5px;margin:8px 0 4px 26px;';
-          group.subs.forEach((sub,si)=>{
-            const subRow=document.createElement('div');subRow.style.cssText='display:flex;gap:6px;align-items:flex-start;';
-            const bullet=document.createElement('span');bullet.style.cssText='color:#999;padding-top:7px;flex-shrink:0;';bullet.textContent='↳';
-            const sta=document.createElement('textarea');sta.placeholder='Sub-item';sta.value=sub||'';
-            sta.rows=1;sta.style.cssText='flex:1;padding:6px 9px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;font-size:12px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:#fff;';
-            sta.addEventListener('input',()=>{group.subs[si]=sta.value;autosize(sta);});
-            setTimeout(()=>autosize(sta),0);
-            const srm=document.createElement('button');srm.textContent='×';srm.style.cssText='background:none;border:none;font-size:15px;color:#bbb;cursor:pointer;padding:2px;line-height:1;flex-shrink:0;';
-            srm.addEventListener('click',()=>{group.subs.splice(si,1);syncGroupsToFlat();renderAI();});
-            subRow.appendChild(bullet);subRow.appendChild(sta);subRow.appendChild(srm);subWrap.appendChild(subRow);
-          });
-          groupBox.appendChild(subWrap);
-        }
-
-        // Add sub-item button
-        const addSub=document.createElement('button');addSub.textContent='+ Add sub-item';
-        addSub.style.cssText='background:none;border:none;color:#888;font-size:11px;font-weight:600;cursor:pointer;padding:2px 0;margin-left:26px;';
+        const addSub=document.createElement('button');addSub.textContent='↳';addSub.title='Add sub-item';
+        addSub.style.cssText='background:none;border:none;font-size:14px;color:#bbb;cursor:pointer;padding:4px 3px;line-height:1;flex-shrink:0;';
         addSub.addEventListener('click',()=>{group.subs.push('');syncGroupsToFlat();renderAI();});
-        groupBox.appendChild(addSub);
+        const rm=document.createElement('button');rm.textContent='×';rm.style.cssText='background:none;border:none;font-size:16px;color:#ccc;cursor:pointer;padding:4px 3px;line-height:1;flex-shrink:0;';
+        rm.addEventListener('click',()=>{d._aiGroups.splice(gi,1);if(!d._aiGroups.length)d._aiGroups=[{text:'',subs:[]}];syncGroupsToFlat();renderAI();});
+        mainRow.appendChild(num);mainRow.appendChild(ta);mainRow.appendChild(addSub);mainRow.appendChild(rm);
+        aiList.appendChild(mainRow);
 
-        aiList.appendChild(groupBox);
+        // Sub-items — indented, same compact single-line style
+        group.subs.forEach((sub,si)=>{
+          const subRow=document.createElement('div');subRow.style.cssText='display:flex;gap:6px;align-items:flex-start;margin-left:26px;';
+          const bullet=document.createElement('span');bullet.style.cssText='color:#bbb;padding-top:5px;flex-shrink:0;font-size:12px;';bullet.textContent='•';
+          const sta=document.createElement('textarea');sta.placeholder='Sub-item';sta.value=sub||'';
+          sta.rows=1;sta.style.cssText='flex:1;padding:3px 8px;border:1px solid transparent;border-radius:6px;font-size:12px;resize:none;overflow:hidden;font-family:inherit;line-height:1.4;background:transparent;color:#555;';
+          sta.addEventListener('focus',()=>{sta.style.borderColor='rgba(0,0,0,0.12)';sta.style.background='#fff';});
+          sta.addEventListener('blur',()=>{sta.style.borderColor='transparent';sta.style.background='transparent';});
+          sta.addEventListener('input',()=>{group.subs[si]=sta.value;autosize(sta);});
+          setTimeout(()=>autosize(sta),0);
+          const srm=document.createElement('button');srm.textContent='×';srm.style.cssText='background:none;border:none;font-size:14px;color:#ccc;cursor:pointer;padding:3px;line-height:1;flex-shrink:0;';
+          srm.addEventListener('click',()=>{group.subs.splice(si,1);syncGroupsToFlat();renderAI();});
+          subRow.appendChild(bullet);subRow.appendChild(sta);subRow.appendChild(srm);aiList.appendChild(subRow);
+        });
       });
 
       const addBtn=document.createElement('button');addBtn.textContent='+ Add agenda item';
-      addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;text-align:left;';
+      addBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:12px;font-weight:600;cursor:pointer;padding:6px 0 0 24px;text-align:left;';
       addBtn.addEventListener('click',()=>{d._aiGroups.push({text:'',subs:[]});syncGroupsToFlat();renderAI();});
       aiList.appendChild(addBtn);
 
