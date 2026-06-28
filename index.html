@@ -6006,13 +6006,15 @@ function pendingBranchLabel(c){
   // record can't happen yet — describe what's actionable now.
   const setApartStillPending=pending.some(b=>b.key==='setApart');
 
-  // Build a concise LCR label
+  // Build a concise LCR label.
+  // Core = Sustaining and/or Set Apart joined with " & "; Release appended with " + ".
   if(lcrPending.length){
-    const parts=[];
-    if(hasSustain) parts.push('Sustaining');
-    if(hasRelease) parts.push('Release');
-    if(hasSetApart&&!setApartStillPending) parts.push('Set Apart');
-    if(parts.length) return 'Record in LCR: '+parts.join(' + ');
+    const core=[];
+    if(hasSustain) core.push('Sustaining');
+    if(hasSetApart&&!setApartStillPending) core.push('Set Apart');
+    let label=core.join(' & ');
+    if(hasRelease) label=label?label+' + Release':'Release';
+    if(label) return 'Record in LCR: '+label;
     // Only the set-apart LCR remains but the blessing hasn't been done yet
     if(hasSetApart&&setApartStillPending) return 'Set Apart';
   }
@@ -6021,6 +6023,36 @@ function pendingBranchLabel(c){
   const first=pending[0];
   if(first.key==='setApart') return 'Set Apart';
   return first.label.split('—')[0].trim();
+}
+
+// Canonical lifecycle order of every possible "Next Step" label, used to sort
+// the Next Step column. LCR variants are ordered explicitly per ward workflow.
+const NEXT_STEP_ORDER=[
+  'Presidency Approval','Stake Presidency Approval','Q12 Approval',"Bishop's Approval",'Sustain in HC',
+  'Set Appt to Extend','Set Appt to Release','Set Appts to Extend & Release Current',
+  'Extend Calling','Extend Release','Release Current/Call to New','Release Current',
+  'Sustain over Pulpit','Sustain & Release over Pulpit','Release over Pulpit',
+  'Set Apart',
+  'Record in LCR',
+  'Record in LCR: Sustaining',
+  'Record in LCR: Sustaining + Release',
+  'Record in LCR: Sustaining & Set Apart',
+  'Record in LCR: Sustaining & Set Apart + Release',
+  'Record in LCR: Set Apart',
+  'Record in LCR: Release',
+  '\u2014',
+];
+// The label currently shown in the Next Step column for a calling.
+function currentNextStepLabel(c){
+  const steps=getSteps(c);
+  const clamped=Math.min(c.currentStep,steps.length-1);
+  const mainDone=clamped>=steps.length-1;
+  return mainDone ? (branchesAllDone(c)?'\u2014':pendingBranchLabel(c)) : (steps[c.currentStep]||'\u2014');
+}
+// Numeric rank for sorting the Next Step column by lifecycle position.
+function nextStepRank(c){
+  const i=NEXT_STEP_ORDER.indexOf(currentNextStepLabel(c));
+  return i===-1 ? 900+Math.min(c.currentStep,getSteps(c).length-1) : i;
 }
 
 
@@ -7023,7 +7055,7 @@ function renderCallings(el,role){
     ...(isStakeView?[{key:'ward', label:'Ward', val:c=>c.ward}]:[]),
     {key:'action',   label:'Action',            val:c=>c.action},
     {key:'assigned', label:'Assigned To',       val:c=>getEffectiveAssignment(c).group},
-    {key:'next',     label:'Next Step',         val:c=>Math.min(c.currentStep,getSteps(c).length-1)},
+    {key:'next',     label:'Next Step',         val:c=>nextStepRank(c)},
   ];
 
   // Apply sort
