@@ -75,6 +75,20 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .hamburger span{display:block;width:18px;height:2px;background:#1a1a1a;border-radius:2px;}
 .topbar-center{font-size:14px;font-weight:600;color:#1c2537;}
 .topbar-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0;}
+.topbar-help{width:30px;height:30px;border-radius:50%;border:1px solid rgba(0,0,0,0.14);background:#fff;color:#666;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0;}
+.topbar-help:hover{background:#f0f2f5;color:#1c2537;}
+.help-section{margin-bottom:26px;}
+.help-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#888;margin:0 2px 10px;}
+.help-acc{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:10px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.help-acc summary{padding:14px 16px;font-size:14px;font-weight:600;color:#1c2537;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.help-acc summary::-webkit-details-marker{display:none;}
+.help-acc summary::after{content:'+';font-size:18px;color:#bbb;font-weight:400;flex-shrink:0;}
+.help-acc[open] summary::after{content:'\2212';}
+.help-acc .help-body{padding:0 16px 15px;font-size:13.5px;line-height:1.6;color:#444;}
+.help-body p{margin:0 0 10px;}
+.help-body ol,.help-body ul{margin:0 0 10px;padding-left:20px;}
+.help-body li{margin-bottom:5px;}
+.help-body strong{color:#1c2537;}
 .banner{padding:9px 16px;font-size:12px;display:flex;align-items:center;gap:8px;background:#faeeda;color:#854f0b;border-bottom:1px solid #fac775;}
 .banner.hidden{display:none;}
 .date-full-click{display:flex;align-items:center;gap:4px;}
@@ -638,7 +652,10 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
     <div class="topbar">
       <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
       <div class="topbar-center" id="topbar-title">Dashboard</div>
-      <div class="topbar-avatar" id="topbar-avatar" style="background:#534ab7">A</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="topbar-help" id="topbar-help" title="Help &amp; Support" aria-label="Help">?</button>
+        <div class="topbar-avatar" id="topbar-avatar" style="background:#534ab7">A</div>
+      </div>
     </div>
     <div class="banner hidden" id="preview-banner">
       <span>&#128065;</span>
@@ -2117,6 +2134,7 @@ function handleMq(mq){if(!mq.matches){state.sidebarCollapsed=false;applySidebarS
 mqDesktop.addEventListener('change',handleMq);
 
 document.getElementById('topbar-avatar').addEventListener('click',()=>{state.tab='profile';state.view='list';state.detailId=null;render();});
+(function(){const hb=document.getElementById('topbar-help');if(hb)hb.addEventListener('click',()=>{state.tab='help';state.view='list';state.detailId=null;render();});})();
 document.getElementById('sidebar-role-btn').addEventListener('click',()=>{closeSidebar();state.tab='profile';state.view='list';state.detailId=null;render();});
 document.getElementById('sidebar-switch-role-btn').addEventListener('click',()=>{closeSidebar();openRoleSwitcher();});
 document.getElementById('bta').addEventListener('click',()=>{devModeRole=null;localStorage.setItem('leadertools_devRole',devModeRole||'');devModeWard=null;localStorage.setItem('leadertools_devWard',devModeWard||'');state.tab='callings';state.view='list';render();});
@@ -2219,7 +2237,7 @@ function updateChrome(){
     }
   });
   document.getElementById('sidebar-role-name').textContent=isSuperAdmin()&&devModeRole?role.label:(currentProfile?.full_name||role.label);
-  const titles={callings:'Callings',agendas:'Agendas',users:'User Management',profile:'My Profile','stake-wards':'Wards','stake-hc':'High Council'};
+  const titles={callings:'Callings',agendas:'Agendas',users:'User Management',profile:'My Profile','stake-wards':'Wards','stake-hc':'High Council',help:'Help & Support'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   // Dev mode banner for superadmin previewing a role
   const banner=document.getElementById('preview-banner');
@@ -7727,6 +7745,7 @@ function render(){
     }
   }
   else if(state.tab==='users'){renderUsers(el,role);}
+  else if(state.tab==='help'){renderHelp(el,role);}
   else if(state.tab==='profile'){renderMyProfile(el);}
   else if(state.tab==='stake-wards'){renderStakeWards(el,role);}
   else if(state.tab==='stake-hc'){renderStakeHC(el,role);}
@@ -8171,6 +8190,150 @@ async function renderUsers(el,role){
     note.textContent='ℹ️ Invite status unavailable — enter your service key via Invite User to enable it.';
     el.appendChild(note);
   }
+}
+
+// ── Help & Support ────────────────────────────────────────────────────────────
+function renderHelp(el, role){
+  el.innerHTML='<div class="page-title">Help &amp; Support</div><div class="page-sub">Walkthroughs, answers, and a place to send bugs or ideas</div>';
+
+  const walkthroughs=[
+    {q:'Tracking a calling from start to finish', html:`
+      <p>The <strong>Callings</strong> page is a live tracker for every calling moving through the process.</p>
+      <ol>
+        <li>Tap <strong>+ New Calling</strong> and pick the organization, the calling, and the member.</li>
+        <li>Each calling shows a vertical workflow — approved, extended, sustained, set apart, and recorded in LCR. Check off each step as it happens; the <strong>Next Step</strong> column always tells you what's left.</li>
+        <li>If a calling also requires releasing someone, the release is linked so both move together.</li>
+        <li>When a calling is fully recorded, it drops off the active list into the <strong>Archive</strong> (link at the top of the page).</li>
+      </ol>
+      <p>Use the column headers to <strong>sort</strong>, and the filter icon on each column to narrow the list — handy when you only want one organization or one stage.</p>`},
+    {q:'Building a Sacrament Meeting agenda', html:`
+      <p>Open <strong>Agendas → Sacrament Meeting → + New Agenda</strong>.</p>
+      <ol>
+        <li>Set the date and meeting type (Regular or Fast &amp; Testimony).</li>
+        <li>Fill in conducting, presiding, prayers, and up to three speakers with their topics.</li>
+        <li>Saved agendas appear on the <strong>Agendas</strong> tab as a full record — date, type, conducting, presiding, prayers, and every speaker with topic.</li>
+      </ol>
+      <p>The "Minutes from Last Meeting" field auto-fills from the most recent prior agenda, so you don't have to re-type it. If you edit it by hand, your version is kept.</p>`},
+    {q:'Setting up the conducting rotation', html:`
+      <p>On <strong>Agendas → Sacrament Meeting → Meeting Record</strong>, tap the <strong>⚙️</strong> button in the top right.</p>
+      <ol>
+        <li>List your bishopric in the order they conduct. Check <strong>Conducts</strong> for anyone in the rotation.</li>
+        <li>Check <strong>Finds Speakers</strong> for anyone who lines up their own speakers.</li>
+        <li>Set the <strong>Rotation Start</strong> month/year to when your current order began (usually January).</li>
+        <li>Tap <strong>Save Settings</strong>.</li>
+      </ol>
+      <p>The schedule then shows who conducts each month, all year.</p>`},
+    {q:'Speaker-finding on the Bishop\u2019s months', html:`
+      <p>When the conductor doesn't find their own speakers (typically the Bishop's months), the app assigns a counselor to do it and rotates that duty.</p>
+      <p>To choose who goes first, open the rotation settings (⚙️) and use the <strong>Speaker-Finding Rotation → Starts with</strong> dropdown. It only appears when at least two people find speakers and there's a conductor who doesn't.</p>`},
+    {q:'Inviting, editing, and removing users', html:`
+      <p>The <strong>Users</strong> page lists everyone with access to your ward.</p>
+      <ul>
+        <li><strong>Invite:</strong> tap <strong>+ Invite User</strong>, enter their name, email, and role.</li>
+        <li><strong>Edit:</strong> tap anyone's row to change their name, email, role, or ward, or to send a password-reset email.</li>
+        <li><strong>Remove:</strong> open their row and tap <strong>Remove User</strong> at the bottom.</li>
+      </ul>
+      <p>Inviting users, changing emails, and removing accounts use your Supabase <em>service role key</em>. If it isn't loaded on your device, the app will prompt you for it once.</p>`},
+    {q:'Installing the app on your phone', html:`
+      <p>LeaderTools is a web app you can install like a native one.</p>
+      <ul>
+        <li><strong>iPhone (Safari):</strong> tap Share, then <em>Add to Home Screen</em>.</li>
+        <li><strong>Android (Chrome):</strong> tap the ⋮ menu, then <em>Add to Home screen</em> / <em>Install app</em>.</li>
+      </ul>
+      <p>Once installed it opens full-screen from your home screen and works just like the browser version.</p>`},
+  ];
+
+  const faqs=[
+    {q:'How do I get the latest version / why is something out of date?', html:`
+      <p>The app caches itself so it loads instantly offline. After an update, do a hard refresh: pull-to-refresh on mobile, or <strong>Ctrl/Cmd + Shift + R</strong> in a browser. If you installed it to your home screen, fully closing and reopening it also picks up the update.</p>`},
+    {q:'What is the "service role key" and why does it keep asking for it?', html:`
+      <p>It's a secret key from your Supabase project that lets the app create, email, and delete login accounts — things a normal logged-in user isn't allowed to do. It's stored only in your browser on that device and is never uploaded anywhere. You enter it once per device. Because it's powerful, only enter it on your own trusted devices.</p>`},
+    {q:'Why did my conducting schedule reset after refreshing?', html:`
+      <p>The rotation is meant to save to the database so the whole bishopric sees it. There's currently a database permission issue being sorted out, so as a stopgap the app also saves a copy in your browser. That copy survives refreshes on the same device but doesn't yet sync to other people until the database side is fixed.</p>`},
+    {q:'Who can see and edit what?', html:`
+      <p>Access follows your role. Bishopric and stake-level roles can manage callings, agendas, and users; organization and member roles see what's relevant to them. If something you expect to edit is read-only, your assigned role probably doesn't include that permission — an admin can adjust it on the Users page.</p>`},
+    {q:'Is our information private?', html:`
+      <p>Data lives in your own Supabase project and is protected by login and row-level security rules. Only invited users with the right role can sign in and see it. Avoid entering anything you wouldn't want stored in your church's database.</p>`},
+    {q:'I found a bug or have an idea — what do I do?', html:`
+      <p>Use the form below. It goes straight to the developer. The more detail (what you tapped, what you expected, what happened, and your device) the faster it can be fixed.</p>`},
+  ];
+
+  function accordion(items){
+    const wrap=document.createElement('div');
+    items.forEach(it=>{
+      const d=document.createElement('details');d.className='help-acc';
+      const s=document.createElement('summary');s.textContent=it.q;
+      const b=document.createElement('div');b.className='help-body';b.innerHTML=it.html;
+      d.appendChild(s);d.appendChild(b);wrap.appendChild(d);
+    });
+    return wrap;
+  }
+
+  const sec1=document.createElement('div');sec1.className='help-section';
+  sec1.innerHTML='<div class="help-section-title">Feature Walkthroughs</div>';
+  sec1.appendChild(accordion(walkthroughs));
+  el.appendChild(sec1);
+
+  const sec2=document.createElement('div');sec2.className='help-section';
+  sec2.innerHTML='<div class="help-section-title">Frequently Asked Questions</div>';
+  sec2.appendChild(accordion(faqs));
+  el.appendChild(sec2);
+
+  // ── Feedback form ──────────────────────────────────────────────────────────
+  const sec3=document.createElement('div');sec3.className='help-section';
+  sec3.innerHTML='<div class="help-section-title">Report a Bug or Request a Feature</div>';
+  const card=document.createElement('div');card.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.04);';
+
+  function field(labelHtml,node){const g=document.createElement('div');g.style.marginBottom='12px';const l=document.createElement('label');l.style.cssText='display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:5px;';l.innerHTML=labelHtml;g.appendChild(l);g.appendChild(node);card.appendChild(g);return node;}
+
+  const kindSel=document.createElement('select');kindSel.style.cssText='width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;';
+  [['bug','🐞 Bug report'],['feature','💡 Feature request'],['question','❓ Question'],['other','💬 Other']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;kindSel.appendChild(o);});
+  field('What kind of feedback is this?',kindSel);
+
+  const subjInp=document.createElement('input');subjInp.type='text';subjInp.placeholder='Short summary (optional)';subjInp.style.cssText='width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;';
+  field('Subject',subjInp);
+
+  const msgInp=document.createElement('textarea');msgInp.rows=5;msgInp.placeholder='Describe the bug or idea. For bugs, what were you doing, what did you expect, and what actually happened?';msgInp.style.cssText='width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.5;';
+  field('Details',msgInp);
+
+  const status=document.createElement('div');status.style.cssText='font-size:12.5px;margin:4px 0 10px;min-height:1px;';
+  card.appendChild(status);
+
+  const submitBtn=document.createElement('button');submitBtn.className='btn-primary';submitBtn.style.cssText='width:100%;padding:12px;font-size:14px;border-radius:10px;';submitBtn.textContent='Submit';
+  submitBtn.addEventListener('click',async()=>{
+    const message=msgInp.value.trim();
+    if(!message){status.textContent='Please add a few details first.';status.style.color='#c62828';return;}
+    submitBtn.disabled=true;submitBtn.textContent='Sending…';status.textContent='';
+    const kindLabel=kindSel.options[kindSel.selectedIndex].text.replace(/^[^\w]+\s*/,'');
+    const payload={
+      kind:kindSel.value,
+      subject:subjInp.value.trim()||null,
+      message,
+      submitter_name:currentProfile?.full_name||'',
+      submitter_email:currentUser?.email||'',
+      ward:role.ward||null,
+      user_agent:navigator.userAgent,
+    };
+    let ok=false;
+    try{
+      const{error}=await sb.from('feedback').insert(payload);
+      if(error) throw error;
+      ok=true;
+    }catch(e){console.warn('feedback insert failed, offering email fallback:',e?.message||e);}
+    if(ok){
+      card.innerHTML='<div style="text-align:center;padding:24px 8px;"><div style="font-size:34px;margin-bottom:10px;">✅</div><div style="font-weight:700;color:#1c2537;margin-bottom:4px;">Thanks — got it!</div><div style="font-size:13px;color:#888;">Your '+kindLabel.toLowerCase()+' was submitted. I\u2019ll take a look.</div></div>';
+    } else {
+      const subj=encodeURIComponent('[LeaderTools] '+kindLabel+(subjInp.value.trim()?': '+subjInp.value.trim():''));
+      const body=encodeURIComponent(message+'\n\n— '+(currentProfile?.full_name||'')+' ('+(currentUser?.email||'')+')\nWard: '+(role.ward||'—')+'\n'+navigator.userAgent);
+      const mailto='mailto:wehttam0910@gmail.com?subject='+subj+'&body='+body;
+      status.innerHTML='Couldn\u2019t reach the server. <a href="'+mailto+'" style="color:#185fa5;font-weight:700;">Tap here to send it by email instead</a>.';
+      status.style.color='#555';
+      submitBtn.disabled=false;submitBtn.textContent='Try Again';
+    }
+  });
+  card.appendChild(submitBtn);
+  sec3.appendChild(card);
+  el.appendChild(sec3);
 }
 
 function openInviteModal(callerRole,onDone){
