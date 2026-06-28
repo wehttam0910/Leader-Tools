@@ -3717,12 +3717,16 @@ async function generateAgendaPDF(a, role){
     doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
     doc.text('MINUTES FROM LAST MEETING',lm,y);
     doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
-    // Strip HTML tags
-    const minText=a.finalSpeakerTopic.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-    const minLines=doc.splitTextToSize(minText,pw-lm-rm);
-    minLines.forEach(line=>{
-      if(y>260){doc.addPage();y=tm;}
-      doc.text(line,lm,y);y+=5.5;
+    // Strip HTML tags but preserve line breaks
+    const rawMin=a.finalSpeakerTopic.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+    rawMin.split('\n').forEach(paragraph=>{
+      const trimmed=paragraph.replace(/[ \t]+/g,' ').trim();
+      if(trimmed===''){y+=3;return;} // blank line spacing
+      const wrapped=doc.splitTextToSize(trimmed,pw-lm-rm);
+      wrapped.forEach(line=>{
+        if(y>260){doc.addPage();y=tm;}
+        doc.text(line,lm,y);y+=5.5;
+      });
     });
     y+=3;
     doc.setDrawColor(200);doc.line(lm,y,pw-rm,y);y+=5;
@@ -5408,7 +5412,7 @@ function renderAgendaDetail(el,role){
       const sec=document.createElement('div');sec.style.cssText='margin-top:20px;padding-top:16px;border-top:1px solid rgba(0,0,0,0.08);';
       const secLbl=document.createElement('div');secLbl.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:10px;';secLbl.textContent='Minutes from Last Meeting';
       sec.appendChild(secLbl);
-      const minText=document.createElement('div');minText.style.cssText='font-size:13px;color:#333;line-height:1.7;';minText.innerHTML=a.finalSpeakerTopic;
+      const minText=document.createElement('div');minText.style.cssText='font-size:13px;color:#333;line-height:1.7;white-space:pre-wrap;';minText.textContent=a.finalSpeakerTopic;
       sec.appendChild(minText);
       doc.appendChild(sec);
     }
