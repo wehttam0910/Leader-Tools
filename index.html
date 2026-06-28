@@ -1914,6 +1914,7 @@ function sacSettingsFromDb(r){
     rotation: Array.isArray(r.rotation)?r.rotation:(r.rotation?JSON.parse(r.rotation):[]),
     startMonth: r.start_month||1,
     startYear: r.start_year||new Date().getFullYear(),
+    speakerFinderStart: r.speaker_finder_start||'',
   };
 }
 function sacSettingsToDb(s){
@@ -1923,6 +1924,7 @@ function sacSettingsToDb(s){
     rotation: JSON.stringify(s.rotation||[]),
     start_month: s.startMonth||1,
     start_year: s.startYear||new Date().getFullYear(),
+    speaker_finder_start: s.speakerFinderStart||'',
   };
 }
 async function dbSaveSacMeeting(m){
@@ -3862,6 +3864,10 @@ function getAssignedConductor(dateStr, settings, profiles){
     speakerFinder={role:assigned.role, roleId:rm.id, title:rm.title};
   } else {
     const finders=(settings.rotation||[]).filter(r=>r.findsSpeakers);
+    if(settings.speakerFinderStart){
+      const si=finders.findIndex(f=>f.role===settings.speakerFinderStart);
+      if(si>0) finders.push(...finders.splice(0,si));
+    }
     if(finders.length){
       const needsPerCycle=rotation.filter(r=>!r.findsSpeakers).length||1;
       const fullCycles=Math.floor(monthsElapsed/rotation.length);
@@ -4000,6 +4006,7 @@ function renderSacConfigure(el, role, ward){
     rotation: existing?JSON.parse(JSON.stringify(existing.rotation)):defaultRotation,
     startMonth: existing?existing.startMonth:1,
     startYear: existing?existing.startYear:new Date().getFullYear(),
+    speakerFinderStart: existing?(existing.speakerFinderStart||''):'',
   };
 
   // Role display names
@@ -4020,7 +4027,7 @@ function renderSacConfigure(el, role, ward){
       const mkToggle=(label,field)=>{
         const lbl=document.createElement('label');lbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer;white-space:nowrap;';
         const cb=document.createElement('input');cb.type='checkbox';cb.checked=item[field];cb.style.cssText='accent-color:#1c2537;';
-        cb.addEventListener('change',()=>{item[field]=cb.checked;});
+        cb.addEventListener('change',()=>{item[field]=cb.checked;if(field==='findsSpeakers'&&typeof buildFinderStartUI==='function')buildFinderStartUI();});
         lbl.appendChild(cb);lbl.appendChild(document.createTextNode(label));
         return lbl;
       };
@@ -4046,6 +4053,27 @@ function renderSacConfigure(el, role, ward){
   const rotWrap=document.createElement('div');
   card.appendChild(rotWrap);
   buildRotationUI();
+
+  // Speaker-finding rotation start (only when ≥2 finders and a non-finding conductor exists)
+  const finderLbl=document.createElement('div');finderLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#aaa;margin:16px 0 8px;';finderLbl.textContent='Speaker-Finding Rotation';
+  const finderWrap=document.createElement('div');
+  card.appendChild(finderLbl);card.appendChild(finderWrap);
+  function buildFinderStartUI(){
+    const finders=draft.rotation.filter(r=>r.findsSpeakers);
+    const hasNonFinderConductor=draft.rotation.some(r=>r.conducts&&!r.findsSpeakers);
+    if(finders.length<2||!hasNonFinderConductor){finderLbl.style.display='none';finderWrap.style.display='none';finderWrap.innerHTML='';return;}
+    finderLbl.style.display='';finderWrap.style.display='';finderWrap.innerHTML='';
+    if(!finders.some(f=>f.role===draft.speakerFinderStart))draft.speakerFinderStart=finders[0].role;
+    const rowF=document.createElement('div');rowF.style.cssText='display:flex;align-items:center;gap:10px;';
+    const lab=document.createElement('span');lab.style.cssText='font-size:13px;color:#555;white-space:nowrap;';lab.textContent='Starts with:';
+    const sel=document.createElement('select');sel.style.cssText='flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;';
+    finders.forEach(f=>{const o=document.createElement('option');o.value=f.role;o.textContent=roleName(f.role);if(f.role===draft.speakerFinderStart)o.selected=true;sel.appendChild(o);});
+    sel.addEventListener('change',()=>{draft.speakerFinderStart=sel.value;});
+    rowF.appendChild(lab);rowF.appendChild(sel);finderWrap.appendChild(rowF);
+    const note=document.createElement('div');note.style.cssText='font-size:11px;color:#888;margin-top:6px;';note.textContent='For months where the conductor doesn’t find their own speakers (e.g. the Bishop’s months), this person finds them first, then it rotates through the others.';
+    finderWrap.appendChild(note);
+  }
+  buildFinderStartUI();
 
   // Start month/year
   const divider=document.createElement('div');divider.style.cssText='border-top:1px solid #eee;margin:16px 0;';card.appendChild(divider);
@@ -4073,6 +4101,7 @@ function renderSacConfigure(el, role, ward){
         rotation:draft.rotation,
         startMonth:draft.startMonth,
         startYear:draft.startYear,
+        speakerFinderStart:draft.speakerFinderStart||'',
       };
       await dbSaveSacSettings(toSave);
       state.sacView='schedule';
