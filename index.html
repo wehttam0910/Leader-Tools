@@ -1574,6 +1574,23 @@ function getReleaseReferrers(releaseId){
   return (state.callings||[]).filter(c=>(c.linkedReleaseIds||[]).includes(releaseId));
 }
 
+// Unlink a release from a calling. If no other calling references it AND it spawned
+// from this calling or has no independent progress, delete the orphaned release record.
+async function unlinkReleaseFromCalling(calling, releaseId){
+  calling.linkedReleaseIds=(calling.linkedReleaseIds||[]).filter(id=>id!==releaseId);
+  await sb.from('callings').update({linked_release_ids:calling.linkedReleaseIds}).eq('id',calling.id);
+  const others=getReleaseReferrers(releaseId).filter(c=>c.id!==calling.id);
+  if(others.length) return; // still needed by another calling — keep it
+  const rel=(state.callings||[]).find(x=>x.id===releaseId);
+  if(!rel) return;
+  const spawnedHere=rel.releaseFor===calling.id;
+  const noProgress=(rel.currentStep||0)===0&&!Object.keys(rel.stepMeta?.branches||{}).length;
+  if(spawnedHere||noProgress){
+    await dbDeleteCalling(releaseId);
+    state.callings=state.callings.filter(x=>x.id!==releaseId);
+  }
+}
+
 // Create a new standalone Release row (returns the new row, not yet saved)
 function buildReleaseRow({name, calling, org, ward, level, custom, releaseFor}){
   return {
@@ -3157,6 +3174,28 @@ function openCallingEditModal(c,role){
   saveBtn.textContent='Save Changes';
   saveBtn.addEventListener('click',async()=>{
     saveBtn.disabled=true;saveBtn.textContent='Saving…';
+
+    // ── Reconcile removed releases ──────────────────────────────────────────
+    // Build the set of (name|calling) pairs that SHOULD be linked after this edit.
+    const shouldLink=new Set();
+    if(normalizedAction==='Calling'){
+      if(c.currentlyFilled&&c.releaseName&&c.releaseName.trim()){
+        shouldLink.add(normRel(c.releaseName)+'|'+normRel(c.calling));
+      }
+      (c._releaseEntries||[]).filter(e=>e.calling).forEach(e=>{
+        shouldLink.add(normRel(c.name)+'|'+normRel(e.calling));
+      });
+    }
+    // For any currently-linked release whose pair is NOT in shouldLink, unlink it.
+    for(const relId of [...(c.linkedReleaseIds||[])]){
+      const rel=(state.callings||[]).find(x=>x.id===relId);
+      if(!rel) continue;
+      const pair=normRel(rel.name)+'|'+normRel(rel.calling);
+      if(!shouldLink.has(pair)){
+        await unlinkReleaseFromCalling(c, relId);
+      }
+    }
+
     // If a current holder is set but no linked release exists yet, create-or-link one
     if(c.currentlyFilled&&c.releaseName&&c.releaseName.trim()&&c.action!=='Release'){
       const already=(c.linkedReleaseIds||[]).some(id=>{
