@@ -4495,13 +4495,33 @@ function renderSimpleAgendaForm(el,role,categoryKey){
       .sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
   }
 
+  // Pasted content (e.g. from Google Docs) can arrive as raw HTML markup.
+  // Convert it to clean, readable plain text; leave already-plain text alone.
+  function minutesToText(s){
+    if(!s) return '';
+    if(!/<[a-z!/][^>]*>/i.test(s)) return s;
+    const html=String(s)
+      .replace(/<\s*\/(p|div|li|ul|ol|h[1-6]|tr)\s*>/gi,'\n')
+      .replace(/<\s*br\s*\/?\s*>/gi,'\n')
+      .replace(/<\s*li[^>]*>/gi,'\u2022 ');
+    const tmp=document.createElement('div');tmp.innerHTML=html;
+    return (tmp.textContent||'')
+      .replace(/\u00a0/g,' ')
+      .replace(/[ \t]+\n/g,'\n')
+      .replace(/\n{3,}/g,'\n\n')
+      .trim();
+  }
+  // Prior-meeting minutes live in speaker1Topic on older records and in
+  // finalSpeakerTopic on newer ones — use whichever has content, cleaned.
+  function priorMinutes(a){return a?minutesToText(a.speaker1Topic||a.finalSpeakerTopic||''):'';}
+
   if(isEditing){
     // Editing: show the saved minutes (stored in finalSpeakerTopic)
-    if(d.lastMeetingMinutes===undefined) d.lastMeetingMinutes=d.finalSpeakerTopic||'';
+    if(d.lastMeetingMinutes===undefined) d.lastMeetingMinutes=minutesToText(d.finalSpeakerTopic||'');
   } else if(d.lastMeetingMinutes===undefined){
     // New agenda: pre-populate from the most recent PRIOR agenda
     const prior=findPriorAgenda(d.date);
-    d.lastMeetingMinutes=prior?.speaker1Topic||'';
+    d.lastMeetingMinutes=priorMinutes(prior);
     d.lastMeetingDate=prior?.date||'';
   }
 
@@ -4537,7 +4557,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
     refreshMinutes=function(){
       if(d._minutesUserEdited) return;
       const prior=findPriorAgenda(d.date);
-      d.lastMeetingMinutes=prior?.speaker1Topic||'';
+      d.lastMeetingMinutes=priorMinutes(prior);
       d.lastMeetingDate=prior?.date||'';
       renderMinutes();
     };
