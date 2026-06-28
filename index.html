@@ -233,11 +233,13 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
   .mobile-cards{display:none!important;}
   .desktop-table{display:block;}
 }
-.callings-topbar{position:sticky;top:52px;z-index:40;background:#f0f2f5;padding-bottom:6px;}
+.callings-topbar{position:sticky;top:52px;z-index:40;background:#f0f2f5;padding-bottom:0;}
 .callings-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);}
 .callings-table thead tr{background:#f8f9fb;}
 .callings-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;cursor:pointer;user-select:none;background:#f8f9fb;border-bottom:2px solid rgba(0,0,0,0.08);}
-.callings-table thead th{position:sticky;z-index:20;}
+/* Frozen header table (in sticky topbar) joins seamlessly with the body table below */
+.callings-header-table{border-bottom:none;border-radius:12px 12px 0 0;}
+.callings-body-table{border-top:none;border-radius:0 0 12px 12px;}
 .callings-table thead th:first-child{border-top-left-radius:12px;}
 .callings-table thead th:last-child{border-top-right-radius:12px;}
 .callings-table th:hover{color:#1c2537;}
@@ -245,7 +247,7 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .callings-table th.sort-desc::after{content:" ↓";color:#1c2537;}
 .callings-table tbody tr{cursor:pointer;transition:background 0.12s;}
 .callings-table tbody td{border-bottom:1px solid rgba(0,0,0,0.06);}
-.callings-table tbody tr:last-child{border-bottom:none;}
+.callings-table tbody tr:last-child td{border-bottom:none;}
 .callings-table tbody tr:hover{background:#f5f7ff;}
 .callings-table td{padding:11px 14px;font-size:13px;color:#1c2537;vertical-align:middle;}
 .callings-table .td-calling{font-weight:700;font-size:14px;}
@@ -7235,9 +7237,9 @@ function renderCallings(el,role){
 
   el.appendChild(mobileCards);
 
-  // ── Desktop table ────────────────────────────────────────────────────────────
-  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
-  const table=document.createElement('table');table.className='callings-table';
+  // ── Desktop table: frozen header (sticky topbar) + scrolling body ─────────────
+  const headerWrap=document.createElement('div');headerWrap.className='desktop-table';
+  const headerTable=document.createElement('table');headerTable.className='callings-table callings-header-table';
   const thead=document.createElement('thead');
   const hrow=document.createElement('tr');
   // Checkbox col header — select all
@@ -7284,8 +7286,12 @@ function renderCallings(el,role){
     hrow.appendChild(th);
   });
   thead.appendChild(hrow);
-  table.appendChild(thead);
+  headerTable.appendChild(thead);
+  headerWrap.appendChild(headerTable);
+  topBar.appendChild(headerWrap);
 
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
+  const table=document.createElement('table');table.className='callings-table callings-body-table';
   const tbody=document.createElement('tbody');
   list.forEach(c=>{
     const steps=getSteps(c),status=getStatusBadge(c),lvl=getLevelBadge(c.level);
@@ -7481,23 +7487,48 @@ function renderArchive(el,role){
   });
   table.appendChild(tbody);tableWrap.appendChild(table);el.appendChild(tableWrap);
 
-  // Pin the column-header row directly below the sticky topbar (52px topbar + bar height).
-  const stickyTop=52+Math.round(topBar.offsetHeight);
-  table.querySelectorAll('thead th').forEach(th=>{th.style.top=stickyTop+'px';});
-  bindCallingsStickyResize();
+  // Align the frozen header's columns with the body table's columns.
+  syncCallingsColumns();
+  bindCallingsSyncResize();
 }
 
-// Keep the sticky column headers aligned under the topbar when the window resizes.
-let _callingsStickyBound=false;
-function bindCallingsStickyResize(){
-  if(_callingsStickyBound) return; _callingsStickyBound=true;
-  window.addEventListener('resize',()=>{
-    const tb=document.querySelector('.callings-topbar');
-    const ths=document.querySelectorAll('.callings-table thead th');
-    if(!tb||!ths.length) return;
-    const top=52+Math.round(tb.getBoundingClientRect().height);
-    ths.forEach(th=>{th.style.top=top+'px';});
-  });
+// Measure body/header column widths and lock both tables to the same column sizes
+// so the (sticky) header lines up perfectly with the scrolling rows.
+function syncCallingsColumns(){
+  const hT=document.querySelector('.callings-header-table');
+  const bT=document.querySelector('.callings-body-table');
+  if(!hT||!bT) return;
+  const headRow=hT.querySelector('thead tr'); if(!headRow) return;
+  const headCells=[...headRow.children];
+  const n=headCells.length;
+  // Reset to natural layout to measure
+  hT.querySelectorAll('colgroup').forEach(c=>c.remove());
+  bT.querySelectorAll('colgroup').forEach(c=>c.remove());
+  hT.style.tableLayout='auto';bT.style.tableLayout='auto';hT.style.width='100%';bT.style.width='100%';
+  void bT.offsetWidth;
+  const bodyRow=bT.querySelector('tbody tr');
+  const bodyCells=bodyRow?[...bodyRow.children]:[];
+  const containerW=bT.getBoundingClientRect().width;
+  let widths=[];
+  for(let i=0;i<n;i++){
+    const hw=headCells[i].getBoundingClientRect().width;
+    const bw=(bodyCells[i]&&bodyCells[i].colSpan===1)?bodyCells[i].getBoundingClientRect().width:0;
+    widths.push(Math.ceil(Math.max(hw,bw)));
+  }
+  // The Calling / Member column (index 1) absorbs any slack or overflow.
+  const flexIdx=1;
+  const othersSum=widths.reduce((a,w,i)=>i===flexIdx?a:a+w,0);
+  if(containerW-othersSum<140){const tot=widths.reduce((a,b)=>a+b,0)||1;const scale=containerW/tot;widths=widths.map(w=>Math.floor(w*scale));}
+  else widths[flexIdx]=Math.floor(containerW-othersSum);
+  function applyCg(t){const cg=document.createElement('colgroup');widths.forEach(w=>{const col=document.createElement('col');col.style.width=w+'px';cg.appendChild(col);});t.insertBefore(cg,t.firstChild);t.style.tableLayout='fixed';t.style.width='100%';}
+  applyCg(hT);applyCg(bT);
+}
+
+let _callingsSyncBound=false;
+function bindCallingsSyncResize(){
+  if(_callingsSyncBound) return; _callingsSyncBound=true;
+  let raf=null;
+  window.addEventListener('resize',()=>{if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(syncCallingsColumns);});
 }
 
 // ── History-based back navigation ────────────────────────────────────────────
