@@ -2947,12 +2947,35 @@ function openCallingEditModal(c,role){
   ['Stake','Stake Issued','Ward'].forEach(lv=>{const o=document.createElement('option');o.value=lv;o.textContent=lv;if(lv===c.level)o.selected=true;levelSel.appendChild(o);});
   levelGroup.appendChild(levelLbl);levelGroup.appendChild(levelSel);modal.appendChild(levelGroup);
 
-  // Organization (auto-filled, read-only display but also editable as fallback)
+  // Organization — dropdown of all orgs for the current level
   const orgGroup=document.createElement('div');orgGroup.className='form-group';
   const orgLbl=document.createElement('label');orgLbl.className='form-label';orgLbl.textContent='Organization';
-  const orgInp=document.createElement('input');orgInp.type='text';orgInp.value=c.org||'';
-  orgInp.style.background='#f8f9fb';orgInp.readOnly=true;
-  orgGroup.appendChild(orgLbl);orgGroup.appendChild(orgInp);modal.appendChild(orgGroup);
+  const orgSel=document.createElement('select');
+  orgGroup.appendChild(orgLbl);orgGroup.appendChild(orgSel);modal.appendChild(orgGroup);
+  function orgsForLevel(level){
+    let d=CALLING_DIR;
+    if(level==='Stake') d=d.filter(x=>x.level==='Stake');
+    else if(level==='Stake Issued') d=d.filter(x=>x.level==='Stake Issued');
+    else d=d.filter(x=>x.level==='Ward');
+    const seen=[];d.forEach(x=>{if(!seen.includes(x.org))seen.push(x.org);});
+    return seen;
+  }
+  function rebuildOrgDropdown(){
+    orgSel.innerHTML='';
+    orgsForLevel(c.level).forEach(o=>{
+      const opt=document.createElement('option');opt.value=o;opt.textContent=o.replace(/^Ward /,'');
+      if(o===c.org)opt.selected=true;orgSel.appendChild(opt);
+    });
+    // If current org isn't in the list (e.g. custom), add it
+    if(c.org&&!orgsForLevel(c.level).includes(c.org)){
+      const opt=document.createElement('option');opt.value=c.org;opt.textContent=c.org.replace(/^Ward /,'');opt.selected=true;orgSel.appendChild(opt);
+    }
+  }
+  orgSel.addEventListener('change',()=>{
+    c.org=orgSel.value;
+    baseCallingName=''; // reset since org changed
+    rebuildCallingDropdown();
+  });
 
   // Calling dropdown — filtered by level
   const callingGroup=document.createElement('div');callingGroup.className='form-group';
@@ -3097,6 +3120,8 @@ function openCallingEditModal(c,role){
     if(level==='Stake') dir=dir.filter(d=>d.level==='Stake');
     else if(level==='Stake Issued') dir=dir.filter(d=>d.level==='Stake Issued');
     else dir=dir.filter(d=>d.level==='Ward');
+    // Filter to the selected organization
+    if(c.org) dir=dir.filter(d=>d.org===c.org);
 
     callingSel.innerHTML='';
     const groups={};
@@ -3107,7 +3132,6 @@ function openCallingEditModal(c,role){
         const o=document.createElement('option');
         o.value=`${d.name}||${d.org}`;
         o.textContent=d.name+(d.custom?'  (Custom)':'');
-        // Match on base name (without sub-selection prefix/suffix)
         if(d.name===baseCallingName&&!c.isCustom) o.selected=true;
         og.appendChild(o);
       });
@@ -3117,14 +3141,13 @@ function openCallingEditModal(c,role){
       callingSel.appendChild(og);
     });
 
-    // Show sub-picker for current selection
+    // Sync sub-picker for the currently-selected calling (do NOT overwrite org)
     const raw=callingSel.value;
     if(raw){
       const parts=raw.split('||');
       const isCustom=parts[0]==='__custom__';
       if(!isCustom){
         const dirEntry=CALLING_DIR.find(d=>d.name===parts[0]&&d.org===parts[1]);
-        c.org=parts[1];orgInp.value=parts[1];
         renderSubPicker(dirEntry||null);
       }
       customBox.classList.toggle('hidden',!isCustom);
@@ -3139,19 +3162,19 @@ function openCallingEditModal(c,role){
     c.isCustom=isCustom;
     if(!isCustom){
       baseCallingName=parts[0];
-      // Reset sub-selections when changing calling type
       sub.quorum=null;sub.ywClass=null;sub.classes=[];
       const dirEntry=CALLING_DIR.find(d=>d.name===parts[0]&&d.org===parts[1]);
-      c.org=parts[1];orgInp.value=parts[1];
+      c.org=parts[1]; // keep org in sync (same as selected org)
       c.calling=buildFinalCallingName();
       renderSubPicker(dirEntry||null);
     }
     customBox.classList.toggle('hidden',!isCustom);
   });
 
-  levelSel.addEventListener('change',()=>{c.level=levelSel.value;rebuildCallingDropdown();});
+  levelSel.addEventListener('change',()=>{c.level=levelSel.value;rebuildOrgDropdown();baseCallingName='';rebuildCallingDropdown();});
   wardSel.addEventListener('change',()=>{c.ward=wardSel.value;});
 
+  rebuildOrgDropdown();
   rebuildCallingDropdown();
 
   // Action — two options matching the wizard
