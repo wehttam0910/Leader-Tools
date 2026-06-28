@@ -4443,7 +4443,8 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   function ti(key,placeholder,value){const inp=document.createElement('input');inp.type='text';inp.placeholder=placeholder;inp.value=value||'';inp.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';inp.addEventListener('input',()=>{d[key]=inp.value;});return inp;}
   function hymnRow(numKey,titleKey,numVal,titleVal){const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;';const n=document.createElement('input');n.type='text';n.placeholder='#';n.value=numVal||'';;n.style.cssText='width:70px;padding:9px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';n.addEventListener('input',()=>{d[numKey]=n.value;});const t=document.createElement('input');t.type='text';t.placeholder='Hymn title (optional)';t.value=titleVal||'';t.style.cssText='flex:1;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';t.addEventListener('input',()=>{d[titleKey]=t.value;});row.appendChild(n);row.appendChild(t);return row;}
 
-  const dateEl=document.createElement('input');dateEl.type='date';dateEl.value=d.date||'';;dateEl.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';dateEl.addEventListener('change',()=>{d.date=dateEl.value;});
+  let refreshMinutes=null;
+  const dateEl=document.createElement('input');dateEl.type='date';dateEl.value=d.date||'';dateEl.style.cssText='width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;';dateEl.addEventListener('change',()=>{d.date=dateEl.value;if(refreshMinutes)refreshMinutes();});
   card.appendChild(fld('Date *',dateEl));
   card.appendChild(fld('Conducting',ti('conducting','Full name',d.conducting)));
 
@@ -4485,39 +4486,63 @@ function renderSimpleAgendaForm(el,role,categoryKey){
   }
 
   // ── Minutes from last meeting ──────────────────────────────────────────────
+  // Find the most recent agenda of this category/ward whose date is strictly
+  // BEFORE the current agenda's date — not just the newest agenda overall.
+  function findPriorAgenda(refDate){
+    if(!refDate) return null;
+    return (state.agendas||[])
+      .filter(a=>a.meetingCategory===categoryKey&&a.ward===ward&&a.date&&a.date<refDate)
+      .sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  }
+
   if(isEditing){
     // Editing: show the saved minutes (stored in finalSpeakerTopic)
     if(d.lastMeetingMinutes===undefined) d.lastMeetingMinutes=d.finalSpeakerTopic||'';
   } else if(d.lastMeetingMinutes===undefined){
-    // New agenda: find most recent prior agenda of this category and pre-populate
-    const prior=(state.agendas||[])
-      .filter(a=>a.meetingCategory===categoryKey&&a.ward===ward)
-      .sort((a,b)=>b.date.localeCompare(a.date))[0];
+    // New agenda: pre-populate from the most recent PRIOR agenda
+    const prior=findPriorAgenda(d.date);
     d.lastMeetingMinutes=prior?.speaker1Topic||'';
     d.lastMeetingDate=prior?.date||'';
   }
 
   const minutesWrap=document.createElement('div');minutesWrap.className='agenda-field';
-  const minutesLbl=document.createElement('label');
-  minutesLbl.textContent=d.lastMeetingDate
-    ?`Minutes from Last Meeting (${fmtDate(d.lastMeetingDate)})`
-    :'Minutes from Last Meeting';
-  minutesWrap.appendChild(minutesLbl);
+  const minutesLbl=document.createElement('label');minutesWrap.appendChild(minutesLbl);
+  const minutesBody=document.createElement('div');minutesWrap.appendChild(minutesBody);
 
-  if(!isEditing&&!d.lastMeetingMinutes){
-    // No prior notes — show a soft placeholder note
-    const none=document.createElement('div');
-    none.style.cssText='font-size:12px;color:#bbb;padding:6px 0;';
-    none.textContent='No notes found from previous meeting.';
-    minutesWrap.appendChild(none);
-  } else {
-    const minutesTa=document.createElement('textarea');
-    minutesTa.placeholder='Minutes or notes from the previous meeting…';
-    minutesTa.value=d.lastMeetingMinutes||'';
-    minutesTa.style.cssText='width:100%;min-height:100px;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.5;';
-    minutesTa.addEventListener('input',()=>{d.lastMeetingMinutes=minutesTa.value;});
-    minutesWrap.appendChild(minutesTa);
+  function renderMinutes(){
+    minutesLbl.textContent=d.lastMeetingDate
+      ?`Minutes from Last Meeting (${fmtDate(d.lastMeetingDate)})`
+      :'Minutes from Last Meeting';
+    minutesBody.innerHTML='';
+    if(!isEditing&&!d.lastMeetingMinutes){
+      // No prior notes — show a soft placeholder note
+      const none=document.createElement('div');
+      none.style.cssText='font-size:12px;color:#bbb;padding:6px 0;';
+      none.textContent='No notes found from previous meeting.';
+      minutesBody.appendChild(none);
+    } else {
+      const minutesTa=document.createElement('textarea');
+      minutesTa.placeholder='Minutes or notes from the previous meeting…';
+      minutesTa.value=d.lastMeetingMinutes||'';
+      minutesTa.style.cssText='width:100%;min-height:100px;padding:9px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:inherit;line-height:1.5;';
+      minutesTa.addEventListener('input',()=>{d.lastMeetingMinutes=minutesTa.value;d._minutesUserEdited=true;});
+      minutesBody.appendChild(minutesTa);
+    }
   }
+  renderMinutes();
+
+  // New agendas: re-pull minutes when the date changes — unless the user has
+  // already typed their own notes into the field.
+  if(!isEditing){
+    refreshMinutes=function(){
+      if(d._minutesUserEdited) return;
+      const prior=findPriorAgenda(d.date);
+      d.lastMeetingMinutes=prior?.speaker1Topic||'';
+      d.lastMeetingDate=prior?.date||'';
+      renderMinutes();
+    };
+  }
+
   card.appendChild(minutesWrap);
 
   if(fields.agendaItems){
