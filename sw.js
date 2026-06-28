@@ -2,7 +2,7 @@
 // Strategy: network-first for HTML (always get latest on deploy),
 // cache-first for static assets (fonts, icons, etc.)
 
-const CACHE = 'leadertools-v40';
+const CACHE = 'leadertools-v41';
 
 self.addEventListener('install', e => {
   // Don't cache index.html — always fetch fresh from network
