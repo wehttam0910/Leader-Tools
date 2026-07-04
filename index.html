@@ -5464,19 +5464,25 @@ function renderAgendaDetail(el,role){
     const doc=document.createElement('div');
     doc.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:28px 32px;max-width:760px;';
 
+    function sectionHeader(label,icon){
+      const h=document.createElement('div');h.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:14px;';
+      h.innerHTML=`<span style="font-size:14px;">${icon}</span><span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#1c2537;">${label}</span>`;
+      return h;
+    }
+
     // Meeting title + date
     const titleRow=document.createElement('div');titleRow.style.cssText='margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #1c2537;';
     const types=getMeetingTypes(role);
     const mt=types.find(t=>t.key===a.meetingCategory)||{label:a.meetingCategory};
-    titleRow.innerHTML=`<div style="font-size:18px;font-weight:700;color:#1c2537;">${mt.label}</div><div style="font-size:13px;color:#5a5a5a;margin-top:3px;">${a.ward} · ${fmtDate(a.date)}</div>`;
+    titleRow.innerHTML=`<div style="font-size:19px;font-weight:700;color:#1c2537;">${mt.label}</div><div style="font-size:14px;color:#5a5a5a;margin-top:3px;">${a.ward} · ${fmtDate(a.date)}</div>`;
     doc.appendChild(titleRow);
 
     // Summary rows helper
     function row(lbl,val){
       if(!val)return;
-      const r=document.createElement('div');r.style.cssText='display:flex;gap:20px;margin-bottom:10px;font-size:13px;align-items:baseline;';
+      const r=document.createElement('div');r.style.cssText='display:flex;gap:20px;margin-bottom:12px;font-size:14px;align-items:baseline;';
       const l=document.createElement('span');l.style.cssText='font-weight:700;min-width:160px;color:#1c2537;flex-shrink:0;';l.textContent=lbl+':';
-      const v=document.createElement('span');v.style.color='#333';v.textContent=val;
+      const v=document.createElement('span');v.style.color='#262626';v.textContent=val;
       r.appendChild(l);r.appendChild(v);doc.appendChild(r);
     }
 
@@ -5489,31 +5495,55 @@ function renderAgendaDetail(el,role){
 
     // Minutes from last meeting (stored in final_speaker_topic)
     if(a.finalSpeakerTopic){
-      const sec=document.createElement('div');sec.style.cssText='margin-top:20px;padding-top:16px;border-top:1px solid rgba(0,0,0,0.08);';
-      const secLbl=document.createElement('div');secLbl.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#636363;margin-bottom:10px;';secLbl.textContent='Minutes from Last Meeting';
-      sec.appendChild(secLbl);
-      const minText=document.createElement('div');minText.style.cssText='font-size:13px;color:#333;line-height:1.7;white-space:pre-wrap;';minText.textContent=a.finalSpeakerTopic;
+      const sec=document.createElement('div');sec.style.cssText='margin-top:22px;padding-top:18px;border-top:1px solid rgba(0,0,0,0.08);';
+      sec.appendChild(sectionHeader('Minutes from Last Meeting','📝'));
+      const minText=document.createElement('div');minText.style.cssText='font-size:14px;color:#262626;line-height:1.7;white-space:pre-wrap;';minText.textContent=a.finalSpeakerTopic;
       sec.appendChild(minText);
       doc.appendChild(sec);
     }
 
-    // Agenda items from announcement_list
+    // Agenda items from announcement_list — group each main item with the
+    // sub-items that follow it, so they render as one connected block instead
+    // of a flat, hard-to-scan list.
     if(a.announcementList&&a.announcementList.length){
-      const sec=document.createElement('div');sec.style.cssText='margin-top:16px;margin-bottom:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#636363;';sec.textContent='Agenda Items';doc.appendChild(sec);
-      let mainNum=0;
+      const sec=document.createElement('div');sec.style.cssText='margin-top:22px;padding-top:18px;border-top:1px solid rgba(0,0,0,0.08);';
+      sec.appendChild(sectionHeader('Agenda Items','📋'));
+      doc.appendChild(sec);
+
+      const groups=[];
+      let cur=null;
       a.announcementList.filter(l=>typeof l==='string'&&l.replace(/^\t+/,'').trim()!=='').forEach(item=>{
         const isSub=item.startsWith('\t');
         const text=item.replace(/^\t+/,'');
-        const p=document.createElement('div');
         if(isSub){
-          p.style.cssText='font-size:12px;color:#555;padding:4px 0 4px 28px;';
-          p.innerHTML='• '+linkifyText(text);
+          if(!cur){cur={text:'',subs:[]};groups.push(cur);}
+          cur.subs.push(text);
         } else {
-          mainNum++;
-          p.style.cssText='font-size:13px;color:#333;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);';
-          p.innerHTML=`${mainNum}. `+linkifyText(text);
+          cur={text,subs:[]};groups.push(cur);
         }
-        doc.appendChild(p);
+      });
+
+      groups.forEach((g,i)=>{
+        const itemRow=document.createElement('div');
+        itemRow.style.cssText=`display:flex;gap:14px;align-items:flex-start;padding:${i===0?'0':'14px'} 0 14px;${i<groups.length-1?'border-bottom:1px solid rgba(0,0,0,0.06);':''}`;
+        const badge=document.createElement('div');
+        badge.style.cssText='width:24px;height:24px;border-radius:50%;background:#1c2537;color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;';
+        badge.textContent=String(i+1);
+        const content=document.createElement('div');content.style.cssText='flex:1;min-width:0;';
+        const mainText=document.createElement('div');mainText.style.cssText='font-size:14.5px;color:#1c2537;font-weight:600;line-height:1.5;';
+        mainText.innerHTML=linkifyText(g.text);
+        content.appendChild(mainText);
+        if(g.subs.length){
+          const subsWrap=document.createElement('div');subsWrap.style.cssText='margin-top:8px;padding-left:14px;border-left:2px solid rgba(28,37,55,0.14);display:flex;flex-direction:column;gap:6px;';
+          g.subs.forEach(s=>{
+            const sp=document.createElement('div');sp.style.cssText='font-size:13.5px;color:#444;line-height:1.5;';
+            sp.innerHTML=linkifyText(s);
+            subsWrap.appendChild(sp);
+          });
+          content.appendChild(subsWrap);
+        }
+        itemRow.appendChild(badge);itemRow.appendChild(content);
+        doc.appendChild(itemRow);
       });
     }
 
@@ -5532,11 +5562,11 @@ function renderAgendaDetail(el,role){
         // Sort by current step index so earliest steps appear first
         pendingCallings.sort((a,b)=>a.currentStep-b.currentStep);
 
-        const sec=document.createElement('div');sec.style.cssText='margin-top:20px;padding-top:16px;border-top:1px solid rgba(0,0,0,0.08);';
-        const secLbl=document.createElement('div');secLbl.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#636363;margin-bottom:10px;';secLbl.textContent='Pending Callings';
-        sec.appendChild(secLbl);
+        const sec=document.createElement('div');sec.style.cssText='margin-top:22px;padding-top:18px;border-top:1px solid rgba(0,0,0,0.08);';
+        sec.appendChild(sectionHeader('Pending Callings','📌'));
+        doc.appendChild(sec);
 
-        pendingCallings.forEach(c=>{
+        pendingCallings.forEach((c,i)=>{
           const steps=getSteps(c);
           const clampedStep=Math.min(c.currentStep,steps.length-1);
           const nextStep=clampedStep>=steps.length-1
@@ -5566,14 +5596,12 @@ function renderAgendaDetail(el,role){
           }
 
           const item=document.createElement('div');
-          item.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;';
-          const labelEl=document.createElement('span');labelEl.style.color='#1c2537';labelEl.textContent=label;
-          const stepEl=document.createElement('span');stepEl.style.cssText='font-size:11px;color:#707070;white-space:nowrap;flex-shrink:0;';stepEl.textContent=nextStep;
+          item.style.cssText=`display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:${i===0?'0':'10px'} 0 10px;${i<pendingCallings.length-1?'border-bottom:1px solid rgba(0,0,0,0.06);':''}`;
+          const labelEl=document.createElement('span');labelEl.style.cssText='color:#1c2537;font-size:14px;font-weight:500;';labelEl.textContent=label;
+          const stepEl=document.createElement('span');stepEl.style.cssText='font-size:11.5px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;';stepEl.textContent=nextStep;
           item.appendChild(labelEl);item.appendChild(stepEl);
           sec.appendChild(item);
         });
-
-        doc.appendChild(sec);
       }
     }
 
