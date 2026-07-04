@@ -7400,11 +7400,14 @@ function renderCallings(el,role){
   thead.appendChild(hrow);
   headerTable.appendChild(callingsColgroup(COLS));
   headerTable.appendChild(thead);
+  const callingsMinW=callingsMinWidth(COLS);
+  headerTable.style.minWidth=callingsMinW+'px';
+  headerWrap.style.cssText='overflow-x:hidden;';
   headerWrap.appendChild(headerTable);
   topBar.appendChild(headerWrap);
 
-  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
-  const table=document.createElement('table');table.className='callings-table callings-body-table';
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';tableWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;';
+  const table=document.createElement('table');table.className='callings-table callings-body-table';table.style.minWidth=callingsMinW+'px';
   table.appendChild(callingsColgroup(COLS));
   const tbody=document.createElement('tbody');
   list.forEach(c=>{
@@ -7512,6 +7515,7 @@ function renderCallings(el,role){
   table.appendChild(tbody);
   tableWrap.appendChild(table);
   el.appendChild(tableWrap);
+  tableWrap.addEventListener('scroll',()=>{headerWrap.scrollLeft=tableWrap.scrollLeft;});
 }
 
 
@@ -7589,11 +7593,14 @@ function renderArchive(el,role){
   thead.appendChild(hrow);
   headerTable.appendChild(callingsColgroup(COLS,false));
   headerTable.appendChild(thead);
+  const archiveMinW=callingsMinWidth(COLS,false);
+  headerTable.style.minWidth=archiveMinW+'px';
+  headerWrap.style.cssText='overflow-x:hidden;';
   headerWrap.appendChild(headerTable);topBar.appendChild(headerWrap);
 
   // Body table
-  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';
-  const table=document.createElement('table');table.className='callings-table callings-body-table';
+  const tableWrap=document.createElement('div');tableWrap.className='desktop-table';tableWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;';
+  const table=document.createElement('table');table.className='callings-table callings-body-table';table.style.minWidth=archiveMinW+'px';
   table.appendChild(callingsColgroup(COLS,false));
   const tbody=document.createElement('tbody');
   list.forEach(c=>{
@@ -7633,6 +7640,7 @@ function renderArchive(el,role){
     tr.appendChild(td);tbody.appendChild(tr);
   }
   table.appendChild(tbody);tableWrap.appendChild(table);el.appendChild(tableWrap);
+  tableWrap.addEventListener('scroll',()=>{headerWrap.scrollLeft=tableWrap.scrollLeft;});
 }
 
 // Shared, fixed column widths for the frozen header + body tables so they line up
@@ -7643,6 +7651,15 @@ function callingsColgroup(COLS, includeCheckbox=true){
   if(includeCheckbox){const cb=document.createElement('col');cb.style.width='40px';cg.appendChild(cb);} // checkbox col
   COLS.forEach(c=>{const col=document.createElement('col');if(W[c.key])col.style.width=W[c.key]+'px';cg.appendChild(col);});
   return cg;
+}
+// Total width the table needs to avoid squeezing columns unreadably on
+// narrow-but-not-yet-mobile desktop windows — used as a min-width so the
+// table scrolls horizontally instead of collapsing the flexible column.
+function callingsMinWidth(COLS, includeCheckbox=true, flexColMin=240){
+  const W={org:160,ward:140,action:140,assigned:150,next:210,submitted:130,completed:130};
+  let total=includeCheckbox?40:0;
+  COLS.forEach(c=>{total+=W[c.key]||flexColMin;});
+  return total;
 }
 
 // ── Reusable column-filter machinery (used by Callings Archive) ──────────────
