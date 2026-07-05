@@ -3512,11 +3512,11 @@ function fmtDate(d){
   return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
 }
 
-// Compact numeric date for narrow table columns, e.g. "7/5/26"
+// Compact numeric date for narrow table columns, e.g. "07/05/26"
 function fmtDateShort(d){
   if(!d)return'';
   const [y,m,day]=d.split('-');
-  return `${parseInt(m)}/${parseInt(day)}/${y.slice(-2)}`;
+  return `${m.padStart(2,'0')}/${day.padStart(2,'0')}/${y.slice(-2)}`;
 }
 
 function salutation(name){
