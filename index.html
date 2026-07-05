@@ -123,7 +123,7 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a1a;font-size
 .agenda-table tbody tr:last-child{border-bottom:none;}
 .agenda-table tbody tr:hover{background:#f5f7ff;}
 .agenda-table td{padding:12px 14px;font-size:14px;color:#1c2537;vertical-align:middle;}
-.agenda-table .td-date{font-weight:700;font-size:14px;}
+.agenda-table .td-date{font-weight:700;font-size:14px;white-space:nowrap;}
 .bulk-bar{display:flex;align-items:center;gap:10px;background:#1c2537;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;}
 .bulk-bar-count{font-weight:600;flex:1;}
 .bulk-bar-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
@@ -3512,6 +3512,13 @@ function fmtDate(d){
   return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
 }
 
+// Compact numeric date for narrow table columns, e.g. "7/5/26"
+function fmtDateShort(d){
+  if(!d)return'';
+  const [y,m,day]=d.split('-');
+  return `${parseInt(m)}/${parseInt(day)}/${y.slice(-2)}`;
+}
+
 function salutation(name){
   if(!name||!name.trim())return name;
   const parts=name.trim().split(' ');
@@ -4386,7 +4393,7 @@ function renderAgendaCategory(el,role,categoryKey){
       const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
       const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
       const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
-      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||'—'}</td><td style="font-size:12px;">${a.presiding||'—'}</td><td style="font-size:12px;color:#555;">${a.openingPrayer||'—'}</td><td style="font-size:12px;color:#555;">${a.closingPrayer||'—'}</td><td>${spk(a.speaker1,a.speaker1Topic)}</td><td>${spk(a.speaker2,a.speaker2Topic)}</td><td>${spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+      tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||'—'}</td><td style="font-size:12px;">${a.presiding||'—'}</td><td style="font-size:12px;color:#555;">${a.openingPrayer||'—'}</td><td style="font-size:12px;color:#555;">${a.closingPrayer||'—'}</td><td>${spk(a.speaker1,a.speaker1Topic)}</td><td>${spk(a.speaker2,a.speaker2Topic)}</td><td>${spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
       const hasItems=topLevelItems.length;
@@ -4395,7 +4402,7 @@ function renderAgendaCategory(el,role,categoryKey){
         ? topLevelItems.slice(0,3).join(', ')+(topLevelItems.length>3?'…':'')
         : notesPlain?(notesPlain.substring(0,60)+(notesPlain.length>60?'…':'')):'—';
       const thought=a.spiritualThought||a.openingPrayer||'—';
-      tr.innerHTML+=`<td class="td-date">${fmtDate(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#5a5a5a;">${notesSnippet}</td>`;
+      tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#5a5a5a;">${notesSnippet}</td>`;
     }
 
     // Action cell: PDF + trash
