@@ -615,6 +615,11 @@ input[type="date"].compact{width:auto;padding:5px 8px;font-size:13px;border:1px 
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         <span class="nav-label">Users</span>
       </button>
+      <button class="nav-item" id="nav-feedback" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span class="nav-label">Submissions</span>
+        <span id="nav-feedback-badge" style="display:none;margin-left:auto;background:#e05252;color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;"></span>
+      </button>
 
       <!-- Stake Settings — only shown to stake presidency and HC -->
       <div id="nav-stake-section" style="display:none;margin-top:8px;">
@@ -1291,6 +1296,14 @@ async function handleSession(session){
       }
       state.loading = false;
       render();
+      // Superadmin: pre-fetch unresolved feedback count for the sidebar badge
+      if(isSuperAdmin()){
+        sb.from('feedback').select('id',{count:'exact',head:true}).eq('resolved',false)
+          .then(({count})=>{
+            const badge=document.getElementById('nav-feedback-badge');
+            if(badge&&count){badge.textContent=String(count);badge.style.display='inline-block';}
+          }).catch(()=>{});
+      }
       // Phase 1: convert legacy releases into linked Release rows (admin/bishopric only)
       try{
         const r=currentProfile?.role_id||state.activeRoleId;
@@ -2090,7 +2103,7 @@ if(prefs){
   state.activeRoleId=prefs.activeRoleId||'admin';
   // Only restore a small allowlist of tabs — always land on that tab's list
   // view (never a specific detail record, which may be stale or gone).
-  const restorableTabs=['callings','agendas','users','help','profile'];
+  const restorableTabs=['callings','agendas','users','help','profile','feedback'];
   if(restorableTabs.includes(prefs.tab)){
     state.tab=prefs.tab;
     state.agendaCategory=prefs.agendaCategory||null;
@@ -2174,7 +2187,7 @@ function openDevWardPicker(){
   applyMobileModal(overlay,modal);
   overlay.appendChild(modal);root.appendChild(overlay);
 }
-['callings','agendas','users'].forEach(tab=>{
+['callings','agendas','users','feedback'].forEach(tab=>{
   const el=document.getElementById('nav-'+tab);
   if(el) el.addEventListener('click',()=>{
     state.tab=tab;state.view='list';state.detailId=null;
@@ -2203,11 +2216,14 @@ function forceNavWhite(){
 
 function updateChrome(){
   const role=getRole();
-  ['callings','agendas','users'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
+  ['callings','agendas','users','feedback'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.classList.toggle('active',state.tab===t);});
   // Show Users nav only for admin/stake/bishop roles
   const canManageUsers=role.scope==='admin'||role.scope==='stake'||role.scope==='ward';
   const usersNav=document.getElementById('nav-users');
   if(usersNav) usersNav.style.display=canManageUsers?'':'none';
+  // Show Submissions nav only for the superadmin/developer account
+  const feedbackNav=document.getElementById('nav-feedback');
+  if(feedbackNav) feedbackNav.style.display=isSuperAdmin()?'':'none';
   // Show Stake Settings section for stake presidency and HC
   const canSeeStake=role.scope==='admin'||role.scope==='stake';
   const stakeSection=document.getElementById('nav-stake-section');
@@ -2247,7 +2263,7 @@ function updateChrome(){
     }
   });
   document.getElementById('sidebar-role-name').textContent=isSuperAdmin()&&devModeRole?role.label:(currentProfile?.full_name||role.label);
-  const titles={callings:'Callings',agendas:'Agendas',users:'User Management',profile:'My Profile','stake-wards':'Wards','stake-hc':'High Council',help:'Help & Support'};
+  const titles={callings:'Callings',agendas:'Agendas',users:'User Management',profile:'My Profile','stake-wards':'Wards','stake-hc':'High Council',help:'Help & Support',feedback:'Submissions'};
   document.getElementById('topbar-title').textContent=titles[state.tab]||'';
   // Dev mode banner for superadmin previewing a role
   const banner=document.getElementById('preview-banner');
@@ -7816,6 +7832,7 @@ function render(){
   }
   else if(state.tab==='users'){renderUsers(el,role);}
   else if(state.tab==='help'){renderHelp(el,role);}
+  else if(state.tab==='feedback'){renderFeedback(el,role);}
   else if(state.tab==='profile'){renderMyProfile(el);}
   else if(state.tab==='stake-wards'){renderStakeWards(el,role);}
   else if(state.tab==='stake-hc'){renderStakeHC(el,role);}
@@ -8263,6 +8280,125 @@ async function renderUsers(el,role){
 }
 
 // ── Help & Support ────────────────────────────────────────────────────────────
+// ── Feedback / Submissions (superadmin only) ─────────────────────────────────
+async function renderFeedback(el, role){
+  if(!isSuperAdmin()){
+    el.innerHTML='<div class="empty-state">Not available.</div>';
+    return;
+  }
+
+  el.innerHTML='<div class="page-title">Submissions</div><div class="page-sub">Bug reports and feature requests from Help &amp; Support</div>';
+
+  const loadWrap=document.createElement('div');loadWrap.style.cssText='text-align:center;padding:32px;color:#707070;font-size:13px;';loadWrap.textContent='Loading submissions…';
+  el.appendChild(loadWrap);
+
+  const{data,error}=await sb.from('feedback').select('*').order('created_at',{ascending:false});
+  if(error){
+    loadWrap.innerHTML=`Couldn't load submissions.<br><span style="font-size:11px;color:#aaa;">${error.message||''}</span>`;
+    console.error('feedback load error:',error);
+    return;
+  }
+  el.innerHTML='<div class="page-title">Submissions</div><div class="page-sub">Bug reports and feature requests from Help &amp; Support</div>';
+
+  const all=data||[];
+  const unresolvedCount=all.filter(f=>!f.resolved).length;
+
+  // Keep the sidebar badge in sync
+  const badge=document.getElementById('nav-feedback-badge');
+  if(badge){
+    if(unresolvedCount>0){badge.textContent=String(unresolvedCount);badge.style.display='inline-block';}
+    else badge.style.display='none';
+  }
+
+  // Toggle: unresolved only vs everything
+  const toolbar=document.createElement('div');toolbar.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;';
+  const toggleBtn=document.createElement('button');
+  toggleBtn.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.12);color:#1c2537;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+  let showResolved=false;
+  function setToggleLabel(){toggleBtn.textContent=showResolved?'Showing all':'Showing unresolved only';}
+  setToggleLabel();
+  toggleBtn.addEventListener('click',()=>{showResolved=!showResolved;setToggleLabel();renderList();});
+  toolbar.appendChild(toggleBtn);
+  el.appendChild(toolbar);
+
+  const listWrap=document.createElement('div');listWrap.style.cssText='display:flex;flex-direction:column;gap:10px;';
+  el.appendChild(listWrap);
+
+  const KIND_META={
+    bug:{icon:'🐞',label:'Bug report',color:'#c62828',bg:'#fdecea'},
+    feature:{icon:'💡',label:'Feature request',color:'#8a5a06',bg:'#fdf1dc'},
+    question:{icon:'❓',label:'Question',color:'#185fa5',bg:'#e6f1fb'},
+    other:{icon:'💬',label:'Other',color:'#555',bg:'#f0f0f0'},
+  };
+
+  function timeAgo(iso){
+    if(!iso)return'';
+    const d=new Date(iso),now=new Date();
+    const diffMs=now-d,diffMin=Math.floor(diffMs/60000),diffHr=Math.floor(diffMin/60),diffDay=Math.floor(diffHr/24);
+    if(diffMin<1)return'just now';
+    if(diffMin<60)return`${diffMin}m ago`;
+    if(diffHr<24)return`${diffHr}h ago`;
+    if(diffDay<30)return`${diffDay}d ago`;
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  }
+
+  async function setResolved(item,val){
+    const{error}=await sb.from('feedback').update({resolved:val}).eq('id',item.id);
+    if(error){alert('Error updating: '+error.message);return;}
+    item.resolved=val;
+    renderList();
+  }
+
+  function renderList(){
+    listWrap.innerHTML='';
+    const items=all.filter(f=>showResolved||!f.resolved);
+    if(!items.length){
+      const es=document.createElement('div');es.className='empty-state';
+      es.textContent=showResolved?'No submissions yet.':'No unresolved submissions — nice and tidy!';
+      listWrap.appendChild(es);
+      return;
+    }
+    items.forEach(f=>{
+      const meta=KIND_META[f.kind]||KIND_META.other;
+      const card=document.createElement('div');
+      card.style.cssText=`background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.04);${f.resolved?'opacity:0.6;':''}`;
+
+      const top=document.createElement('div');top.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;';
+      const left=document.createElement('div');
+      const kindBadge=document.createElement('span');
+      kindBadge.style.cssText=`display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:${meta.color};background:${meta.bg};padding:3px 10px;border-radius:20px;margin-bottom:6px;`;
+      kindBadge.textContent=`${meta.icon} ${meta.label}`;
+      left.appendChild(kindBadge);
+      if(f.subject){const s=document.createElement('div');s.style.cssText='font-size:15px;font-weight:700;color:#1c2537;margin-top:2px;';s.textContent=f.subject;left.appendChild(s);}
+      top.appendChild(left);
+      const time=document.createElement('div');time.style.cssText='font-size:12px;color:#707070;white-space:nowrap;flex-shrink:0;';time.textContent=timeAgo(f.created_at);
+      top.appendChild(time);
+      card.appendChild(top);
+
+      const msg=document.createElement('div');msg.style.cssText='font-size:14px;color:#262626;line-height:1.6;white-space:pre-wrap;margin-bottom:12px;';msg.textContent=f.message;
+      card.appendChild(msg);
+
+      const foot=document.createElement('div');foot.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(0,0,0,0.06);';
+      const who=document.createElement('div');who.style.cssText='font-size:12px;color:#5a5a5a;';
+      who.innerHTML=`${f.submitter_name||'Unknown'}${f.submitter_email?` · <a href="mailto:${f.submitter_email}" style="color:#185fa5;">${f.submitter_email}</a>`:''}${f.ward?` · ${f.ward}`:''}`;
+      foot.appendChild(who);
+
+      const actionBtn=document.createElement('button');
+      actionBtn.style.cssText=f.resolved
+        ?'background:transparent;border:1px solid rgba(0,0,0,0.12);color:#1c2537;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;'
+        :'background:#1c2537;border:none;color:#fff;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
+      actionBtn.textContent=f.resolved?'Reopen':'Mark Resolved';
+      actionBtn.addEventListener('click',()=>setResolved(f,!f.resolved));
+      foot.appendChild(actionBtn);
+
+      card.appendChild(foot);
+      listWrap.appendChild(card);
+    });
+  }
+
+  renderList();
+}
+
 function renderHelp(el, role){
   el.innerHTML='<div class="page-title">Help &amp; Support</div><div class="page-sub">Walkthroughs, answers, and a place to send bugs or ideas</div>';
 
