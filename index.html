@@ -2222,9 +2222,10 @@ function updateChrome(){
   const canManageUsers=role.scope==='admin'||role.scope==='stake'||role.scope==='ward';
   const usersNav=document.getElementById('nav-users');
   if(usersNav) usersNav.style.display=canManageUsers?'':'none';
-  // Show Submissions nav only for the superadmin/developer account
+  // Show Submissions nav only for the superadmin/developer account, and only
+  // when not actively previewing as a different role
   const feedbackNav=document.getElementById('nav-feedback');
-  if(feedbackNav) feedbackNav.style.display=isSuperAdmin()?'':'none';
+  if(feedbackNav) feedbackNav.style.display=(isSuperAdmin()&&!devModeRole)?'':'none';
   // Show Stake Settings section for stake presidency and HC
   const canSeeStake=role.scope==='admin'||role.scope==='stake';
   const stakeSection=document.getElementById('nav-stake-section');
@@ -8283,7 +8284,7 @@ async function renderUsers(el,role){
 // ── Help & Support ────────────────────────────────────────────────────────────
 // ── Feedback / Submissions (superadmin only) ─────────────────────────────────
 async function renderFeedback(el, role){
-  if(!isSuperAdmin()){
+  if(!isSuperAdmin()||devModeRole){
     el.innerHTML='<div class="empty-state">Not available.</div>';
     return;
   }
