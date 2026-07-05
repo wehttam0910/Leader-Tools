@@ -2052,6 +2052,8 @@ function savePrefs(){
     activeRoleId:state.activeRoleId,
     callingsSort:state.callingsSort,
     archiveSort:state.archiveSort,
+    tab:state.tab,
+    agendaCategory:state.agendaCategory,
   }));}catch(e){}
 }
 // saveState: persists UI prefs only; data is pushed to Supabase explicitly
@@ -2086,6 +2088,13 @@ if(prefs){
   state.callingsSort=prefs.callingsSort||{col:null,dir:'asc'};
   state.archiveSort=prefs.archiveSort||{col:null,dir:'asc'};
   state.activeRoleId=prefs.activeRoleId||'admin';
+  // Only restore a small allowlist of tabs — always land on that tab's list
+  // view (never a specific detail record, which may be stale or gone).
+  const restorableTabs=['callings','agendas','users','help','profile'];
+  if(restorableTabs.includes(prefs.tab)){
+    state.tab=prefs.tab;
+    state.agendaCategory=prefs.agendaCategory||null;
+  }
 }
 
 
