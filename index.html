@@ -2038,13 +2038,13 @@ async function dbSaveAgenda(a) {
   const row = agendaToDb(a);
   if (row.id && typeof row.id === 'number' && row.id > 0) {
     const { error } = await sb.from('agendas').upsert(row, { onConflict: 'id' });
-    if (error) console.error('Error saving agenda:', error);
+    if (error) { console.error('Error saving agenda:', error); return null; }
     return row.id;
   } else {
     const insertRow = { ...row };
     delete insertRow.id;
     const { data, error } = await sb.from('agendas').insert(insertRow).select('id').single();
-    if (error) console.error('Error inserting agenda:', error);
+    if (error) { console.error('Error inserting agenda:', error); return null; }
     return data?.id;
   }
 }
@@ -5105,8 +5105,10 @@ function renderAgendaWizard(el,role,editingAgenda){
       Object.assign(editingAgenda,d);
       window._agendaDraft=null;
       state.view='detail';render();
-      dbSaveAgenda(editingAgenda);
-      syncAgendaToSacRecord(editingAgenda);
+      dbSaveAgenda(editingAgenda).then(id=>{
+        if(!id){alert('⚠️ Your changes did NOT save — there was a database error. Please try again, and check your connection. (Open the browser console for details.)');return;}
+        syncAgendaToSacRecord(editingAgenda);
+      });
     } else {
       const tempId=Date.now();
       const agenda={id:tempId,...JSON.parse(JSON.stringify(d))};
@@ -5119,6 +5121,8 @@ function renderAgendaWizard(el,role,editingAgenda){
           const a=state.agendas.find(x=>x.id===tempId);
           if(a){a.id=realId;state.detailId=realId;}
           syncAgendaToSacRecord({...agenda,id:realId||tempId});
+        } else {
+          alert('⚠️ This agenda did NOT save to the database — there was an error. Please try again, and check your connection. (Open the browser console for details.)');
         }
       });
     }
@@ -5320,6 +5324,37 @@ function renderAgendaDetail(el,role){
   hdr.appendChild(bb);hdr.appendChild(hdi);el.appendChild(hdr);
 
   const actions=document.createElement('div');actions.className='script-actions';
+  const refreshBtn=document.createElement('button');
+  refreshBtn.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
+  refreshBtn.textContent='🔄 Refresh';
+  async function refreshThisAgenda(){
+    const origLabel=refreshBtn.textContent;refreshBtn.textContent='Refreshing…';refreshBtn.disabled=true;
+    try{
+      const{data,error}=await sb.from('agendas').select('*').eq('id',a.id).single();
+      if(error)throw error;
+      if(data){
+        const idx=state.agendas.findIndex(x=>x.id===a.id);
+        const fresh=agendaFromDb(data);
+        if(idx>=0)state.agendas[idx]=fresh;else state.agendas.push(fresh);
+        // Also pull the latest callings, since checkbox-driven step completions
+        // (releases/sustainings marked in the script) live in that table.
+        const{data:callingsData}=await sb.from('callings').select('*');
+        if(callingsData)state.callings=callingsData.map(callingFromDb);
+      }
+      render();
+    }catch(e){
+      console.error('Refresh agenda error:',e);
+      refreshBtn.textContent=origLabel;refreshBtn.disabled=false;
+    }
+  }
+  refreshBtn.addEventListener('click',refreshThisAgenda);
+  // Auto-refresh whenever this tab regains focus (e.g. it was left open on a
+  // Chromebook before the meeting while edits were made elsewhere) — this is
+  // in addition to manual refresh, not a replacement for it.
+  if(window._agendaVisibilityHandler) document.removeEventListener('visibilitychange',window._agendaVisibilityHandler);
+  window._agendaVisibilityHandler=()=>{if(!document.hidden&&state.tab==='agendas'&&state.view==='detail'&&state.detailId===a.id)refreshThisAgenda();};
+  document.addEventListener('visibilitychange',window._agendaVisibilityHandler);
+
   const printBtn=document.createElement('button');printBtn.className='btn-primary';
   printBtn.innerHTML='🖨 Print';printBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
   const editBtn2=document.createElement('button');
@@ -5342,7 +5377,7 @@ function renderAgendaDetail(el,role){
       dbDeleteAgenda(deletedId);
     }
   });
-  actions.appendChild(printBtn);actions.appendChild(editBtn2);actions.appendChild(delBtn2);
+  actions.appendChild(refreshBtn);actions.appendChild(printBtn);actions.appendChild(editBtn2);actions.appendChild(delBtn2);
   el.appendChild(actions);
 
   const isSacramentMeeting=(a.meetingCategory==='sacrament'||!a.meetingCategory);
@@ -5698,13 +5733,15 @@ function buildSacramentScriptDoc(a, role, interactive){
             cb.title='Mark Release as complete in Callings';
             cb.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#1c7a45;';
             const cblbl=document.createElement('span');cblbl.style.cssText='font-size:11px;color:#5a5a5a;white-space:nowrap;';cblbl.textContent='Mark released';
-            cb.addEventListener('change',()=>{
+            cb.addEventListener('change',async()=>{
               if(cb.checked){
                 if(relIdx>=0){linkedC.stepDates[relIdx]=today();linkedC.currentStep=Math.max(linkedC.currentStep,relIdx+1);}
               } else {
                 if(relIdx>=0){linkedC.stepDates[relIdx]=undefined;if(linkedC.currentStep===relIdx+1)linkedC.currentStep=relIdx;}
               }
-              saveState();
+              cb.disabled=true;
+              await dbSaveCalling(linkedC);
+              cb.disabled=false;
             });
             rrow.appendChild(cb);rrow.appendChild(cblbl);
           }
@@ -5739,13 +5776,15 @@ function buildSacramentScriptDoc(a, role, interactive){
             cb.title='Mark Sustain over Pulpit as complete in Callings';
             cb.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#1c7a45;';
             const cblbl=document.createElement('span');cblbl.style.cssText='font-size:11px;color:#5a5a5a;white-space:nowrap;';cblbl.textContent='Mark sustained';
-            cb.addEventListener('change',()=>{
+            cb.addEventListener('change',async()=>{
               if(cb.checked){
                 if(sustainIdx>=0){linkedC.stepDates[sustainIdx]=today();linkedC.currentStep=Math.max(linkedC.currentStep,sustainIdx+1);}
               } else {
                 if(sustainIdx>=0){linkedC.stepDates[sustainIdx]=undefined;if(linkedC.currentStep===sustainIdx+1)linkedC.currentStep=sustainIdx;}
               }
-              saveState();
+              cb.disabled=true;
+              await dbSaveCalling(linkedC);
+              cb.disabled=false;
             });
             srow.appendChild(cb);srow.appendChild(cblbl);
           }
