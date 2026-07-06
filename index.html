@@ -5777,6 +5777,19 @@ function buildSacramentScriptDoc(a, role, interactive){
     agendaItem('Sacrament Hymn',`#${a.sacramentHymnNum||'—'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}`);
   agendaItem('Administration','Sacrament administered by the Aaronic Priesthood');
 
+  // Sacrament prayers — exact wording, for reference at the sacrament table
+  function prayerBlock(label,text,scripture){
+    const box=document.createElement('div');
+    box.style.cssText='margin:10px 0 14px;padding:12px 16px;background:#f8f9fb;border:1px solid rgba(0,0,0,0.08);border-radius:8px;';
+    const lbl=document.createElement('div');lbl.style.cssText='font-weight:700;font-size:12px;color:#1c2537;margin-bottom:4px;';
+    lbl.textContent=`${label} (${scripture})`;
+    const txt=document.createElement('div');txt.style.cssText='font-size:12.5px;color:#444;line-height:1.65;font-style:italic;';
+    txt.textContent=text;
+    box.appendChild(lbl);box.appendChild(txt);doc.appendChild(box);
+  }
+  prayerBlock('Prayer on the Bread','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this bread to the souls of all those who partake of it, that they may eat in remembrance of the body of thy Son, and witness unto thee, O God, the Eternal Father, that they are willing to take upon them the name of thy Son, and always remember him and keep his commandments which he has given them; that they may always have his Spirit to be with them. Amen.','D&C 20:77');
+  prayerBlock('Prayer on the Water','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this water to the souls of all those who drink of it, that they may do it in remembrance of the blood of thy Son, which was shed for them; that they may witness unto thee, O God, the Eternal Father, that they do always remember him, that they may have his Spirit to be with them. Amen.','D&C 20:79');
+
   // Program
   sectionDiv(isFast?'Fast & Testimony':'Program');
   if(isFast){
