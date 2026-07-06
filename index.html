@@ -6430,21 +6430,28 @@ function renderCallingDetail(el,role){
     // Step-level permissions for Stake Issued / Stake callings
     let canCheckStep=canEdit&&prevChecked;
     if(canCheckStep&&(c.level==='Stake Issued'||c.level==='Stake')){
-      const isStakePres=isStakePresidency(role)||role.scope==='admin';
-      const isWardBishopric=role.scope==='ward'&&role.org==='Bishopric';
+      const isAdmin=role.scope==='admin';
+      const isStakePres=isStakePresidency(role)||isAdmin;
+      const isWardBishopric=(role.scope==='ward'&&role.org==='Bishopric')||isAdmin;
       const isHighCouncilor=role.id==='high_council';
 
-      // Steps only SP can check
-      const spOnlySteps=["Presidency Approval","Bishop's Approval","Sustain in HC"];
       // Steps HC can check once assigned (after Sustain in HC)
       const hcSteps=["Set Appt to Extend","Extend Calling","Release Current/Call to New",
                      "Sustain over Pulpit","Set Apart",
                      "Set Appts to Extend & Release Current","Sustain & Release over Pulpit",
                      "Set Appt to Release","Extend Release","Release Current","Release over Pulpit"];
 
-      if(spOnlySteps.includes(step)){
-        // Only SP/admin can check these — HC sees them read-only
-        canCheckStep=isStakePres||isWardBishopric;
+      if(step==='Presidency Approval'){
+        // Only the Stake Presidency can check this — it's their own approval,
+        // not the Bishopric's. The Bishopric can submit the calling and watch
+        // progress, but cannot advance this step themselves.
+        canCheckStep=isStakePres;
+      } else if(step==="Bishop's Approval"){
+        // Only the Bishopric can check this — it's their own approval.
+        canCheckStep=isWardBishopric;
+      } else if(step==='Sustain in HC'){
+        // Stake Presidency or High Council — not the Bishopric.
+        canCheckStep=isStakePres||isHighCouncilor;
       } else if(isHighCouncilor&&hcSteps.includes(step)){
         // HC can check these steps only after Sustain in HC is done
         const sustainHCIdx=steps.indexOf('Sustain in HC');
@@ -6464,12 +6471,19 @@ function renderCallingDetail(el,role){
 
     const item=document.createElement('div');
     item.className='step-item'+(isAfterDeclined?' after-declined':'');
-    // HC sees early stake steps as greyed out
+    // HC sees steps outside their control greyed out, with an accurate hint
     const isHighCouncilor=role.id==='high_council';
-    const spOnlyStepsArr=["Presidency Approval","Bishop's Approval","Sustain in HC"];
-    if(isHighCouncilor&&spOnlyStepsArr.includes(step)&&!isChecked){
+    const nonHcSteps={'Presidency Approval':'the Stake Presidency',"Bishop's Approval":'the Bishopric','Sustain in HC':'the Stake Presidency or High Council'};
+    if(isHighCouncilor&&nonHcSteps[step]&&!isChecked){
       item.style.opacity='0.4';
-      item.title='This step is completed by the Stake Presidency';
+      item.title='This step is completed by '+nonHcSteps[step];
+    }
+    // Bishopric sees Stake-Presidency-only steps greyed out the same way
+    const isWardBishopricViewer=role.scope==='ward'&&role.org==='Bishopric';
+    const notBishopricSteps={'Presidency Approval':'the Stake Presidency','Sustain in HC':'the Stake Presidency or High Council'};
+    if(isWardBishopricViewer&&(c.level==='Stake Issued'||c.level==='Stake')&&notBishopricSteps[step]&&!isChecked){
+      item.style.opacity='0.4';
+      item.title='This step is completed by '+notBishopricSteps[step];
     }
 
     // ── Left track: circle + line ──────────────────────────────────────────
