@@ -929,6 +929,7 @@ const WORKFLOWS={
   // order of a true Stake calling, which originates with the Stake Presidency.
   'StakeIssued-Calling Only':["Bishop's Approval",'Presidency Approval','Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
   'StakeIssued-Calling & Release':["Bishop's Approval",'Presidency Approval','Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
+  'StakeIssued-Release Only':["Bishop's Approval",'Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
   'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
   'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
   'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
@@ -955,7 +956,7 @@ function getSteps(c){
   // Stake Issued callings originate with the Bishopric, then go to the Stake
   // Presidency for approval — reverse order from a true Stake calling, which
   // has its own workflow set with the first two steps swapped.
-  if(isStakeIssuedLevel&&(action==='Calling Only'||action==='Calling & Release')){
+  if(isStakeIssuedLevel&&(action==='Calling Only'||action==='Calling & Release'||action==='Release Only')){
     const stakeIssuedKey='StakeIssued-'+action;
     if(WORKFLOWS[stakeIssuedKey]) return WORKFLOWS[stakeIssuedKey];
   }
