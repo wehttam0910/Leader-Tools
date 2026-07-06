@@ -924,6 +924,11 @@ const WORKFLOWS={
   'Stake-Calling Only':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
   'Stake-Calling & Release':['Presidency Approval',"Bishop's Approval",'Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
   'Stake-Release Only':['Presidency Approval','Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
+  // Stake Issued callings (EQ President, Ward Clerk, etc.) originate with the
+  // Bishopric and are then approved by the Stake Presidency — the reverse
+  // order of a true Stake calling, which originates with the Stake Presidency.
+  'StakeIssued-Calling Only':["Bishop's Approval",'Presidency Approval','Sustain in HC','Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
+  'StakeIssued-Calling & Release':["Bishop's Approval",'Presidency Approval','Sustain in HC','Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
   'Ward-Calling Only':["Bishop's Approval",'Set Appt to Extend','Extend Calling','Sustain over Pulpit','Completed'],
   'Ward-Calling & Release':["Bishop's Approval",'Set Appts to Extend & Release Current','Release Current/Call to New','Release Current','Sustain & Release over Pulpit','Completed'],
   'Ward-Release Only':["Bishop's Approval",'Set Appt to Release','Extend Release','Release over Pulpit','Completed'],
@@ -935,6 +940,7 @@ function getSteps(c){
   if(c.calling==='Bishop'||(c.calling||'').toLowerCase()==='bishop'){
     return WORKFLOWS['Stake-Bishop']||WORKFLOWS['Stake-Calling Only'];
   }
+  const isStakeIssuedLevel=c.level==='Stake Issued';
   const t=(c.level==='Stake'||c.level==='Stake Issued')?'Stake':'Ward';
   let action=c.action||'Calling Only';
   // New unified actions: 'Release' maps to the Release Only workflow
@@ -946,6 +952,13 @@ function getSteps(c){
   // If action is Calling & Release but no current holder, use Calling Only workflow
   // (member's own release is noted on Extend Calling step, no separate Release Current needed)
   if(action==='Calling & Release'&&!c.currentlyFilled) action='Calling Only';
+  // Stake Issued callings originate with the Bishopric, then go to the Stake
+  // Presidency for approval — reverse order from a true Stake calling, which
+  // has its own workflow set with the first two steps swapped.
+  if(isStakeIssuedLevel&&(action==='Calling Only'||action==='Calling & Release')){
+    const stakeIssuedKey='StakeIssued-'+action;
+    if(WORKFLOWS[stakeIssuedKey]) return WORKFLOWS[stakeIssuedKey];
+  }
   const workflowKey=t+'-'+action;
   return WORKFLOWS[workflowKey]||WORKFLOWS['Ward-Calling Only'];
 }
