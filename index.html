@@ -3751,6 +3751,7 @@ async function generateAgendaPDF(a, role){
   const pw = doc.internal.pageSize.getWidth();
   const lm=18, rm=18, tm=18;
   let y = tm;
+  const isSacrament=a.meetingCategory==='sacrament';
 
   // Get favicon base64 for the Christus logo
   const faviconEl=document.querySelector('link[rel="icon"]');
@@ -3764,7 +3765,8 @@ async function generateAgendaPDF(a, role){
   doc.setFontSize(15);
   const types=getMeetingTypes(role);
   const mt=types.find(t=>t.key===a.meetingCategory)||{label:a.meetingCategory||'Meeting'};
-  doc.text(mt.label, pw/2, y+7, {align:'center'});
+  const titleLabel=isSacrament?`Sacrament Meeting — ${a.meetingType==='Fast & Testimony'?'Fast & Testimony':'Regular'}`:mt.label;
+  doc.text(titleLabel, pw/2, y+7, {align:'center'});
   doc.setFont('helvetica','normal');
   doc.setFontSize(10);
   doc.setTextColor(100);
@@ -3781,6 +3783,7 @@ async function generateAgendaPDF(a, role){
   doc.setFontSize(11);
   function pdfRow(label, value){
     if(!value) return;
+    if(y>260){doc.addPage();y=tm;}
     doc.setFont('helvetica','bold');
     doc.text(label+':', lm, y);
     doc.setFont('helvetica','normal');
@@ -3789,42 +3792,66 @@ async function generateAgendaPDF(a, role){
     y+=(wrapped.length*5.5)+2;
     if(y>260){doc.addPage();y=tm;}
   }
+  function pdfSectionHeader(label){
+    if(y>255){doc.addPage();y=tm;}
+    y+=2;
+    doc.setDrawColor(200);doc.setLineWidth(0.3);doc.line(lm,y,pw-rm,y);y+=5;
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
+    doc.text(label.toUpperCase(),lm,y);
+    doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=6;
+  }
+  function pdfBulletList(label,items){
+    if(!items||!items.length)return;
+    if(y>260){doc.addPage();y=tm;}
+    doc.setFont('helvetica','bold');doc.text(label+':',lm,y);y+=5.5;
+    doc.setFont('helvetica','normal');
+    items.forEach(text=>{
+      if(y>260){doc.addPage();y=tm;}
+      const wrapped=doc.splitTextToSize('•  '+text,pw-lm-rm-6);
+      wrapped.forEach(l=>{doc.text(l,lm+4,y);y+=5.5;});
+    });
+    y+=1;
+  }
 
-  pdfRow('Conducting', a.conducting);
+  if(isSacrament){
+    pdfRow('Presiding', a.presiding);
+    pdfRow('Conducting', a.conducting);
+    if(a.highCounselor) pdfRow('Visiting HC', a.highCounselor+(a.stakeVisiting?' (Stake Business)':''));
+    pdfRow('Chorister', a.chorister);
+    pdfRow('Accompanist', a.accompanist);
+  } else {
+    pdfRow('Conducting', a.conducting);
+  }
   pdfRow('Opening Prayer', a.openingPrayer);
   if(a.openingHymnNum||a.openingHymnTitle)
     pdfRow('Opening Hymn', `#${a.openingHymnNum||'—'}${a.openingHymnTitle?' — '+a.openingHymnTitle:''}`);
 
-  const thoughtLabel=a.meetingType&&['Spiritual Thought','Handbook Moment','Devotional'].includes(a.meetingType)?a.meetingType:'Spiritual Thought';
-  pdfRow(thoughtLabel, a.spiritualThought);
+  if(!isSacrament){
+    const thoughtLabel=a.meetingType&&['Spiritual Thought','Handbook Moment','Devotional'].includes(a.meetingType)?a.meetingType:'Spiritual Thought';
+    pdfRow(thoughtLabel, a.spiritualThought);
 
-  // Minutes from last meeting
-  if(a.finalSpeakerTopic){
-    y+=2;
-    doc.setDrawColor(200);doc.setLineWidth(0.3);doc.line(lm,y,pw-rm,y);y+=5;
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
-    doc.text('MINUTES FROM LAST MEETING',lm,y);
-    doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
-    // Strip HTML tags but preserve line breaks
-    const rawMin=a.finalSpeakerTopic.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
-    rawMin.split('\n').forEach(paragraph=>{
-      const trimmed=paragraph.replace(/[ \t]+/g,' ').trim();
-      if(trimmed===''){y+=3;return;} // blank line spacing
-      const wrapped=doc.splitTextToSize(trimmed,pw-lm-rm);
-      wrapped.forEach(line=>{
-        if(y>260){doc.addPage();y=tm;}
-        doc.text(line,lm,y);y+=5.5;
+    // Minutes from last meeting (non-sacrament only — for sacrament this field
+    // is actually the concluding speaker's topic, handled in the Program section)
+    if(a.finalSpeakerTopic){
+      pdfSectionHeader('Minutes from Last Meeting');
+      const rawMin=a.finalSpeakerTopic.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+      rawMin.split('\n').forEach(paragraph=>{
+        const trimmed=paragraph.replace(/[ \t]+/g,' ').trim();
+        if(trimmed===''){y+=3;return;}
+        const wrapped=doc.splitTextToSize(trimmed,pw-lm-rm);
+        wrapped.forEach(line=>{
+          if(y>260){doc.addPage();y=tm;}
+          doc.text(line,lm,y);y+=5.5;
+        });
       });
-    });
-    y+=3;
-    doc.setDrawColor(200);doc.line(lm,y,pw-rm,y);y+=5;
+      y+=3;
+      doc.setDrawColor(200);doc.line(lm,y,pw-rm,y);y+=5;
+    }
   }
 
-  // Agenda items
+  // Agenda items / Announcements (shared field across both meeting types)
   if(a.announcementList&&a.announcementList.filter(Boolean).length){
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(120);
-    doc.text('AGENDA ITEMS',lm,y);
-    doc.setTextColor(0);doc.setFont('helvetica','normal');doc.setFontSize(11);y+=5;
+    pdfSectionHeader(isSacrament?'Announcements':'Agenda Items');
     let mainNum=0;
     a.announcementList.filter(l=>typeof l==='string'&&l.replace(/^\t+/,'').trim()!=='').forEach(item=>{
       if(y>260){doc.addPage();y=tm;}
@@ -3832,7 +3859,7 @@ async function generateAgendaPDF(a, role){
       const text=item.replace(/^\t+/,'');
       if(isSub){
         const lines=doc.splitTextToSize('•  '+text,pw-lm-rm-10);
-        lines.forEach((l,li)=>{doc.text(l,lm+10,y);y+=5.5;});
+        lines.forEach((l)=>{doc.text(l,lm+10,y);y+=5.5;});
       } else {
         mainNum++;
         const lines=doc.splitTextToSize(`${mainNum}. ${text}`,pw-lm-rm);
@@ -3840,6 +3867,61 @@ async function generateAgendaPDF(a, role){
       }
     });
     y+=3;
+  }
+
+  if(isSacrament){
+    // Ward Business
+    const releases=(a.releases||[]).filter(r=>r.member);
+    const sustainings=(a.sustainings||[]).filter(s=>s.member);
+    const ords=(a.ordinations||[]).filter(o=>o.member);
+    const blessings=(a.babyBlessingsList||[]).filter(Boolean);
+    const confs=(a.confirmationsList||[]).filter(Boolean);
+    const newRecs=(a.newRecordsList||[]).filter(Boolean);
+    if(newRecs.length||releases.length||sustainings.length||ords.length||blessings.length||confs.length){
+      pdfSectionHeader('Ward Business');
+      pdfBulletList('New Record(s)', newRecs);
+      pdfBulletList('Release(s)', releases.map(r=>`${r.member}${r.calling?` — ${r.calling}`:''}`));
+      pdfBulletList('Sustaining(s)', sustainings.map(s=>`${s.member}${s.calling?` — ${s.calling}`:''}`));
+      pdfBulletList('Ordination(s)', ords.map(o=>`${o.member} — ${o.office}`));
+      pdfBulletList('Baby Blessing(s)', blessings);
+      pdfBulletList('Confirmation(s)', confs);
+    }
+
+    // Sacrament
+    pdfSectionHeader('Sacrament');
+    if(a.sacramentHymnNum||a.sacramentHymnTitle)
+      pdfRow('Sacrament Hymn', `#${a.sacramentHymnNum||'—'}${a.sacramentHymnTitle?' — '+a.sacramentHymnTitle:''}`);
+
+    // Program (speakers) or Fast & Testimony
+    const isFast=a.meetingType==='Fast & Testimony';
+    pdfSectionHeader(isFast?'Fast & Testimony':'Program');
+    if(isFast){
+      doc.setFont('helvetica','italic');
+      const wrapped=doc.splitTextToSize('Members of the ward bear their testimonies.',pw-lm-rm);
+      wrapped.forEach(l=>{doc.text(l,lm,y);y+=5.5;});
+      doc.setFont('helvetica','normal');
+      y+=2;
+    } else {
+      function speakerBlock(name,topic){
+        if(!name)return;
+        pdfRow('Speaker',name);
+        if(topic){
+          const clean=topic.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
+          if(clean){
+            doc.setFont('helvetica','italic');doc.setTextColor(90);
+            const wrapped=doc.splitTextToSize(clean,pw-lm-rm-6);
+            wrapped.forEach(l=>{if(y>260){doc.addPage();y=tm;}doc.text(l,lm+6,y);y+=5.5;});
+            doc.setTextColor(0);doc.setFont('helvetica','normal');
+            y+=1;
+          }
+        }
+      }
+      speakerBlock(a.speaker1,a.speaker1Topic);
+      speakerBlock(a.speaker2,a.speaker2Topic);
+      if(a.intermediateHymn||a.intermediateHymnTitle)
+        pdfRow('Intermediate Hymn', `${a.intermediateHymn?'#'+a.intermediateHymn:''}${a.intermediateHymn&&a.intermediateHymnTitle?' — ':''}${a.intermediateHymnTitle||''}`);
+      speakerBlock(a.finalSpeaker,a.finalSpeakerTopic);
+    }
   }
 
   pdfRow('Closing Prayer', a.closingPrayer);
