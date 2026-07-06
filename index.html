@@ -5671,12 +5671,12 @@ function buildSacramentScriptDoc(a, role, interactive){
     sectionDiv('Ward Business');
     scriptPara('Before we Continue with the Sacrament portion of our program, we have some Ward Business to take care of.');
     if(newRecs.length){
-      scriptPara(`We'd like to welcome the following member${newRecs.length>1?'s':''} whose records have been received into our ward:\n\n${newRecs.join('\n')}`);
+      scriptPara(`We'd like to welcome the following member${newRecs.length>1?'s':''} whose records have been received into our ward:`);
       agendaItem('New Record(s)',newRecs.join('<br>'));
     }
     if(releases.length){
       const pl=releases.length>1;
-      scriptPara(`The following member${pl?'s have':' has'} been released from ${pl?'their':'his/her'} calling:\n\n${releases.map(r=>`${r.member}${r.calling?` as ${r.calling}`:''}`).join('\n')}\n\nWe propose that ${pl?'they':'he/she'} be given a vote of thanks for ${pl?'their':'his/her'} service. Those who wish to express their appreciation may manifest by the uplifted hand.`);
+      scriptPara(`The following member${pl?'s have':' has'} been released from ${pl?'their':'his/her'} calling:`);
 
       // Release agenda items with optional "mark complete" checkbox for linked callings
       const relDiv=document.createElement('div');relDiv.style.cssText='margin-bottom:8px;';
@@ -5712,10 +5712,12 @@ function buildSacramentScriptDoc(a, role, interactive){
         relDiv.appendChild(rrow);
       });
       doc.appendChild(relDiv);
+
+      scriptPara(`We propose that ${pl?'they':'he/she'} be given a vote of thanks for ${pl?'their':'his/her'} service. Those who wish to express their appreciation may manifest by the uplifted hand.`);
     }
     if(sustainings.length){
       const pl=sustainings.length>1;
-      scriptPara(`The following member${pl?'s have':' has'} been called. If ${pl?'they are':'he/she is'} here, will ${pl?'they':'he/she'} please stand until after the vote is taken. We have called:\n\n${sustainings.map(s=>`${s.member}${s.calling?` as ${s.calling}`:''}`).join('\n')}\n\nWe propose that ${pl?'they':'he/she'} be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.`);
+      scriptPara(`The following member${pl?'s have':' has'} been called. If ${pl?'they are':'he/she is'} here, will ${pl?'they':'he/she'} please stand until after the vote is taken. We have called:`);
 
       // Sustaining agenda items with optional "mark complete" checkbox for linked callings
       const susDiv=document.createElement('div');susDiv.style.cssText='margin-bottom:8px;';
@@ -5751,17 +5753,19 @@ function buildSacramentScriptDoc(a, role, interactive){
         susDiv.appendChild(srow);
       });
       doc.appendChild(susDiv);
+
+      scriptPara(`We propose that ${pl?'they':'he/she'} be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.`);
     }
     if(ords.length){
       ords.forEach(o=>scriptPara(`We will now proceed with the ordination of ${o.member} to the office of ${o.office} in the ${['Deacon','Teacher','Priest'].includes(o.office)?'Aaronic':'Melchizedek'} Priesthood.`));
       agendaItem('Ordination(s)',ords.map(o=>`${o.member} — ${o.office}`).join('<br>'));
     }
     if(blessings.length){
-      scriptPara(`We will now proceed with the blessing of the following child${blessings.length>1?'ren':''}:\n\n${blessings.join('\n')}`);
+      scriptPara(`We will now proceed with the blessing of the following child${blessings.length>1?'ren':''}:`);
       agendaItem('Baby Blessing(s)',blessings.join('<br>'));
     }
     if(confs.length){
-      scriptPara(`We will now proceed with the confirmation of the following individual${confs.length>1?'s':''}:\n\n${confs.join('\n')}`);
+      scriptPara(`We will now proceed with the confirmation of the following individual${confs.length>1?'s':''}:`);
       agendaItem('Confirmation(s)',confs.join('<br>'));
     }
   }
