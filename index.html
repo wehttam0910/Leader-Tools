@@ -4308,95 +4308,15 @@ function renderAgendaCategory(el,role,categoryKey){
     return a.ward===roleWard;
   }).sort((a,b)=>b.date.localeCompare(a.date));
 
-  // ── Upcoming Sundays — an at-a-glance planning view covering every Sunday,
-  // whether or not an agenda has been created yet, so gaps (no speakers
-  // lined up, no agenda started) are visible before the meeting is close.
-  if(categoryKey==='sacrament'){
-    const todayStr=new Date().toISOString().slice(0,10);
-    const yr=parseInt(todayStr.slice(0,4));
-    const upcomingSundays=[...getSundaysOfYear(yr),...getSundaysOfYear(yr+1)]
-      .filter(d=>d>=todayStr)
-      .sort()
-      .slice(0,8);
+  const isSacrament=categoryKey==='sacrament';
 
-    const settings=state.sacSettings;
-    const profiles=state.profiles||[];
-
-    const upWrap=document.createElement('div');upWrap.style.cssText='margin-bottom:28px;';
-    const upTitle=document.createElement('div');upTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin-bottom:10px;';upTitle.textContent='Upcoming Sundays';
-    upWrap.appendChild(upTitle);
-
-    upcomingSundays.forEach(dateStr=>{
-      const existing=filtered.find(a=>a.date===dateStr);
-      const isFast=existing?existing.meetingType==='Fast & Testimony':false;
-      const assigned=settings?getAssignedConductor(dateStr,settings,profiles):null;
-      const conductorName=existing?existing.conducting:(assigned?assigned.name:'');
-
-      const row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:13px 16px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);cursor:pointer;';
-
-      const dCol=document.createElement('div');dCol.style.cssText='min-width:150px;';
-      const dObj=new Date(dateStr+'T12:00:00');
-      dCol.innerHTML=`<div style="font-weight:700;font-size:14px;color:#1c2537;">${dObj.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>`;
-      row.appendChild(dCol);
-
-      const cCol=document.createElement('div');cCol.style.cssText='min-width:150px;font-size:13px;color:#333;';
-      cCol.innerHTML=conductorName?`Conducting: <strong>${conductorName}</strong>`:'<span style="color:#bbb;">Conductor not set</span>';
-      row.appendChild(cCol);
-
-      const statusCol=document.createElement('div');statusCol.style.cssText='flex:1;min-width:220px;';
-      if(!existing){
-        statusCol.innerHTML='<span style="font-size:12px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:3px 10px;border-radius:20px;">No agenda started</span>';
-      } else {
-        const missing=[];
-        if(!existing.openingPrayer) missing.push('Opening Prayer');
-        if(!existing.closingPrayer) missing.push('Closing Prayer');
-        const spk=[existing.speaker1,existing.speaker2,existing.finalSpeaker].filter(Boolean);
-        if(!isFast&&spk.length<2) missing.push(spk.length===0?'Speakers':'2nd Speaker');
-
-        if(!missing.length){
-          const bits=[];
-          if(isFast) bits.push('Fast &amp; Testimony');
-          bits.push(`Prayers set`);
-          if(!isFast) bits.push(`Speakers: ${spk.join(', ')}`);
-          statusCol.innerHTML=`<span style="font-size:12px;color:#1c7a45;">✓ ${bits.join(' · ')}</span>`;
-        } else {
-          const label=(isFast?'Fast &amp; Testimony — ':'')+'Missing: '+missing.join(', ');
-          statusCol.innerHTML=`<span style="font-size:12px;font-weight:600;color:#c62828;background:#fdecea;padding:3px 10px;border-radius:20px;">${label}</span>`;
-        }
-      }
-      row.appendChild(statusCol);
-
-      const actionCol=document.createElement('div');
-      actionCol.innerHTML=existing
-        ?'<span style="font-size:12px;color:#185fa5;font-weight:600;">View / Edit →</span>'
-        :'<span style="font-size:12px;color:#185fa5;font-weight:600;">+ Create Agenda →</span>';
-      row.appendChild(actionCol);
-
-      row.addEventListener('click',()=>{
-        if(existing){state.detailId=existing.id;state.view='detail';render();}
-        else{
-          window._agendaDraft={meetingCategory:'sacrament',date:dateStr,conducting:conductorName||''};
-          state.view='new';render();
-        }
-      });
-      upWrap.appendChild(row);
-    });
-    el.appendChild(upWrap);
-
-    const histTitle=document.createElement('div');histTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin-bottom:10px;';histTitle.textContent='All Agendas';
-    el.appendChild(histTitle);
-  }
-
-  if(!filtered.length){
+  if(!isSacrament&&!filtered.length){
     const es=document.createElement('div');es.className='empty-state';
     es.innerHTML=`<div style="font-size:32px;margin-bottom:12px;">${mt.icon}</div><div>No ${mt.label} agendas yet.</div><div style="font-size:12px;color:#bbb;margin-top:6px;">Click "+ New Agenda" to create one.</div>`;
     el.appendChild(es);return;
   }
 
-  const isSacrament=categoryKey==='sacrament';
-
-  // Checkbox selection state
+  // Checkbox selection state (Past Agendas / non-sacrament list only)
   const selected=new Set();
 
   function renderBulkBar(){
@@ -4424,49 +4344,43 @@ function renderAgendaCategory(el,role,categoryKey){
     });
     bar.appendChild(delBtn);
     const cancelBtn=document.createElement('button');cancelBtn.className='bulk-bar-btn';cancelBtn.textContent='✕';
-    cancelBtn.addEventListener('click',()=>{selected.clear();renderBulkBar();updateCheckboxes();});
+    cancelBtn.addEventListener('click',()=>{selected.clear();renderBulkBar();updateAllCheckboxes();});
     bar.appendChild(cancelBtn);
-    // Insert after the hdr
     hdr.after(bar);
   }
-
-  function updateCheckboxes(){
-    table.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+  function updateAllCheckboxes(){
+    el.querySelectorAll('input[type=checkbox].agenda-row-cb').forEach(cb=>{
       cb.checked=selected.has(Number(cb.dataset.id)||cb.dataset.id);
     });
   }
 
-  const table=document.createElement('table');table.className='agenda-table';
-  const thead=document.createElement('thead');
-  // Checkbox col + action col
-  if(isSacrament){
-    thead.innerHTML='<tr><th style="width:28px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Opening Prayer</th><th>Closing Prayer</th><th>Youth / Speaker 1</th><th>Speaker 2</th><th>Speaker 3</th><th style="width:56px;"></th></tr>';
-  } else {
-    thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th><th style="width:70px;"></th></tr>';
-  }
-  table.appendChild(thead);
-  const tbody=document.createElement('tbody');
+  // Builds one <tr> for either a real agenda (has .id) or a "ghost" upcoming
+  // Sunday that has no agenda yet ({date, conducting, _ghost:true}).
+  function buildAgendaRow(a){
+    const tr=document.createElement('tr');tr.style.cursor='pointer';
+    const isGhost=!!a._ghost;
+    if(isGhost) tr.style.background='#fbfbfc';
 
-  filtered.forEach(a=>{
-    const tr=document.createElement('tr');
-    tr.style.cursor='pointer';
-
-    // Checkbox cell
     const cbTd=document.createElement('td');cbTd.style.cssText='padding-right:0;width:32px;';
-    const cb=document.createElement('input');cb.type='checkbox';cb.className='agenda-row-cb';cb.dataset.id=a.id;
-    cb.addEventListener('change',e=>{
-      e.stopPropagation();
-      if(cb.checked)selected.add(a.id);else selected.delete(a.id);
-      renderBulkBar();
-    });
-    cbTd.appendChild(cb);tr.appendChild(cbTd);
+    if(!isGhost){
+      const cb=document.createElement('input');cb.type='checkbox';cb.className='agenda-row-cb';cb.dataset.id=a.id;
+      cb.addEventListener('change',e=>{
+        e.stopPropagation();
+        if(cb.checked)selected.add(a.id);else selected.delete(a.id);
+        renderBulkBar();
+      });
+      cbTd.appendChild(cb);
+    }
+    tr.appendChild(cbTd);
 
-    // Data cells
     if(isSacrament){
-      const typeBadge=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
+      const typeBadge=isGhost
+        ?'<span style="font-size:11px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:2px 9px;border-radius:20px;white-space:nowrap;">Not started</span>'
+        :`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
       const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
       const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
-      tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||'—'}</td><td style="font-size:12px;">${a.presiding||'—'}</td><td style="font-size:12px;color:#555;">${a.openingPrayer||'—'}</td><td style="font-size:12px;color:#555;">${a.closingPrayer||'—'}</td><td>${spk(a.speaker1,a.speaker1Topic)}</td><td>${spk(a.speaker2,a.speaker2Topic)}</td><td>${spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+      const dash='<span style="color:#ccc;">—</span>';
+      tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td><td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
       const hasItems=topLevelItems.length;
@@ -4478,32 +4392,95 @@ function renderAgendaCategory(el,role,categoryKey){
       tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#5a5a5a;">${notesSnippet}</td>`;
     }
 
-    // Action cell: PDF + trash
     const actTd=document.createElement('td');actTd.style.cssText='text-align:right;white-space:nowrap;';
     actTd.addEventListener('click',e=>e.stopPropagation());
+    if(!isGhost){
+      const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Print / Save as PDF';pdfBtn.textContent='🖨';
+      pdfBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
+      actTd.appendChild(pdfBtn);
 
-    const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Print / Save as PDF';pdfBtn.textContent='🖨';
-    pdfBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
-    actTd.appendChild(pdfBtn);
-
-    const trashBtn=document.createElement('button');trashBtn.className='agenda-trash';trashBtn.title='Delete';trashBtn.textContent='🗑';
-    trashBtn.addEventListener('click',async()=>{
-      if(!confirm(`Delete agenda for ${fmtDate(a.date)}?`)) return;
-      await sb.from('agendas').delete().eq('id',a.id);
-      state.agendas=state.agendas.filter(x=>x.id!==a.id);
-      selected.delete(a.id);
-      state.agendaCategory=categoryKey;render();
-    });
-    actTd.appendChild(trashBtn);
+      const trashBtn=document.createElement('button');trashBtn.className='agenda-trash';trashBtn.title='Delete';trashBtn.textContent='🗑';
+      trashBtn.addEventListener('click',async()=>{
+        if(!confirm(`Delete agenda for ${fmtDate(a.date)}?`)) return;
+        await sb.from('agendas').delete().eq('id',a.id);
+        state.agendas=state.agendas.filter(x=>x.id!==a.id);
+        selected.delete(a.id);
+        state.agendaCategory=categoryKey;render();
+      });
+      actTd.appendChild(trashBtn);
+    } else {
+      const createBtn=document.createElement('button');createBtn.className='agenda-trash';createBtn.title='Create Agenda';createBtn.textContent='+';
+      createBtn.addEventListener('click',()=>{
+        window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
+        state.view='new';render();
+      });
+      actTd.appendChild(createBtn);
+    }
     tr.appendChild(actTd);
 
-    tr.addEventListener('click',()=>{state.detailId=a.id;state.view='detail';render();});
-    tbody.appendChild(tr);
-  });
+    tr.addEventListener('click',()=>{
+      if(isGhost){
+        window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
+        state.view='new';render();
+      } else {
+        state.detailId=a.id;state.view='detail';render();
+      }
+    });
+    return tr;
+  }
 
-  table.appendChild(tbody);
-  const aWrap=document.createElement('div');aWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;';
-  aWrap.appendChild(table);el.appendChild(aWrap);
+  function buildAgendaTable(entries){
+    const table=document.createElement('table');table.className='agenda-table';
+    const thead=document.createElement('thead');
+    if(isSacrament){
+      thead.innerHTML='<tr><th style="width:28px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Opening Prayer</th><th>Closing Prayer</th><th>Youth / Speaker 1</th><th>Speaker 2</th><th>Speaker 3</th><th style="width:56px;"></th></tr>';
+    } else {
+      thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th><th style="width:70px;"></th></tr>';
+    }
+    table.appendChild(thead);
+    const tbody=document.createElement('tbody');
+    entries.forEach(a=>tbody.appendChild(buildAgendaRow(a)));
+    table.appendChild(tbody);
+    const wrap=document.createElement('div');wrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;';
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  if(isSacrament){
+    const now=new Date();
+    const todayStr=now.toISOString().slice(0,10);
+    const yr=now.getFullYear();
+    const settings=state.sacSettings;
+    const profiles=state.profiles||[];
+
+    // This month, next month, and the month after — last day of that 3rd month
+    const rangeEndStr=new Date(now.getFullYear(),now.getMonth()+3,0).toISOString().slice(0,10);
+    const upcomingDates=[...getSundaysOfYear(yr),...getSundaysOfYear(yr+1)]
+      .filter(d=>d>=todayStr&&d<=rangeEndStr).sort();
+    const upcomingEntries=upcomingDates.map(dateStr=>{
+      const existingAgenda=filtered.find(a=>a.date===dateStr);
+      if(existingAgenda) return existingAgenda;
+      const assigned=settings?getAssignedConductor(dateStr,settings,profiles):null;
+      return {date:dateStr,conducting:assigned?assigned.name:'',_ghost:true};
+    });
+
+    const upTitle=document.createElement('div');upTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin:0 0 10px;';upTitle.textContent='Upcoming Sundays';
+    el.appendChild(upTitle);
+    el.appendChild(buildAgendaTable(upcomingEntries));
+
+    const pastEntries=filtered.filter(a=>a.date<todayStr);
+    const pastTitle=document.createElement('div');pastTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin:28px 0 10px;';pastTitle.textContent='Past Agendas';
+    el.appendChild(pastTitle);
+    if(!pastEntries.length){
+      const es=document.createElement('div');es.className='empty-state';es.textContent='No past agendas yet.';
+      el.appendChild(es);
+    } else {
+      el.appendChild(buildAgendaTable(pastEntries));
+    }
+    return;
+  }
+
+  el.appendChild(buildAgendaTable(filtered));
 }
 
 // ── Agenda Wizard ─────────────────────────────────────────────────────────────
