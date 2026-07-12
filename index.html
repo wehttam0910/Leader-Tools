@@ -4344,19 +4344,25 @@ function renderAgendaCategory(el,role,categoryKey){
       cCol.innerHTML=conductorName?`Conducting: <strong>${conductorName}</strong>`:'<span style="color:#bbb;">Conductor not set</span>';
       row.appendChild(cCol);
 
-      const statusCol=document.createElement('div');statusCol.style.cssText='flex:1;min-width:180px;';
+      const statusCol=document.createElement('div');statusCol.style.cssText='flex:1;min-width:220px;';
       if(!existing){
         statusCol.innerHTML='<span style="font-size:12px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:3px 10px;border-radius:20px;">No agenda started</span>';
-      } else if(isFast){
-        statusCol.innerHTML='<span style="font-size:12px;font-weight:600;color:#5b47d6;background:#f0eeff;padding:3px 10px;border-radius:20px;">Fast &amp; Testimony</span>';
       } else {
+        const missing=[];
+        if(!existing.openingPrayer) missing.push('Opening Prayer');
+        if(!existing.closingPrayer) missing.push('Closing Prayer');
         const spk=[existing.speaker1,existing.speaker2,existing.finalSpeaker].filter(Boolean);
-        if(spk.length>=2){
-          statusCol.innerHTML=`<span style="font-size:12px;color:#1c7a45;">✓ Speakers: ${spk.join(', ')}</span>`;
-        } else if(spk.length===1){
-          statusCol.innerHTML=`<span style="font-size:12px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:3px 10px;border-radius:20px;">Only 1 speaker set — ${spk[0]}</span>`;
+        if(!isFast&&spk.length<2) missing.push(spk.length===0?'Speakers':'2nd Speaker');
+
+        if(!missing.length){
+          const bits=[];
+          if(isFast) bits.push('Fast &amp; Testimony');
+          bits.push(`Prayers set`);
+          if(!isFast) bits.push(`Speakers: ${spk.join(', ')}`);
+          statusCol.innerHTML=`<span style="font-size:12px;color:#1c7a45;">✓ ${bits.join(' · ')}</span>`;
         } else {
-          statusCol.innerHTML='<span style="font-size:12px;font-weight:600;color:#c62828;background:#fdecea;padding:3px 10px;border-radius:20px;">Speakers not yet arranged</span>';
+          const label=(isFast?'Fast &amp; Testimony — ':'')+'Missing: '+missing.join(', ');
+          statusCol.innerHTML=`<span style="font-size:12px;font-weight:600;color:#c62828;background:#fdecea;padding:3px 10px;border-radius:20px;">${label}</span>`;
         }
       }
       row.appendChild(statusCol);
