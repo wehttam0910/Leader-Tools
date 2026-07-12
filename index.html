@@ -4848,6 +4848,31 @@ function renderAgendaWizard(el,role,editingAgenda){
   // Always keep ward in sync with role
   if(!isEditing) d.ward=ward||d.ward;
 
+  // Auto-populated releases/sustainings represent "ready to announce this
+  // week." If the underlying calling has already been completed on a
+  // DIFFERENT date than this meeting (e.g. it was actually announced last
+  // week, and only entered into the app after the fact), it belongs to that
+  // date's agenda, not this one — drop it here so it can't show up twice.
+  function pruneWardBusinessForDate(){
+    if(!d.date)return;
+    ['releases','sustainings'].forEach(key=>{
+      if(!Array.isArray(d[key]))return;
+      d[key]=d[key].filter(item=>{
+        if(!item._auto||!item._callingId)return true; // manually added — leave alone
+        const c=state.callings.find(x=>x.id===item._callingId);
+        if(!c)return true;
+        const steps=getSteps(c);
+        const pulpitIdx=Math.max(steps.indexOf('Release over Pulpit'),steps.indexOf('Sustain over Pulpit'),steps.indexOf('Sustain & Release over Pulpit'));
+        if(pulpitIdx<0)return true;
+        const isDone=c.currentStep>pulpitIdx;
+        if(!isDone)return true; // still pending — belongs on whichever agenda is being drafted
+        // Already done — only keep it if it matches THIS meeting's date
+        return c.stepDates[pulpitIdx]===d.date;
+      });
+    });
+  }
+  pruneWardBusinessForDate();
+
   const hdr=document.createElement('div');hdr.className='detail-header';
   const bb=document.createElement('button');bb.className='back-btn';bb.innerHTML='&larr;';
   bb.addEventListener('click',()=>{window._agendaDraft=null;state.view=isEditing?'detail':'list';render();});
@@ -5132,6 +5157,7 @@ function renderAgendaWizard(el,role,editingAgenda){
     if(!d.date){alert('Please enter a meeting date.');return;}
     if(!d.conducting){alert('Please enter who is conducting.');return;}
     if(!d.presiding){alert('Please enter who is presiding.');return;}
+    pruneWardBusinessForDate();
     if(isEditing){
       // Update existing agenda in place
       Object.assign(editingAgenda,d);
@@ -7021,6 +7047,9 @@ function renderCallingDetail(el,role){
         pencil.addEventListener('mouseenter',()=>{pencil.style.background='#f0f4ff';pencil.style.borderColor='#1c2537';pencil.style.color='#1c2537';});
         pencil.addEventListener('mouseleave',()=>{pencil.style.background='#fff';pencil.style.borderColor='rgba(0,0,0,0.18)';pencil.style.color='#666';});
         let editing=false;
+        // "Over Pulpit" steps only ever happen at a Sunday sacrament meeting
+        const pulpitOnlySteps=['Sustain over Pulpit','Release over Pulpit','Sustain & Release over Pulpit'];
+        const sundaysOnly=pulpitOnlySteps.includes(step);
         pencil.addEventListener('click',e=>{
           e.stopPropagation();
           if(editing)return;editing=true;
@@ -7028,7 +7057,17 @@ function renderCallingDetail(el,role){
           inp.style.marginLeft='4px';
           wrap.replaceChildren(txt,inp);
           inp.focus();
-          function save(){c.stepDates[i]=inp.value||c.stepDates[i];render();dbSaveCalling(c);}
+          function save(){
+            const newVal=inp.value||c.stepDates[i];
+            if(sundaysOnly&&newVal){
+              const dow=new Date(newVal+'T12:00:00').getDay();
+              if(dow!==0){
+                alert('"'+step+'" only happens during a Sunday sacrament meeting — please pick a Sunday.');
+                inp.focus();editing=true;return;
+              }
+            }
+            c.stepDates[i]=newVal;editing=false;render();dbSaveCalling(c);
+          }
           inp.addEventListener('blur',save);
           inp.addEventListener('keydown',e=>{if(e.key==='Enter')save();});
         });
