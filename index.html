@@ -4464,8 +4464,9 @@ function renderAgendaCategory(el,role,categoryKey){
       arrow.style.cssText=`position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:${fg};pointer-events:none;`;
       sel.addEventListener('click',e=>e.stopPropagation());
       sel.addEventListener('change',()=>{
+        a.meetingType=sel.value; // apply immediately so the rebuilt UI reflects it right away
         queueFieldSave({meetingType:sel.value});
-        updateSpeakerCells();
+        updateContentCells();
         fillTypeBadge();
       });
       wrap.appendChild(sel);wrap.appendChild(arrow);
@@ -4537,8 +4538,9 @@ function renderAgendaCategory(el,role,categoryKey){
     }
 
     // Inline-editable text cell. Saves on blur (not every keystroke).
-    function editableTd(getVal,fieldKey,opts={}){
-      const td=document.createElement('td');
+    // Populates an existing td with a single editable text field, in place.
+    function populateEditableTd(td,getVal,fieldKey,opts={}){
+      td.innerHTML='';
       const inp=document.createElement('input');inp.type='text';
       inp.value=getVal()||'';inp.placeholder=opts.placeholder||'—';
       inp.style.cssText=`width:100%;min-width:${opts.minWidth||'90px'};border:1px solid transparent;background:transparent;font-size:${opts.fontSize||'12px'};font-weight:${opts.bold?'600':'400'};color:${opts.color||'#333'};padding:3px 4px;border-radius:5px;box-sizing:border-box;`;
@@ -4551,7 +4553,6 @@ function renderAgendaCategory(el,role,categoryKey){
         queueFieldSave({[fieldKey]:val});
       });
       td.appendChild(inp);
-      return td;
     }
 
     // Speaker cell: name + topic stacked, each independently editable.
@@ -4583,20 +4584,43 @@ function renderAgendaCategory(el,role,categoryKey){
       td.appendChild(nameInp);td.appendChild(topicInp);
     }
 
-    // Three speaker cells always exist in the row; for a Fast & Testimony
-    // week they collapse into one "Testimonies" note instead, since no
-    // speakers are needed that week.
+    // Types where the stake — not the ward — is responsible for the content,
+    // or where there's simply no ward sacrament meeting that day. Either way
+    // the ward doesn't need to fill anything in, so the whole row collapses
+    // into one note referencing the type.
+    const NO_WARD_CONTENT_TYPES={
+      'Ward Conference':'planned by the stake',
+      'Stake Conference':'no ward sacrament meeting',
+      'General Conference':'no ward sacrament meeting',
+    };
+
+    const condTd=document.createElement('td');
+    const presTd=document.createElement('td');
+    const openPrayerTd=document.createElement('td');
+    const closePrayerTd=document.createElement('td');
     const spk1Td=document.createElement('td');
     const spk2Td=document.createElement('td');
     const spk3Td=document.createElement('td');
-    function updateSpeakerCells(){
+    const allContentTds=[condTd,presTd,openPrayerTd,closePrayerTd,spk1Td,spk2Td,spk3Td];
+
+    function updateContentCells(){
+      const noContentNote=NO_WARD_CONTENT_TYPES[a.meetingType];
+      allContentTds.forEach(td=>{td.colSpan=1;td.style.display='';});
+      if(noContentNote){
+        condTd.colSpan=7;
+        condTd.innerHTML=`<span style="font-size:12px;color:#8a5a06;font-style:italic;">${a.meetingType} — ${noContentNote}</span>`;
+        [presTd,openPrayerTd,closePrayerTd,spk1Td,spk2Td,spk3Td].forEach(td=>{td.style.display='none';});
+        return;
+      }
+      populateEditableTd(condTd,()=>a.conducting,'conducting',{bold:false});
+      populateEditableTd(presTd,()=>a.presiding,'presiding');
+      populateEditableTd(openPrayerTd,()=>a.openingPrayer,'openingPrayer',{color:'#555'});
+      populateEditableTd(closePrayerTd,()=>a.closingPrayer,'closingPrayer',{color:'#555'});
       if(a.meetingType==='Fast & Testimony'){
         spk1Td.colSpan=3;
         spk1Td.innerHTML='<span style="font-size:12px;color:#8a5a06;font-style:italic;">Testimonies — no speakers needed</span>';
         spk2Td.style.display='none';spk3Td.style.display='none';
       } else {
-        spk1Td.colSpan=1;
-        spk2Td.style.display='';spk3Td.style.display='';
         populateSpeakerTd(spk1Td,'speaker1','speaker1Topic');
         populateSpeakerTd(spk2Td,'speaker2','speaker2Topic');
         populateSpeakerTd(spk3Td,'finalSpeaker','finalSpeakerTopic');
@@ -4607,20 +4631,21 @@ function renderAgendaCategory(el,role,categoryKey){
       const dateTd=document.createElement('td');dateTd.className='td-date';dateTd.textContent=fmtDateShort(a.date);
       tr.appendChild(dateTd);tr.appendChild(typeTd);
       if(canEditInline){
-        tr.appendChild(editableTd(()=>a.conducting,'conducting',{bold:false}));
-        tr.appendChild(editableTd(()=>a.presiding,'presiding'));
-        tr.appendChild(editableTd(()=>a.openingPrayer,'openingPrayer',{color:'#555'}));
-        tr.appendChild(editableTd(()=>a.closingPrayer,'closingPrayer',{color:'#555'}));
-        updateSpeakerCells();
-        tr.appendChild(spk1Td);tr.appendChild(spk2Td);tr.appendChild(spk3Td);
+        updateContentCells();
+        allContentTds.forEach(td=>tr.appendChild(td));
       } else {
         const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
         const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
         const dash='<span style="color:#ccc;">—</span>';
-        const speakerCells=a.meetingType==='Fast & Testimony'
-          ?`<td colspan="3"><span style="font-size:12px;color:#8a5a06;font-style:italic;">Testimonies — no speakers needed</span></td>`
-          :`<td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
-        tr.innerHTML+=`<td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td>${speakerCells}`;
+        const noContentNote=NO_WARD_CONTENT_TYPES[a.meetingType];
+        if(noContentNote){
+          tr.innerHTML+=`<td colspan="7"><span style="font-size:12px;color:#8a5a06;font-style:italic;">${a.meetingType} — ${noContentNote}</span></td>`;
+        } else {
+          const speakerCells=a.meetingType==='Fast & Testimony'
+            ?`<td colspan="3"><span style="font-size:12px;color:#8a5a06;font-style:italic;">Testimonies — no speakers needed</span></td>`
+            :`<td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+          tr.innerHTML+=`<td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td>${speakerCells}`;
+        }
       }
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
