@@ -4342,7 +4342,14 @@ function renderAgendaCategory(el,role,categoryKey){
         // tagged with this meeting type, so they get the same rich
         // hymns/prayers/speakers/ward-business structure automatically.
         window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference'};
-        if(role.scope==='ward') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
+        if(role.scope==='ward'){
+          window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
+        } else if(role.scope==='stake'){
+          // The specific ward (and its bishop) isn't chosen yet at this point,
+          // so generic role labels are the sensible default here.
+          window._agendaDraft.conducting='Bishop';
+          window._agendaDraft.presiding='President';
+        }
       } else {
         window._agendaDraft={meetingCategory:categoryKey};
         if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
@@ -4461,6 +4468,11 @@ function renderAgendaCategory(el,role,categoryKey){
       typeTd.innerHTML='';
       if(isGhost&&!canEditInline){
         typeTd.innerHTML='<span style="font-size:11px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:2px 9px;border-radius:20px;white-space:nowrap;">Not started</span>';
+        return;
+      }
+      if(isWardConference){
+        // Every entry on this page is already a Ward Conference — nothing to choose.
+        typeTd.innerHTML='<span class="agenda-type-badge">Ward Conference</span>';
         return;
       }
       if(!canEditInline){
@@ -5311,7 +5323,16 @@ function renderAgendaWizard(el,role,editingAgenda){
       body.appendChild(field('Ward',wardDisplay));
     }
 
-    body.appendChild(field('Meeting Type',selInp(SAC_MEETING_TYPES,d.meetingType,'meetingType')));
+    if(role.scope==='stake'){
+      // Stake users can only ever create/edit Ward Conference agendas, so
+      // there's nothing to choose here — just show it as a fixed label.
+      d.meetingType='Ward Conference';
+      const lockedType=document.createElement('input');lockedType.type='text';lockedType.value='Ward Conference';lockedType.readOnly=true;
+      lockedType.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:14px;background:#f0f2f5;color:#555;cursor:default;box-sizing:border-box;';
+      body.appendChild(field('Meeting Type',lockedType));
+    } else {
+      body.appendChild(field('Meeting Type',selInp(SAC_MEETING_TYPES,d.meetingType,'meetingType')));
+    }
     // Conducting — title dropdown + name field
     const conductingWrap=document.createElement('div');conductingWrap.className='agenda-field';
     conductingWrap.innerHTML='<label>Conducting<span class="req">*</span></label>';
