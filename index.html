@@ -4606,9 +4606,11 @@ function renderAgendaCategory(el,role,categoryKey){
 
     // Types where the stake — not the ward — is responsible for the content,
     // or where there's simply no ward sacrament meeting that day. Either way
-    // the ward doesn't need to fill anything in, so the whole row collapses
-    // into one note referencing the type.
-    const NO_WARD_CONTENT_TYPES={
+    // the ward doesn't need to fill anything in, so on the WARD'S OWN list
+    // the whole row collapses into one note. But on the stake's dedicated
+    // Ward Conference page, that same entry IS the one place the content
+    // actually gets filled in — so it must stay fully editable there.
+    const NO_WARD_CONTENT_TYPES=isWardConference?{}:{
       'Ward Conference':'planned by the stake',
       'Stake Conference':'no ward sacrament meeting',
       'General Conference':'no ward sacrament meeting',
