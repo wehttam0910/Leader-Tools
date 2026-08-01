@@ -4438,9 +4438,29 @@ function renderAgendaCategory(el,role,categoryKey){
 
     const typeTd=document.createElement('td');
     function fillTypeBadge(){
-      typeTd.innerHTML=isGhost
-        ?'<span style="font-size:11px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:2px 9px;border-radius:20px;white-space:nowrap;">Not started</span>'
-        :`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
+      typeTd.innerHTML='';
+      if(isGhost&&!canEditInline){
+        typeTd.innerHTML='<span style="font-size:11px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:2px 9px;border-radius:20px;white-space:nowrap;">Not started</span>';
+        return;
+      }
+      if(!canEditInline){
+        typeTd.innerHTML=`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
+        return;
+      }
+      const sel=document.createElement('select');
+      sel.style.cssText=`font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid transparent;cursor:pointer;background:${a.meetingType==='Fast & Testimony'?'#f0eeff':'#e6f1fb'};color:${a.meetingType==='Fast & Testimony'?'#5b47d6':'#185fa5'};`;
+      ['Regular','Fast & Testimony'].forEach(opt=>{
+        const o=document.createElement('option');o.value=opt;o.textContent=isGhost&&opt==='Regular'?'Not started · Regular':opt;
+        if((a.meetingType||'Regular')===opt)o.selected=true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('click',e=>e.stopPropagation());
+      sel.addEventListener('change',()=>{
+        queueFieldSave({meetingType:sel.value});
+        updateSpeakerCells();
+        fillTypeBadge();
+      });
+      typeTd.appendChild(sel);
     }
     fillTypeBadge();
 
@@ -4526,8 +4546,8 @@ function renderAgendaCategory(el,role,categoryKey){
     }
 
     // Speaker cell: name + topic stacked, each independently editable.
-    function speakerTd(nameKey,topicKey){
-      const td=document.createElement('td');td.style.padding='6px 8px';
+    function populateSpeakerTd(td,nameKey,topicKey){
+      td.innerHTML='';td.style.padding='6px 8px';
       const nameInp=document.createElement('input');nameInp.type='text';
       nameInp.value=a[nameKey]||'';nameInp.placeholder='Speaker name';
       nameInp.style.cssText='width:100%;min-width:110px;border:1px solid transparent;background:transparent;font-size:12px;font-weight:600;color:#1c2537;padding:2px 4px;border-radius:5px;box-sizing:border-box;margin-bottom:2px;';
@@ -4552,7 +4572,26 @@ function renderAgendaCategory(el,role,categoryKey){
         queueFieldSave({[topicKey]:val});
       });
       td.appendChild(nameInp);td.appendChild(topicInp);
-      return td;
+    }
+
+    // Three speaker cells always exist in the row; for a Fast & Testimony
+    // week they collapse into one "Testimonies" note instead, since no
+    // speakers are needed that week.
+    const spk1Td=document.createElement('td');
+    const spk2Td=document.createElement('td');
+    const spk3Td=document.createElement('td');
+    function updateSpeakerCells(){
+      if(a.meetingType==='Fast & Testimony'){
+        spk1Td.colSpan=3;
+        spk1Td.innerHTML='<span style="font-size:12px;color:#8a5a06;font-style:italic;">Testimonies — no speakers needed</span>';
+        spk2Td.style.display='none';spk3Td.style.display='none';
+      } else {
+        spk1Td.colSpan=1;
+        spk2Td.style.display='';spk3Td.style.display='';
+        populateSpeakerTd(spk1Td,'speaker1','speaker1Topic');
+        populateSpeakerTd(spk2Td,'speaker2','speaker2Topic');
+        populateSpeakerTd(spk3Td,'finalSpeaker','finalSpeakerTopic');
+      }
     }
 
     if(isSacrament){
@@ -4563,14 +4602,16 @@ function renderAgendaCategory(el,role,categoryKey){
         tr.appendChild(editableTd(()=>a.presiding,'presiding'));
         tr.appendChild(editableTd(()=>a.openingPrayer,'openingPrayer',{color:'#555'}));
         tr.appendChild(editableTd(()=>a.closingPrayer,'closingPrayer',{color:'#555'}));
-        tr.appendChild(speakerTd('speaker1','speaker1Topic'));
-        tr.appendChild(speakerTd('speaker2','speaker2Topic'));
-        tr.appendChild(speakerTd('finalSpeaker','finalSpeakerTopic'));
+        updateSpeakerCells();
+        tr.appendChild(spk1Td);tr.appendChild(spk2Td);tr.appendChild(spk3Td);
       } else {
         const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
         const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
         const dash='<span style="color:#ccc;">—</span>';
-        tr.innerHTML+=`<td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td><td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+        const speakerCells=a.meetingType==='Fast & Testimony'
+          ?`<td colspan="3"><span style="font-size:12px;color:#8a5a06;font-style:italic;">Testimonies — no speakers needed</span></td>`
+          :`<td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+        tr.innerHTML+=`<td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td>${speakerCells}`;
       }
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
