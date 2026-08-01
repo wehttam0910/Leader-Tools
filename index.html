@@ -4333,6 +4333,7 @@ function renderAgendaCategory(el,role,categoryKey){
     const newBtn=document.createElement('button');newBtn.className='btn-primary';newBtn.textContent='+ New Agenda';
     newBtn.addEventListener('click',()=>{
       window._agendaDraft={meetingCategory:categoryKey};
+      if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
       state.view='new';render();
     });
     hdr.appendChild(newBtn);
@@ -4445,8 +4446,13 @@ function renderAgendaCategory(el,role,categoryKey){
 
     const actTd=document.createElement('td');actTd.style.cssText='text-align:right;white-space:nowrap;';
     actTd.addEventListener('click',e=>e.stopPropagation());
+    const saveWarning=document.createElement('span');
+    saveWarning.title='This change did NOT save to the database. Check your connection and try again.';
+    saveWarning.style.cssText='display:none;font-size:13px;color:#c62828;cursor:help;margin-right:6px;';
+    saveWarning.textContent='⚠️';
     function fillActions(){
       actTd.innerHTML='';
+      actTd.appendChild(saveWarning);
       if(!isGhost){
         const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Print / Save as PDF';pdfBtn.textContent='🖨';
         pdfBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
@@ -4464,7 +4470,7 @@ function renderAgendaCategory(el,role,categoryKey){
       } else {
         const openBtn=document.createElement('button');openBtn.className='agenda-trash';openBtn.title='Open full agenda form';openBtn.textContent='⤢';
         openBtn.addEventListener('click',()=>{
-          window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
+          window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||'',presiding:a.presiding||bishopricName('bishop',state.profiles||[],'Bishop')};
           state.view='new';render();
         });
         actTd.appendChild(openBtn);
@@ -4478,6 +4484,7 @@ function renderAgendaCategory(el,role,categoryKey){
     // serializing, tabbing quickly through several fields could fire two
     // inserts and create a duplicate agenda for the same Sunday.
     let saveQueue=Promise.resolve();
+
     function queueFieldSave(fieldUpdates){
       saveQueue=saveQueue.then(async()=>{
         if(a._ghost){
@@ -4490,8 +4497,13 @@ function renderAgendaCategory(el,role,categoryKey){
         }
         Object.assign(a,fieldUpdates);
         const realId=await dbSaveAgenda(a);
-        if(realId&&!a.id) a.id=realId;
-      }).catch(e=>console.error('Inline agenda save error:',e));
+        if(realId){
+          if(!a.id) a.id=realId;
+          saveWarning.style.display='none';
+        } else {
+          saveWarning.style.display='inline';
+        }
+      }).catch(e=>{console.error('Inline agenda save error:',e);saveWarning.style.display='inline';});
       return saveQueue;
     }
 
@@ -4576,7 +4588,7 @@ function renderAgendaCategory(el,role,categoryKey){
     tr.addEventListener('click',e=>{
       if(e.target.tagName==='INPUT')return;
       if(isGhost){
-        window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
+        window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||'',presiding:a.presiding||bishopricName('bishop',state.profiles||[],'Bishop')};
         state.view='new';render();
       } else {
         state.detailId=a.id;state.view='detail';render();
@@ -4617,7 +4629,7 @@ function renderAgendaCategory(el,role,categoryKey){
       const existingAgenda=filtered.find(a=>a.date===dateStr);
       if(existingAgenda) return existingAgenda;
       const assigned=settings?getAssignedConductor(dateStr,settings,profiles):null;
-      return {date:dateStr,conducting:assigned?assigned.name:'',_ghost:true};
+      return {date:dateStr,conducting:assigned?assigned.name:'',presiding:bishopricName('bishop',profiles,'Bishop'),_ghost:true};
     });
 
     const upTitle=document.createElement('div');upTitle.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin:0 0 10px;';upTitle.textContent='Upcoming Sundays';
