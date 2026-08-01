@@ -3623,7 +3623,7 @@ function getMeetingTypes(role){
     {key:'bishopric',       label:'Bishopric Meeting',         icon:'📋', sub:'Weekly leadership meeting',                       scopes:['ward','admin'], orgs:['Bishopric']},
     {key:'ward-council',    label:'Ward Council',              icon:'🤝', sub:'Monthly council with organization leaders',        scopes:['ward','admin'], orgs:['Bishopric']},
     {key:'ward-youth',      label:'Ward Youth Council',        icon:'⭐', sub:'Monthly youth leadership meeting',                 scopes:['ward','admin'], orgs:['Bishopric']},
-    {key:'ward-conference', label:'Ward Conference',           icon:'🏛️', sub:'Annual stake-directed ward meeting',               scopes:['ward','stake','admin'], orgs:['Bishopric','Stake Presidency']},
+    {key:'ward-conference', label:'Ward Conference',           icon:'🏛️', sub:'Annual stake-directed ward meeting',               scopes:['stake','admin'], orgs:['Stake Presidency']},
     // Stake Presidency
     {key:'stake-presidency',label:'Stake Presidency Meeting',  icon:'📋', sub:'Regular stake presidency leadership meeting',     scopes:['stake','admin'], orgs:['Stake Presidency']},
     {key:'stake-council',   label:'Stake Council',             icon:'🤝', sub:'Regular council with stake organization leaders', scopes:['stake','admin'], orgs:['Stake Presidency','Stake High Council']},
@@ -4332,24 +4332,19 @@ function renderAgendaCategory(el,role,categoryKey){
   back.textContent='← Back to Agendas';
   back.addEventListener('click',e=>{e.preventDefault();state.agendaCategory=null;render();});
   hdr.appendChild(back);
-  const canCreateAgenda=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric')||role.scope==='ward_org'
-    ||(categoryKey==='ward-conference'&&role.scope==='stake'&&role.org==='Stake Presidency');
+  const canCreateAgenda=categoryKey==='ward-conference'
+    ? (role.scope==='admin'||(role.scope==='stake'&&role.org==='Stake Presidency'))
+    : (role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric')||role.scope==='ward_org');
   if(canCreateAgenda&&role.id!=='high_council') {
     const newBtn=document.createElement('button');newBtn.className='btn-primary';newBtn.textContent='+ New Agenda';
     newBtn.addEventListener('click',()=>{
       if(categoryKey==='ward-conference'){
         // Ward Conference agendas are stored as sacrament-category agendas
         // tagged with this meeting type, so they get the same rich
-        // hymns/prayers/speakers/ward-business structure automatically.
-        window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference'};
-        if(role.scope==='ward'){
-          window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
-        } else if(role.scope==='stake'){
-          // The specific ward (and its bishop) isn't chosen yet at this point,
-          // so generic role labels are the sensible default here.
-          window._agendaDraft.conducting='Bishop';
-          window._agendaDraft.presiding='President';
-        }
+        // hymns/prayers/speakers/ward-business structure automatically. This
+        // page is stake-only, and the specific ward (and its bishop) isn't
+        // chosen yet at creation time — generic role labels as the default.
+        window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference',conducting:'Bishop',presiding:'President'};
       } else {
         window._agendaDraft={meetingCategory:categoryKey};
         if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
