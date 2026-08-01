@@ -4454,7 +4454,7 @@ function renderAgendaCategory(el,role,categoryKey){
       wrap.style.cssText=`position:relative;display:inline-block;width:150px;`;
       const sel=document.createElement('select');
       sel.style.cssText=`appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;box-sizing:border-box;font-size:12px;font-weight:600;padding:5px 26px 5px 12px;border-radius:20px;border:1px solid transparent;cursor:pointer;background:${bg};color:${fg};`;
-      ['Regular','Fast & Testimony'].forEach(opt=>{
+      SAC_MEETING_TYPES.forEach(opt=>{
         const o=document.createElement('option');o.value=opt;o.textContent=opt;
         if((a.meetingType||'Regular')===opt)o.selected=true;
         sel.appendChild(o);
@@ -5232,7 +5232,7 @@ function renderAgendaWizard(el,role,editingAgenda){
     wardDisplay.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:14px;background:#f0f2f5;color:#555;cursor:default;';
     body.appendChild(field('Ward',wardDisplay));
 
-    body.appendChild(field('Meeting Type',selInp(['Regular','Fast & Testimony'],d.meetingType,'meetingType')));
+    body.appendChild(field('Meeting Type',selInp(SAC_MEETING_TYPES,d.meetingType,'meetingType')));
     // Conducting — title dropdown + name field
     const conductingWrap=document.createElement('div');conductingWrap.className='agenda-field';
     conductingWrap.innerHTML='<label>Conducting<span class="req">*</span></label>';
@@ -6045,7 +6045,7 @@ function buildSacramentScriptDoc(a, role, interactive){
   hdrText.innerHTML=`
     <div style="font-size:12px;font-weight:700;letter-spacing:0.05em;color:#1c2537;margin-bottom:3px;">THE CHURCH OF JESUS CHRIST OF LATTER-DAY SAINTS</div>
     <div style="font-size:17px;font-weight:700;color:#1c2537;">${a.ward}</div>
-    <div style="font-size:14px;font-weight:600;margin-top:2px;color:#333;">Sacrament Meeting — ${a.meetingType==='Fast & Testimony'?'Fast &amp; Testimony':'Regular'}</div>
+    <div style="font-size:14px;font-weight:600;margin-top:2px;color:#333;">Sacrament Meeting — ${a.meetingType&&a.meetingType!=='Regular'?a.meetingType.replace('Fast & Testimony','Fast &amp; Testimony'):'Regular'}</div>
     <div style="font-size:13px;margin-top:3px;color:#555;">${fmtDate(a.date)}</div>`;
   const logoSpacer=document.createElement('div');logoSpacer.style.width='60px';
   docHdr.appendChild(logoWrap);docHdr.appendChild(hdrText);docHdr.appendChild(logoSpacer);
