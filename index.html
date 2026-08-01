@@ -3549,10 +3549,14 @@ function getAgendaWard(role){
   return null; // stake scope = no sacrament meeting access
 }
 
-function canCreateSacramentAgenda(role){
+function canCreateSacramentAgenda(role,editingAgenda){
   // Only bishopric members (ward scope with Bishopric org) or admin
   if(role.scope==='admin') return true;
   if(role.scope==='ward'&&role.org==='Bishopric') return true;
+  // Stake Presidency can create/manage Ward Conference agendas specifically
+  if(role.scope==='stake'&&role.org==='Stake Presidency'&&
+     (window._agendaDraft?.meetingType==='Ward Conference'||window._agendaDraft?.meetingCategory==='ward-conference'||
+      editingAgenda?.meetingType==='Ward Conference')) return true;
   return false;
 }
 
@@ -3619,7 +3623,7 @@ function getMeetingTypes(role){
     {key:'bishopric',       label:'Bishopric Meeting',         icon:'📋', sub:'Weekly leadership meeting',                       scopes:['ward','admin'], orgs:['Bishopric']},
     {key:'ward-council',    label:'Ward Council',              icon:'🤝', sub:'Monthly council with organization leaders',        scopes:['ward','admin'], orgs:['Bishopric']},
     {key:'ward-youth',      label:'Ward Youth Council',        icon:'⭐', sub:'Monthly youth leadership meeting',                 scopes:['ward','admin'], orgs:['Bishopric']},
-    {key:'ward-conference', label:'Ward Conference',           icon:'🏛️', sub:'Annual stake-directed ward meeting',               scopes:['ward','admin'], orgs:['Bishopric']},
+    {key:'ward-conference', label:'Ward Conference',           icon:'🏛️', sub:'Annual stake-directed ward meeting',               scopes:['ward','stake','admin'], orgs:['Bishopric','Stake Presidency']},
     // Stake Presidency
     {key:'stake-presidency',label:'Stake Presidency Meeting',  icon:'📋', sub:'Regular stake presidency leadership meeting',     scopes:['stake','admin'], orgs:['Stake Presidency']},
     {key:'stake-council',   label:'Stake Council',             icon:'🤝', sub:'Regular council with stake organization leaders', scopes:['stake','admin'], orgs:['Stake Presidency','Stake High Council']},
@@ -4328,12 +4332,21 @@ function renderAgendaCategory(el,role,categoryKey){
   back.textContent='← Back to Agendas';
   back.addEventListener('click',e=>{e.preventDefault();state.agendaCategory=null;render();});
   hdr.appendChild(back);
-  const canCreateAgenda=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric')||role.scope==='ward_org';
+  const canCreateAgenda=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric')||role.scope==='ward_org'
+    ||(categoryKey==='ward-conference'&&role.scope==='stake'&&role.org==='Stake Presidency');
   if(canCreateAgenda&&role.id!=='high_council') {
     const newBtn=document.createElement('button');newBtn.className='btn-primary';newBtn.textContent='+ New Agenda';
     newBtn.addEventListener('click',()=>{
-      window._agendaDraft={meetingCategory:categoryKey};
-      if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
+      if(categoryKey==='ward-conference'){
+        // Ward Conference agendas are stored as sacrament-category agendas
+        // tagged with this meeting type, so they get the same rich
+        // hymns/prayers/speakers/ward-business structure automatically.
+        window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference'};
+        if(role.scope==='ward') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
+      } else {
+        window._agendaDraft={meetingCategory:categoryKey};
+        if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
+      }
       state.view='new';render();
     });
     hdr.appendChild(newBtn);
@@ -4360,17 +4373,24 @@ function renderAgendaCategory(el,role,categoryKey){
 
   // Filter agendas to this category
   const roleWard=getAgendaWard(role);
+  const isWardConference=categoryKey==='ward-conference';
   const all=state.agendas||[];
   const filtered=all.filter(a=>{
+    if(isWardConference){
+      if(a.meetingType!=='Ward Conference')return false;
+      if(role.scope==='stake'||role.scope==='admin')return true; // see every ward's
+      return a.ward===roleWard; // ward viewer sees just their own
+    }
     const cat=a.meetingCategory||(categoryKey==='sacrament'?'sacrament':null);
     if(cat!==categoryKey) return false;
     if(role.scope==='admin') return true;
     return a.ward===roleWard;
-  }).sort((a,b)=>b.date.localeCompare(a.date));
+  }).sort((a,b)=>isWardConference?a.date.localeCompare(b.date):b.date.localeCompare(a.date));
 
   const isSacrament=categoryKey==='sacrament';
+  const isSacramentStyle=isSacrament||isWardConference;
 
-  if(!isSacrament&&!filtered.length){
+  if(!isSacramentStyle&&!filtered.length){
     const es=document.createElement('div');es.className='empty-state';
     es.innerHTML=`<div style="font-size:32px;margin-bottom:12px;">${mt.icon}</div><div>No ${mt.label} agendas yet.</div><div style="font-size:12px;color:#bbb;margin-top:6px;">Click "+ New Agenda" to create one.</div>`;
     el.appendChild(es);return;
@@ -4627,9 +4647,14 @@ function renderAgendaCategory(el,role,categoryKey){
       }
     }
 
-    if(isSacrament){
+    if(isSacramentStyle){
       const dateTd=document.createElement('td');dateTd.className='td-date';dateTd.textContent=fmtDateShort(a.date);
-      tr.appendChild(dateTd);tr.appendChild(typeTd);
+      tr.appendChild(dateTd);
+      if(isWardConference&&(role.scope==='stake'||role.scope==='admin')){
+        const wardTd=document.createElement('td');wardTd.style.cssText='font-size:12px;color:#555;';wardTd.textContent=a.ward||'—';
+        tr.appendChild(wardTd);
+      }
+      tr.appendChild(typeTd);
       if(canEditInline){
         updateContentCells();
         allContentTds.forEach(td=>tr.appendChild(td));
@@ -4675,8 +4700,9 @@ function renderAgendaCategory(el,role,categoryKey){
   function buildAgendaTable(entries){
     const table=document.createElement('table');table.className='agenda-table';
     const thead=document.createElement('thead');
-    if(isSacrament){
-      thead.innerHTML='<tr><th style="width:28px;padding-right:0;"></th><th>Date</th><th>Type</th><th>Conducting</th><th>Presiding</th><th>Opening Prayer</th><th>Closing Prayer</th><th>Youth / Speaker 1</th><th>Speaker 2</th><th>Speaker 3</th><th style="width:56px;"></th></tr>';
+    const showWardCol=isWardConference&&(role.scope==='stake'||role.scope==='admin');
+    if(isSacramentStyle){
+      thead.innerHTML=`<tr><th style="width:28px;padding-right:0;"></th><th>Date</th>${showWardCol?'<th>Ward</th>':''}<th>Type</th><th>Conducting</th><th>Presiding</th><th>Opening Prayer</th><th>Closing Prayer</th><th>Youth / Speaker 1</th><th>Speaker 2</th><th>Speaker 3</th><th style="width:56px;"></th></tr>`;
     } else {
       thead.innerHTML='<tr><th style="width:32px;padding-right:0;"></th><th>Date</th><th>Conducting</th><th>Opening / Thought</th><th>Topics / Notes</th><th style="width:70px;"></th></tr>';
     }
@@ -4720,6 +4746,16 @@ function renderAgendaCategory(el,role,categoryKey){
     } else {
       el.appendChild(buildAgendaTable(pastEntries));
     }
+    return;
+  }
+
+  if(isWardConference){
+    if(!filtered.length){
+      const es=document.createElement('div');es.className='empty-state';
+      es.innerHTML=`<div style="font-size:32px;margin-bottom:12px;">🏛️</div><div>No Ward Conference agendas yet.</div><div style="font-size:12px;color:#bbb;margin-top:6px;">Click "+ New Agenda" to create one.</div>`;
+      el.appendChild(es);return;
+    }
+    el.appendChild(buildAgendaTable(filtered));
     return;
   }
 
@@ -5046,7 +5082,7 @@ function renderSimpleAgendaForm(el,role,categoryKey){
 function renderAgendaWizard(el,role,editingAgenda){
   el.innerHTML='';
 
-  if(!canCreateSacramentAgenda(role)){
+  if(!canCreateSacramentAgenda(role,editingAgenda)){
     el.innerHTML='<div class="empty-state">Only Bishopric members can create sacrament meeting agendas.</div>';return;
   }
 
@@ -5252,10 +5288,26 @@ function renderAgendaWizard(el,role,editingAgenda){
   el.appendChild(collapsibleSection('Meeting Basics', body=>{
     body.appendChild(field('Meeting Date<span class="req">*</span>',dateInp(d.date,v=>{d.date=v;})));
 
-    const wardDisplay=document.createElement('input');wardDisplay.type='text';
-    wardDisplay.value=isEditing?d.ward:ward;wardDisplay.readOnly=true;
-    wardDisplay.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:14px;background:#f0f2f5;color:#555;cursor:default;';
-    body.appendChild(field('Ward',wardDisplay));
+    if(role.scope==='stake'){
+      const wardSel=document.createElement('select');
+      wardSel.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;background:#fff;';
+      const wardNames=(state.stakeUnits||[]).map(u=>u.ward_name).filter(Boolean);
+      const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a ward…';
+      if(!d.ward)placeholder.selected=true;
+      wardSel.appendChild(placeholder);
+      wardNames.forEach(wn=>{
+        const o=document.createElement('option');o.value=wn;o.textContent=wn;
+        if(d.ward===wn)o.selected=true;
+        wardSel.appendChild(o);
+      });
+      wardSel.addEventListener('change',()=>{d.ward=wardSel.value;});
+      body.appendChild(field('Ward<span class="req">*</span>',wardSel));
+    } else {
+      const wardDisplay=document.createElement('input');wardDisplay.type='text';
+      wardDisplay.value=isEditing?d.ward:ward;wardDisplay.readOnly=true;
+      wardDisplay.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:14px;background:#f0f2f5;color:#555;cursor:default;';
+      body.appendChild(field('Ward',wardDisplay));
+    }
 
     body.appendChild(field('Meeting Type',selInp(SAC_MEETING_TYPES,d.meetingType,'meetingType')));
     // Conducting — title dropdown + name field
@@ -5513,6 +5565,7 @@ function renderAgendaWizard(el,role,editingAgenda){
   submitBtn.textContent=isEditing?'Save Changes':'Save Agenda & Generate Script';
   submitBtn.addEventListener('click',()=>{
     if(!d.date){alert('Please enter a meeting date.');return;}
+    if(role.scope==='stake'&&!d.ward){alert('Please select which ward this is for.');return;}
     if(!d.conducting){alert('Please enter who is conducting.');return;}
     if(!d.presiding){alert('Please enter who is presiding.');return;}
     pruneWardBusinessForDate();
