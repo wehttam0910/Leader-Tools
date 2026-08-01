@@ -1829,6 +1829,8 @@ function agendaToDb(a) {
     date: a.date || null,
     meeting_type: a.meetingType || 'Regular',
     meeting_category: a.meetingCategory || 'sacrament',
+    section_order: a.sectionOrder?JSON.stringify(a.sectionOrder):null,
+    script_enabled: a.scriptEnabled===undefined||a.scriptEnabled===null?null:!!a.scriptEnabled,
     spiritual_thought: a.spiritualThought || '',
     conducting: (a.conductingTitle&&a.conductingTitle!=='Counselor/Other'?a.conductingTitle+'\t':a.conductingTitle==='Counselor/Other'?'Counselor/Other\t':'')+(a.conducting||''),
     presiding: (a.presidingTitle?a.presidingTitle+'\t':'')+(a.presiding||''),
@@ -1869,6 +1871,8 @@ function agendaFromDb(r) {
     date: r.date || '',
     meetingType: r.meeting_type || 'Regular',
     meetingCategory: r.meeting_category || 'sacrament',
+    sectionOrder: (()=>{try{return r.section_order?(Array.isArray(r.section_order)?r.section_order:JSON.parse(r.section_order)):null;}catch(e){return null;}})(),
+    scriptEnabled: r.script_enabled===null||r.script_enabled===undefined?null:!!r.script_enabled,
     spiritualThought: r.spiritual_thought || '',
     conducting: r.conducting?r.conducting.split('\t').slice(-1)[0]:'',
     conductingTitle: r.conducting&&r.conducting.includes('\t')?r.conducting.split('\t')[0]:'Counselor/Other',
@@ -1968,6 +1972,12 @@ function sacMeetingToDb(m){
     agenda_id: m.agendaId||null,
   };
 }
+// Default order of the reorderable middle portion of the sacrament script —
+// everything between the fixed opening (Welcome/Intro) and fixed closing
+// (Closing Hymn/Prayer). Matches the original hardcoded sequence.
+const DEFAULT_SECTION_ORDER=['announcements','openingHymnPrayer','stakeBusiness','wardBusiness','sacrament','program'];
+const SECTION_LABELS={announcements:'Announcements',openingHymnPrayer:'Opening Hymn & Prayer',stakeBusiness:'Stake Business',wardBusiness:'Ward Business',sacrament:'Sacrament',program:'Program / Speakers'};
+
 function sacSettingsFromDb(r){
   return {
     id: r.id,
@@ -1976,6 +1986,8 @@ function sacSettingsFromDb(r){
     startMonth: r.start_month||1,
     startYear: r.start_year||new Date().getFullYear(),
     speakerFinderStart: r.speaker_finder_start||'',
+    sectionOrder: Array.isArray(r.section_order)?r.section_order:(r.section_order?JSON.parse(r.section_order):DEFAULT_SECTION_ORDER),
+    scriptEnabled: r.script_enabled!==false,
   };
 }
 function sacSettingsToDb(s){
@@ -1986,6 +1998,8 @@ function sacSettingsToDb(s){
     start_month: s.startMonth||1,
     start_year: s.startYear||new Date().getFullYear(),
     speaker_finder_start: s.speakerFinderStart||'',
+    section_order: JSON.stringify(s.sectionOrder||DEFAULT_SECTION_ORDER),
+    script_enabled: s.scriptEnabled!==false,
   };
 }
 async function dbSaveSacMeeting(m){
@@ -4031,6 +4045,8 @@ function renderSacConfigure(el, role, ward){
     startMonth: existing?existing.startMonth:1,
     startYear: existing?existing.startYear:new Date().getFullYear(),
     speakerFinderStart: existing?(existing.speakerFinderStart||''):'',
+    sectionOrder: existing&&existing.sectionOrder&&existing.sectionOrder.length?[...existing.sectionOrder]:[...DEFAULT_SECTION_ORDER],
+    scriptEnabled: existing?existing.scriptEnabled!==false:true,
   };
 
   // Role display names
@@ -4077,6 +4093,47 @@ function renderSacConfigure(el, role, ward){
   const rotWrap=document.createElement('div');
   card.appendChild(rotWrap);
   buildRotationUI();
+
+  // ── Sacrament Meeting agenda script settings ──────────────────────────────
+  const scriptDivider=document.createElement('hr');scriptDivider.style.cssText='border:none;border-top:1px solid #eee;margin:22px 0 18px;';
+  card.appendChild(scriptDivider);
+  const scriptHdrLbl=document.createElement('div');scriptHdrLbl.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin-bottom:4px;';scriptHdrLbl.textContent='Agenda Script Settings';
+  const scriptHdrSub=document.createElement('div');scriptHdrSub.style.cssText='font-size:12px;color:#5a5a5a;margin-bottom:16px;';scriptHdrSub.textContent='Defaults for every new Sacrament Meeting agenda — each week can still override these.';
+  card.appendChild(scriptHdrLbl);card.appendChild(scriptHdrSub);
+
+  // Show/hide full script toggle
+  const scriptToggleRow=document.createElement('label');scriptToggleRow.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;color:#1c2537;font-weight:600;cursor:pointer;margin-bottom:18px;';
+  const scriptToggleCb=document.createElement('input');scriptToggleCb.type='checkbox';scriptToggleCb.checked=draft.scriptEnabled;scriptToggleCb.style.cssText='width:16px;height:16px;accent-color:#1c2537;';
+  scriptToggleCb.addEventListener('change',()=>{draft.scriptEnabled=scriptToggleCb.checked;});
+  scriptToggleRow.appendChild(scriptToggleCb);
+  scriptToggleRow.appendChild(document.createTextNode('Show the full spoken script (turn off to show just the bare agenda items, no narration)'));
+  card.appendChild(scriptToggleRow);
+
+  // Section order — reorderable list, same interaction as the rotation order above
+  const orderLbl=document.createElement('div');orderLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#707070;margin-bottom:8px;';orderLbl.textContent='Order of the Meeting';
+  card.appendChild(orderLbl);
+  const orderNote=document.createElement('div');orderNote.style.cssText='font-size:11px;color:#888;margin-bottom:10px;';orderNote.textContent='Welcome/intro always comes first, and the closing hymn/prayer always comes last. Reorder everything in between.';
+  card.appendChild(orderNote);
+  const orderWrap=document.createElement('div');
+  card.appendChild(orderWrap);
+  function buildOrderUI(){
+    orderWrap.innerHTML='';
+    draft.sectionOrder.forEach((key,i)=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:8px;background:#fafbfc;';
+      const grip=document.createElement('span');grip.style.cssText='color:#ccc;font-size:14px;user-select:none;';grip.textContent='⠿';
+      const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${SECTION_LABELS[key]||key}`;
+      const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+      upBtn.disabled=i===0;
+      upBtn.addEventListener('click',()=>{if(i>0){const t=draft.sectionOrder.splice(i,1)[0];draft.sectionOrder.splice(i-1,0,t);buildOrderUI();}});
+      const downBtn=document.createElement('button');downBtn.textContent='↓';downBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+      downBtn.disabled=i===draft.sectionOrder.length-1;
+      downBtn.addEventListener('click',()=>{if(i<draft.sectionOrder.length-1){const t=draft.sectionOrder.splice(i,1)[0];draft.sectionOrder.splice(i+1,0,t);buildOrderUI();}});
+      row.appendChild(grip);row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
+      orderWrap.appendChild(row);
+    });
+  }
+  buildOrderUI();
 
   // Speaker-finding rotation start (only when ≥2 finders and a non-finding conductor exists)
   const finderLbl=document.createElement('div');finderLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#707070;margin:16px 0 8px;';finderLbl.textContent='Speaker-Finding Rotation';
@@ -4126,6 +4183,8 @@ function renderSacConfigure(el, role, ward){
         startMonth:draft.startMonth,
         startYear:draft.startYear,
         speakerFinderStart:draft.speakerFinderStart||'',
+        sectionOrder:draft.sectionOrder,
+        scriptEnabled:draft.scriptEnabled,
       };
       await dbSaveSacSettings(toSave);
       state.sacView='schedule';
@@ -4358,11 +4417,13 @@ function renderAgendaCategory(el,role,categoryKey){
   // Sunday that has no agenda yet ({date, conducting, _ghost:true}).
   function buildAgendaRow(a){
     const tr=document.createElement('tr');tr.style.cursor='pointer';
-    const isGhost=!!a._ghost;
+    let isGhost=!!a._ghost;
+    const canEditInline=canCreateAgenda&&role.id!=='high_council';
     if(isGhost) tr.style.background='#fbfbfc';
 
     const cbTd=document.createElement('td');cbTd.style.cssText='padding-right:0;width:32px;';
-    if(!isGhost){
+    function fillCheckbox(){
+      cbTd.innerHTML='';
       const cb=document.createElement('input');cb.type='checkbox';cb.className='agenda-row-cb';cb.dataset.id=a.id;
       cb.addEventListener('change',e=>{
         e.stopPropagation();
@@ -4371,16 +4432,134 @@ function renderAgendaCategory(el,role,categoryKey){
       });
       cbTd.appendChild(cb);
     }
+    if(!isGhost) fillCheckbox();
     tr.appendChild(cbTd);
 
-    if(isSacrament){
-      const typeBadge=isGhost
+    const typeTd=document.createElement('td');
+    function fillTypeBadge(){
+      typeTd.innerHTML=isGhost
         ?'<span style="font-size:11px;font-weight:600;color:#8a5a06;background:#fdf1dc;padding:2px 9px;border-radius:20px;white-space:nowrap;">Not started</span>'
         :`<span class="agenda-type-badge${a.meetingType==='Fast & Testimony'?' fast':''}">${a.meetingType||'Regular'}</span>`;
-      const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-      const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
-      const dash='<span style="color:#ccc;">—</span>';
-      tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${typeBadge}</td><td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td><td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+    }
+    fillTypeBadge();
+
+    const actTd=document.createElement('td');actTd.style.cssText='text-align:right;white-space:nowrap;';
+    actTd.addEventListener('click',e=>e.stopPropagation());
+    function fillActions(){
+      actTd.innerHTML='';
+      if(!isGhost){
+        const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Print / Save as PDF';pdfBtn.textContent='🖨';
+        pdfBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
+        actTd.appendChild(pdfBtn);
+
+        const trashBtn=document.createElement('button');trashBtn.className='agenda-trash';trashBtn.title='Delete';trashBtn.textContent='🗑';
+        trashBtn.addEventListener('click',async()=>{
+          if(!confirm(`Delete agenda for ${fmtDate(a.date)}?`)) return;
+          await sb.from('agendas').delete().eq('id',a.id);
+          state.agendas=state.agendas.filter(x=>x.id!==a.id);
+          selected.delete(a.id);
+          state.agendaCategory=categoryKey;render();
+        });
+        actTd.appendChild(trashBtn);
+      } else {
+        const openBtn=document.createElement('button');openBtn.className='agenda-trash';openBtn.title='Open full agenda form';openBtn.textContent='⤢';
+        openBtn.addEventListener('click',()=>{
+          window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
+          state.view='new';render();
+        });
+        actTd.appendChild(openBtn);
+      }
+    }
+    fillActions();
+
+    // All field saves funnel through this queue, one at a time. This matters
+    // because a brand-new week has no agenda row yet — the first save has to
+    // INSERT one before any other field's save can safely UPDATE it. Without
+    // serializing, tabbing quickly through several fields could fire two
+    // inserts and create a duplicate agenda for the same Sunday.
+    let saveQueue=Promise.resolve();
+    function queueFieldSave(fieldUpdates){
+      saveQueue=saveQueue.then(async()=>{
+        if(a._ghost){
+          delete a._ghost;
+          Object.assign(a,{ward:roleWard,meetingCategory:'sacrament',meetingType:a.meetingType||'Regular'});
+          state.agendas.push(a);
+          isGhost=false;
+          tr.style.background='';
+          fillCheckbox();fillTypeBadge();fillActions();
+        }
+        Object.assign(a,fieldUpdates);
+        const realId=await dbSaveAgenda(a);
+        if(realId&&!a.id) a.id=realId;
+      }).catch(e=>console.error('Inline agenda save error:',e));
+      return saveQueue;
+    }
+
+    // Inline-editable text cell. Saves on blur (not every keystroke).
+    function editableTd(getVal,fieldKey,opts={}){
+      const td=document.createElement('td');
+      const inp=document.createElement('input');inp.type='text';
+      inp.value=getVal()||'';inp.placeholder=opts.placeholder||'—';
+      inp.style.cssText=`width:100%;min-width:${opts.minWidth||'90px'};border:1px solid transparent;background:transparent;font-size:${opts.fontSize||'12px'};font-weight:${opts.bold?'600':'400'};color:${opts.color||'#333'};padding:3px 4px;border-radius:5px;box-sizing:border-box;`;
+      inp.addEventListener('click',e=>e.stopPropagation());
+      inp.addEventListener('focus',()=>{inp.style.borderColor='rgba(0,0,0,0.18)';inp.style.background='#fff';});
+      inp.addEventListener('blur',()=>{
+        inp.style.borderColor='transparent';inp.style.background='transparent';
+        const val=inp.value.trim();
+        if(val===(getVal()||''))return;
+        queueFieldSave({[fieldKey]:val});
+      });
+      td.appendChild(inp);
+      return td;
+    }
+
+    // Speaker cell: name + topic stacked, each independently editable.
+    function speakerTd(nameKey,topicKey){
+      const td=document.createElement('td');td.style.padding='6px 8px';
+      const nameInp=document.createElement('input');nameInp.type='text';
+      nameInp.value=a[nameKey]||'';nameInp.placeholder='Speaker name';
+      nameInp.style.cssText='width:100%;min-width:110px;border:1px solid transparent;background:transparent;font-size:12px;font-weight:600;color:#1c2537;padding:2px 4px;border-radius:5px;box-sizing:border-box;margin-bottom:2px;';
+      const topicInp=document.createElement('input');topicInp.type='text';
+      topicInp.value=(a[topicKey]||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();topicInp.placeholder='Topic';
+      topicInp.style.cssText='width:100%;min-width:110px;border:1px solid transparent;background:transparent;font-size:11px;color:#636363;padding:2px 4px;border-radius:5px;box-sizing:border-box;';
+      [nameInp,topicInp].forEach(inp=>{
+        inp.addEventListener('click',e=>e.stopPropagation());
+        inp.addEventListener('focus',()=>{inp.style.borderColor='rgba(0,0,0,0.18)';inp.style.background='#fff';});
+      });
+      nameInp.addEventListener('blur',()=>{
+        nameInp.style.borderColor='transparent';nameInp.style.background='transparent';
+        const val=nameInp.value.trim();
+        if(val===(a[nameKey]||''))return;
+        queueFieldSave({[nameKey]:val});
+      });
+      topicInp.addEventListener('blur',()=>{
+        topicInp.style.borderColor='transparent';topicInp.style.background='transparent';
+        const val=topicInp.value.trim();
+        const cur=(a[topicKey]||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+        if(val===cur)return;
+        queueFieldSave({[topicKey]:val});
+      });
+      td.appendChild(nameInp);td.appendChild(topicInp);
+      return td;
+    }
+
+    if(isSacrament){
+      const dateTd=document.createElement('td');dateTd.className='td-date';dateTd.textContent=fmtDateShort(a.date);
+      tr.appendChild(dateTd);tr.appendChild(typeTd);
+      if(canEditInline){
+        tr.appendChild(editableTd(()=>a.conducting,'conducting',{bold:false}));
+        tr.appendChild(editableTd(()=>a.presiding,'presiding'));
+        tr.appendChild(editableTd(()=>a.openingPrayer,'openingPrayer',{color:'#555'}));
+        tr.appendChild(editableTd(()=>a.closingPrayer,'closingPrayer',{color:'#555'}));
+        tr.appendChild(speakerTd('speaker1','speaker1Topic'));
+        tr.appendChild(speakerTd('speaker2','speaker2Topic'));
+        tr.appendChild(speakerTd('finalSpeaker','finalSpeakerTopic'));
+      } else {
+        const clean=t=>(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+        const spk=(name,topic)=>{name=(name||'').trim();topic=clean(topic);if(!name&&!topic)return '<span style="color:#ccc;">—</span>';return `<div style="font-size:12px;color:#1c2537;font-weight:600;">${name||'—'}</div>${topic?`<div style="font-size:11px;color:#636363;margin-top:1px;">${topic}</div>`:''}`;};
+        const dash='<span style="color:#ccc;">—</span>';
+        tr.innerHTML+=`<td style="font-size:12px;">${a.conducting||dash}</td><td style="font-size:12px;">${isGhost?dash:(a.presiding||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.openingPrayer||dash)}</td><td style="font-size:12px;color:#555;">${isGhost?dash:(a.closingPrayer||dash)}</td><td>${isGhost?dash:spk(a.speaker1,a.speaker1Topic)}</td><td>${isGhost?dash:spk(a.speaker2,a.speaker2Topic)}</td><td>${isGhost?dash:spk(a.finalSpeaker,a.finalSpeakerTopic)}</td>`;
+      }
     } else {
       const topLevelItems=(a.announcementList||[]).filter(l=>typeof l==='string'&&!l.startsWith('\t')&&l.trim()!=='');
       const hasItems=topLevelItems.length;
@@ -4392,33 +4571,10 @@ function renderAgendaCategory(el,role,categoryKey){
       tr.innerHTML+=`<td class="td-date">${fmtDateShort(a.date)}</td><td>${a.conducting||'—'}</td><td style="font-size:12px;color:#555;">${thought}</td><td style="font-size:12px;color:#5a5a5a;">${notesSnippet}</td>`;
     }
 
-    const actTd=document.createElement('td');actTd.style.cssText='text-align:right;white-space:nowrap;';
-    actTd.addEventListener('click',e=>e.stopPropagation());
-    if(!isGhost){
-      const pdfBtn=document.createElement('button');pdfBtn.className='agenda-trash';pdfBtn.title='Print / Save as PDF';pdfBtn.textContent='🖨';
-      pdfBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
-      actTd.appendChild(pdfBtn);
-
-      const trashBtn=document.createElement('button');trashBtn.className='agenda-trash';trashBtn.title='Delete';trashBtn.textContent='🗑';
-      trashBtn.addEventListener('click',async()=>{
-        if(!confirm(`Delete agenda for ${fmtDate(a.date)}?`)) return;
-        await sb.from('agendas').delete().eq('id',a.id);
-        state.agendas=state.agendas.filter(x=>x.id!==a.id);
-        selected.delete(a.id);
-        state.agendaCategory=categoryKey;render();
-      });
-      actTd.appendChild(trashBtn);
-    } else {
-      const createBtn=document.createElement('button');createBtn.className='agenda-trash';createBtn.title='Create Agenda';createBtn.textContent='+';
-      createBtn.addEventListener('click',()=>{
-        window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
-        state.view='new';render();
-      });
-      actTd.appendChild(createBtn);
-    }
     tr.appendChild(actTd);
 
-    tr.addEventListener('click',()=>{
+    tr.addEventListener('click',e=>{
+      if(e.target.tagName==='INPUT')return;
       if(isGhost){
         window._agendaDraft={meetingCategory:'sacrament',date:a.date,conducting:a.conducting||''};
         state.view='new';render();
@@ -4977,7 +5133,7 @@ function renderAgendaWizard(el,role,editingAgenda){
     buildFn(body);
     wrap.appendChild(body);
 
-    let open=startOpen!==false;
+    let open=true; // always start expanded — no agenda section should be collapsed by default
     function setOpen(o){
       open=o;
       body.style.display=open?'block':'none';
@@ -5201,6 +5357,64 @@ function renderAgendaWizard(el,role,editingAgenda){
       const s2=speakerRow('Speaker 2 (optional)','speaker2','speaker2Topic');s2.style.marginTop='8px';body.appendChild(s2);
       const fs=speakerRow('Final Speaker (optional)','finalSpeaker','finalSpeakerTopic');fs.style.marginTop='8px';body.appendChild(fs);
     }
+  }, false));
+
+  // ── Per-agenda script overrides ─────────────────────────────────────────────
+  el.appendChild(collapsibleSection('Script Settings for This Week', body=>{
+    const note=document.createElement('div');note.style.cssText='font-size:12px;color:#707070;margin-bottom:14px;';
+    note.textContent='These start from your ward\u2019s defaults (set on the Meeting Record settings page) but only apply to this one agenda.';
+    body.appendChild(note);
+
+    // Tri-state: inherit ward default / force on / force off
+    const scriptSel=document.createElement('select');scriptSel.style.cssText='width:100%;padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:16px;';
+    [['','Use ward default'],['show','Show full script'],['hide','Bare agenda items only']].forEach(([val,label])=>{
+      const o=document.createElement('option');o.value=val;o.textContent=label;
+      if((d.scriptEnabled===true&&val==='show')||(d.scriptEnabled===false&&val==='hide')||((d.scriptEnabled===null||d.scriptEnabled===undefined)&&val===''))o.selected=true;
+      scriptSel.appendChild(o);
+    });
+    scriptSel.addEventListener('change',()=>{
+      d.scriptEnabled=scriptSel.value==='show'?true:scriptSel.value==='hide'?false:null;
+    });
+    body.appendChild(field('Script Display',scriptSel));
+
+    // Section order override
+    const customizeRow=document.createElement('label');customizeRow.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;color:#1c2537;font-weight:600;cursor:pointer;margin:6px 0 12px;';
+    const customizeCb=document.createElement('input');customizeCb.type='checkbox';customizeCb.checked=!!(d.sectionOrder&&d.sectionOrder.length);
+    customizeCb.style.cssText='width:16px;height:16px;accent-color:#1c2537;';
+    customizeRow.appendChild(customizeCb);customizeRow.appendChild(document.createTextNode('Customize the meeting order just for this week'));
+    body.appendChild(customizeRow);
+
+    const orderWrap2=document.createElement('div');
+    body.appendChild(orderWrap2);
+
+    function currentOrder(){
+      if(d.sectionOrder&&d.sectionOrder.length)return d.sectionOrder;
+      const s=state.sacSettings;
+      return (s&&s.sectionOrder&&s.sectionOrder.length)?[...s.sectionOrder]:[...DEFAULT_SECTION_ORDER];
+    }
+    function buildOrderUI2(){
+      orderWrap2.innerHTML='';
+      if(!customizeCb.checked)return;
+      if(!d.sectionOrder||!d.sectionOrder.length) d.sectionOrder=currentOrder();
+      d.sectionOrder.forEach((key,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:6px;background:#fafbfc;';
+        const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${SECTION_LABELS[key]||key}`;
+        const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+        upBtn.disabled=i===0;
+        upBtn.addEventListener('click',()=>{if(i>0){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i-1,0,t);buildOrderUI2();}});
+        const downBtn=document.createElement('button');downBtn.textContent='↓';downBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
+        downBtn.disabled=i===d.sectionOrder.length-1;
+        downBtn.addEventListener('click',()=>{if(i<d.sectionOrder.length-1){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i+1,0,t);buildOrderUI2();}});
+        row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
+        orderWrap2.appendChild(row);
+      });
+    }
+    customizeCb.addEventListener('change',()=>{
+      if(!customizeCb.checked) d.sectionOrder=null;
+      buildOrderUI2();
+    });
+    buildOrderUI2();
   }, false));
 
   // ── Required note + Save ────────────────────────────────────────────────────
@@ -5753,6 +5967,7 @@ function renderAgendaDetail(el,role){
 
 function buildSacramentScriptDoc(a, role, interactive){
   // ── Sacrament meeting: full document with logo and script ──────────────────
+  const settings=state.sacSettings;
   const doc=document.createElement('div');
   doc.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:40px 48px;max-width:760px;font-family:Georgia,serif;';
 
@@ -5799,7 +6014,9 @@ function buildSacramentScriptDoc(a, role, interactive){
     const v=document.createElement('span');v.style.color='#333';v.innerHTML=val;
     row.appendChild(l);row.appendChild(v);doc.appendChild(row);
   }
+  const scriptOn=(a.scriptEnabled===true||a.scriptEnabled===false)?a.scriptEnabled:(settings?settings.scriptEnabled!==false:true);
   function scriptPara(txt){
+    if(!scriptOn)return;
     if(!txt||!txt.trim())return;
     const p=document.createElement('p');
     p.style.cssText='font-size:13px;line-height:1.75;color:#555;font-style:italic;margin:8px 0 14px 0;padding-left:14px;border-left:3px solid #ddd;white-space:pre-wrap;';
@@ -5825,27 +6042,32 @@ function buildSacramentScriptDoc(a, role, interactive){
   if(a.chorister||a.accompanist)intro+=`\n\nWe'd like to extend a special thank you to our Chorister ${a.chorister||'[Chorister]'} and our Accompanist ${a.accompanist||'[Accompanist]'} who will provide the music for today's meeting.`;
   scriptPara(intro.trim());
 
-  // Announcements
-  const annList=a.announcementList?a.announcementList.filter(Boolean):[];
-  if(annList.length){
-    sectionDiv('Announcements');
-    scriptPara('By way of announcements:\n\n'+annList.map((x,i)=>annList.length>1?`${i+1}. ${x}`:x).join('\n'));
-  }
+  const sections={};
 
-  // Opening Hymn & Prayer
-  scriptPara(`Our opening hymn will be hymn number ${a.openingHymnNum||'[hymn number]'}${a.openingHymnTitle?`, "${a.openingHymnTitle}"`:''}.  After the conclusion of the hymn ${a.openingPrayer||'[opening prayer]'} will offer our opening prayer.`);
-  if(a.openingHymnNum||a.openingHymnTitle)
-    agendaItem('Opening Hymn',`#${a.openingHymnNum||'—'}${a.openingHymnTitle?`, "${a.openingHymnTitle}"`:''}`);
-  if(a.openingPrayer)agendaItem('Invocation',a.openingPrayer);
+  sections.announcements=function(){
+    const annList=a.announcementList?a.announcementList.filter(Boolean):[];
+    if(annList.length){
+      sectionDiv('Announcements');
+      scriptPara('By way of announcements:\n\n'+annList.map((x,i)=>annList.length>1?`${i+1}. ${x}`:x).join('\n'));
+    }
+  };
 
-  // Stake Business
-  if(a.highCounselor&&a.stakeVisiting){
-    sectionDiv('Stake Business');
-    scriptPara(`We'll now turn the time over to ${a.highCounselor} for some stake business.`);
-    agendaItem('Stake Business',a.highCounselor);
-  }
+  sections.openingHymnPrayer=function(){
+    scriptPara(`Our opening hymn will be hymn number ${a.openingHymnNum||'[hymn number]'}${a.openingHymnTitle?`, "${a.openingHymnTitle}"`:''}.  After the conclusion of the hymn ${a.openingPrayer||'[opening prayer]'} will offer our opening prayer.`);
+    if(a.openingHymnNum||a.openingHymnTitle)
+      agendaItem('Opening Hymn',`#${a.openingHymnNum||'—'}${a.openingHymnTitle?`, "${a.openingHymnTitle}"`:''}`);
+    if(a.openingPrayer)agendaItem('Invocation',a.openingPrayer);
+  };
 
-  // Ward Business
+  sections.stakeBusiness=function(){
+    if(a.highCounselor&&a.stakeVisiting){
+      sectionDiv('Stake Business');
+      scriptPara(`We'll now turn the time over to ${a.highCounselor} for some stake business.`);
+      agendaItem('Stake Business',a.highCounselor);
+    }
+  };
+
+  sections.wardBusiness=function(){
   const releases=a.releases?a.releases.filter(r=>r.member):[];
   const sustainings=a.sustainings?a.sustainings.filter(s=>s.member):[];
   const ords=a.ordinations?a.ordinations.filter(o=>o.member):[];
@@ -5960,8 +6182,9 @@ function buildSacramentScriptDoc(a, role, interactive){
       agendaItem('Confirmation(s)',confs.join('<br>'));
     }
   }
+  };
 
-  // Sacrament
+  sections.sacrament=function(){
   sectionDiv('Sacrament');
   scriptPara(`We will now prepare for the partaking of the Sacrament by singing hymn #${a.sacramentHymnNum||'[hymn number]'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}.  Following the hymn, the Sacrament will be administered by the Aaronic Priesthood.`);
   if(a.sacramentHymnNum||a.sacramentHymnTitle)
@@ -5980,8 +6203,9 @@ function buildSacramentScriptDoc(a, role, interactive){
   }
   prayerBlock('Prayer on the Bread','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this bread to the souls of all those who partake of it, that they may eat in remembrance of the body of thy Son, and witness unto thee, O God, the Eternal Father, that they are willing to take upon them the name of thy Son, and always remember him and keep his commandments which he has given them; that they may always have his Spirit to be with them. Amen.','D&C 20:77');
   prayerBlock('Prayer on the Water','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this water to the souls of all those who drink of it, that they may do it in remembrance of the blood of thy Son, which was shed for them; that they may witness unto thee, O God, the Eternal Father, that they do always remember him, that they may have his Spirit to be with them. Amen.','D&C 20:79');
+  };
 
-  // Program
+  sections.program=function(){
   sectionDiv(isFast?'Fast & Testimony':'Program');
   if(isFast){
     scriptPara('We will now open the meeting for the bearing of testimonies. We invite all who feel so inclined to come to the podium and share their testimony.');
@@ -6007,6 +6231,12 @@ function buildSacramentScriptDoc(a, role, interactive){
       agendaItem('Final Speaker',a.finalSpeaker);
     }
   }
+  };
+
+  // Run the reorderable middle sections in the configured order — per-agenda
+  // override first, then the ward's default, then the built-in default.
+  const order=(a.sectionOrder&&a.sectionOrder.length?a.sectionOrder:(settings&&settings.sectionOrder&&settings.sectionOrder.length?settings.sectionOrder:DEFAULT_SECTION_ORDER));
+  order.forEach(key=>{if(sections[key])sections[key]();});
 
   // Closing
   sectionDiv('Closing');
