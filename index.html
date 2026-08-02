@@ -4132,10 +4132,12 @@ function renderSacConfigure(el, role, ward){
   card.appendChild(orderWrap);
   function buildOrderUI(){
     orderWrap.innerHTML='';
+    let dragSrcIndex=null;
     draft.sectionOrder.forEach((key,i)=>{
       const row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:8px;background:#fafbfc;';
-      const grip=document.createElement('span');grip.style.cssText='color:#ccc;font-size:14px;user-select:none;';grip.textContent='⠿';
+      row.draggable=true;
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:8px;background:#fafbfc;cursor:grab;';
+      const grip=document.createElement('span');grip.style.cssText='color:#999;font-size:16px;user-select:none;';grip.textContent='⠿';
       const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${SECTION_LABELS[key]||key}`;
       const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
       upBtn.disabled=i===0;
@@ -4144,6 +4146,22 @@ function renderSacConfigure(el, role, ward){
       downBtn.disabled=i===draft.sectionOrder.length-1;
       downBtn.addEventListener('click',()=>{if(i<draft.sectionOrder.length-1){const t=draft.sectionOrder.splice(i,1)[0];draft.sectionOrder.splice(i+1,0,t);buildOrderUI();}});
       row.appendChild(grip);row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
+
+      row.addEventListener('dragstart',e=>{
+        dragSrcIndex=i;row.style.opacity='0.4';
+        e.dataTransfer.effectAllowed='move';
+      });
+      row.addEventListener('dragend',()=>{row.style.opacity='1';});
+      row.addEventListener('dragover',e=>{e.preventDefault();row.style.borderTop='2px solid #1c2537';});
+      row.addEventListener('dragleave',()=>{row.style.borderTop='1px solid #e8eaf0';});
+      row.addEventListener('drop',e=>{
+        e.preventDefault();row.style.borderTop='1px solid #e8eaf0';
+        if(dragSrcIndex===null||dragSrcIndex===i)return;
+        const item=draft.sectionOrder.splice(dragSrcIndex,1)[0];
+        draft.sectionOrder.splice(i,0,item);
+        buildOrderUI();
+      });
+
       orderWrap.appendChild(row);
     });
   }
@@ -5570,9 +5588,12 @@ function renderAgendaWizard(el,role,editingAgenda){
       orderWrap2.innerHTML='';
       if(!customizeCb.checked)return;
       if(!d.sectionOrder||!d.sectionOrder.length) d.sectionOrder=currentOrder();
+      let dragSrcIndex2=null;
       d.sectionOrder.forEach((key,i)=>{
         const row=document.createElement('div');
-        row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:6px;background:#fafbfc;';
+        row.draggable=true;
+        row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid #e8eaf0;border-radius:8px;margin-bottom:6px;background:#fafbfc;cursor:grab;';
+        const grip=document.createElement('span');grip.style.cssText='color:#999;font-size:16px;user-select:none;';grip.textContent='⠿';
         const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${SECTION_LABELS[key]||key}`;
         const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
         upBtn.disabled=i===0;
@@ -5580,7 +5601,23 @@ function renderAgendaWizard(el,role,editingAgenda){
         const downBtn=document.createElement('button');downBtn.textContent='↓';downBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
         downBtn.disabled=i===d.sectionOrder.length-1;
         downBtn.addEventListener('click',()=>{if(i<d.sectionOrder.length-1){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i+1,0,t);buildOrderUI2();}});
-        row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
+        row.appendChild(grip);row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
+
+        row.addEventListener('dragstart',e=>{
+          dragSrcIndex2=i;row.style.opacity='0.4';
+          e.dataTransfer.effectAllowed='move';
+        });
+        row.addEventListener('dragend',()=>{row.style.opacity='1';});
+        row.addEventListener('dragover',e=>{e.preventDefault();row.style.borderTop='2px solid #1c2537';});
+        row.addEventListener('dragleave',()=>{row.style.borderTop='1px solid #e8eaf0';});
+        row.addEventListener('drop',e=>{
+          e.preventDefault();row.style.borderTop='1px solid #e8eaf0';
+          if(dragSrcIndex2===null||dragSrcIndex2===i)return;
+          const item=d.sectionOrder.splice(dragSrcIndex2,1)[0];
+          d.sectionOrder.splice(i,0,item);
+          buildOrderUI2();
+        });
+
         orderWrap2.appendChild(row);
       });
     }
