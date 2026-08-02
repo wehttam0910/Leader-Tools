@@ -6463,6 +6463,7 @@ function buildSacramentScriptDoc(a, role, interactive){
     prayersWrap.appendChild(prayersHd);prayersWrap.appendChild(prayersBody);
     doc.appendChild(prayersWrap);
     prayersTarget=prayersBody;
+    setPrayersOpen(false);
   }
   function prayerBlock(label,text,scripture){
     const box=document.createElement('div');
