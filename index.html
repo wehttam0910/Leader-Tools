@@ -1977,7 +1977,7 @@ function sacMeetingToDb(m){
 // Default order of the reorderable middle portion of the sacrament script —
 // everything between the fixed opening (Welcome/Intro) and fixed closing
 // (Closing Hymn/Prayer). Matches the original hardcoded sequence.
-const DEFAULT_SECTION_ORDER=['announcements','openingHymnPrayer','stakeBusiness','wardBusiness','sacrament','program'];
+const DEFAULT_SECTION_ORDER=['announcements','openingHymnPrayer','stakeBusiness','wardBusiness','sacrament','program','closing'];
 
 // ── Editable script wording ──────────────────────────────────────────────────
 // Each entry: default template text using {tokens}, plus which tokens exist
@@ -2090,7 +2090,7 @@ function computeScriptMergeData(ag){
     sacramentIntro:{sacramentHymnNum:ag.sacramentHymnNum,sacramentHymnTitleClause:ag.sacramentHymnTitle?`, "${ag.sacramentHymnTitle}"`:''},
   };
 }
-const SECTION_LABELS={announcements:'Announcements',openingHymnPrayer:'Opening Hymn & Prayer',stakeBusiness:'Stake Business',wardBusiness:'Ward Business',sacrament:'Sacrament',program:'Program / Speakers'};
+const SECTION_LABELS={announcements:'Announcements',openingHymnPrayer:'Opening Hymn & Prayer',stakeBusiness:'Stake Business',wardBusiness:'Ward Business',sacrament:'Sacrament',program:'Program / Speakers',closing:'Closing Hymn & Prayer'};
 
 function sacSettingsFromDb(r){
   return {
@@ -4171,7 +4171,10 @@ function renderSacConfigure(el, role, ward){
     startMonth: existing?existing.startMonth:1,
     startYear: existing?existing.startYear:new Date().getFullYear(),
     speakerFinderStart: existing?(existing.speakerFinderStart||''):'',
-    sectionOrder: existing&&existing.sectionOrder&&existing.sectionOrder.length?[...existing.sectionOrder]:[...DEFAULT_SECTION_ORDER],
+    sectionOrder: (()=>{
+      const base=existing&&existing.sectionOrder&&existing.sectionOrder.length?[...existing.sectionOrder]:[...DEFAULT_SECTION_ORDER];
+      return base.includes('closing')?base:[...base,'closing'];
+    })(),
     scriptEnabled: existing?existing.scriptEnabled!==false:true,
     scriptTemplates: existing&&existing.scriptTemplates?JSON.parse(JSON.stringify(existing.scriptTemplates)):{},
   };
@@ -5765,9 +5768,13 @@ function renderAgendaWizard(el,role,editingAgenda){
     body.appendChild(orderWrap2);
 
     function currentOrder(){
-      if(d.sectionOrder&&d.sectionOrder.length)return d.sectionOrder;
-      const s=state.sacSettings;
-      return (s&&s.sectionOrder&&s.sectionOrder.length)?[...s.sectionOrder]:[...DEFAULT_SECTION_ORDER];
+      let base;
+      if(d.sectionOrder&&d.sectionOrder.length) base=d.sectionOrder;
+      else{
+        const s=state.sacSettings;
+        base=(s&&s.sectionOrder&&s.sectionOrder.length)?[...s.sectionOrder]:[...DEFAULT_SECTION_ORDER];
+      }
+      return base.includes('closing')?base:[...base,'closing'];
     }
     function buildOrderUI2(){
       orderWrap2.innerHTML='';
@@ -6719,17 +6726,23 @@ function buildSacramentScriptDoc(a, role, interactive){
   }
   };
 
-  // Run the reorderable middle sections in the configured order — per-agenda
-  // override first, then the ward's default, then the built-in default.
-  const order=(a.sectionOrder&&a.sectionOrder.length?a.sectionOrder:(settings&&settings.sectionOrder&&settings.sectionOrder.length?settings.sectionOrder:DEFAULT_SECTION_ORDER));
-  order.forEach(key=>{if(sections[key])sections[key]();});
-
-  // Closing
+  sections.closing=function(){
   sectionDiv('Closing');
   scriptPara(`I'd like to thank our speakers for the spirit that was felt here today.\n\nOur closing hymn will be hymn #${a.closingHymnNum||'[hymn number]'}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}.\n\nAfter the hymn the closing prayer will be offered by ${a.closingPrayer||'[closing prayer]'}.`);
   if(a.closingHymnNum||a.closingHymnTitle)
     agendaItem('Closing Hymn',`#${a.closingHymnNum||'—'}${a.closingHymnTitle?`, "${a.closingHymnTitle}"`:''}`);
   if(a.closingPrayer)agendaItem('Benediction',a.closingPrayer);
+  };
+
+  // Run all reorderable sections (including Closing) in the configured
+  // order — per-agenda override first, then the ward's default, then the
+  // built-in default. Only Welcome/Introduction stay fixed at the very
+  // front, since every meeting genuinely starts there.
+  const rawOrder=(a.sectionOrder&&a.sectionOrder.length?a.sectionOrder:(settings&&settings.sectionOrder&&settings.sectionOrder.length?settings.sectionOrder:DEFAULT_SECTION_ORDER));
+  // Backward compatibility: orders saved before Closing became movable won't
+  // include it — default it to the end rather than silently dropping it.
+  const order=rawOrder.includes('closing')?rawOrder:[...rawOrder,'closing'];
+  order.forEach(key=>{if(sections[key])sections[key]();});
 
   return doc;
 }
