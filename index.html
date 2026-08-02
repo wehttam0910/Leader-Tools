@@ -4070,7 +4070,9 @@ function renderSacMeetingRecord(el, role){
   const settings=state.sacSettings;
   const profiles=state.profiles||[];
 
-  // Configure (rotation settings) — reached via the cog button
+  // Configure (rotation/script settings) — now reached via the cog button on
+  // the Agendas tab; this stays as a safety net in case sacView is ever set
+  // to 'configure' while this view is showing.
   if(state.sacView==='configure'){
     const backWrap=document.createElement('div');backWrap.style.marginBottom='14px';
     const back=document.createElement('a');back.href='#';back.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
@@ -4081,21 +4083,15 @@ function renderSacMeetingRecord(el, role){
     return;
   }
 
-  // Header: title + cog settings button (top right)
+  // Header: title (settings cog now lives on the Agendas tab)
   const recHead=document.createElement('div');recHead.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;';
   const recH=document.createElement('div');recH.style.cssText='font-weight:700;font-size:15px;color:#1c2537;';recH.textContent='Conducting Schedule';
   recHead.appendChild(recH);
-  if(canEdit){
-    const cog=document.createElement('button');cog.title='Rotation settings';cog.innerHTML='⚙️';
-    cog.style.cssText='background:#fff;border:1px solid #ddd;border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer;line-height:1;';
-    cog.addEventListener('click',()=>{state.sacView='configure';render();});
-    recHead.appendChild(cog);
-  }
   el.appendChild(recHead);
 
   if(!settings){
     const hint=document.createElement('div');hint.style.cssText='font-size:13px;color:#5a5a5a;background:#f8f9fc;border:1px dashed #c8d0e0;border-radius:10px;padding:14px 16px;margin-bottom:16px;';
-    hint.textContent=canEdit?'No conducting rotation set up yet. Tap the ⚙️ button above to configure who conducts each month.':'No conducting rotation has been set up yet.';
+    hint.textContent=canEdit?'No conducting rotation set up yet. Tap the ⚙️ button on the Agendas tab to configure who conducts each month.':'No conducting rotation has been set up yet.';
     el.appendChild(hint);
   }
 
@@ -4537,7 +4533,26 @@ function renderAgendaCategory(el,role,categoryKey){
       state.view='new';render();
     });
     hdr.appendChild(newBtn);
-  }  el.appendChild(hdr);
+  }
+  const canEditSacSettings=role.scope==='admin'||(role.scope==='ward'&&role.org==='Bishopric');
+  if(categoryKey==='sacrament'&&(window._sacTab||'agendas')==='agendas'&&canEditSacSettings){
+    const cog=document.createElement('button');cog.title='Rotation & script settings';cog.innerHTML='⚙️';
+    cog.style.cssText='background:#fff;border:1px solid #ddd;border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer;line-height:1;';
+    cog.addEventListener('click',()=>{state.sacView='configure';render();});
+    hdr.appendChild(cog);
+  }
+  el.appendChild(hdr);
+
+  // Settings (rotation/script) — reached via the cog button on the Agendas tab
+  if(categoryKey==='sacrament'&&state.sacView==='configure'){
+    const backWrap=document.createElement('div');backWrap.style.marginBottom='14px';
+    const back2=document.createElement('a');back2.href='#';back2.style.cssText='font-size:13px;font-weight:600;color:#185fa5;text-decoration:none;';
+    back2.textContent='← Back to Agendas';
+    back2.addEventListener('click',e=>{e.preventDefault();state.sacView='schedule';render();});
+    backWrap.appendChild(back2);el.appendChild(backWrap);
+    renderSacConfigure(el, role, getAgendaWard(role)||'');
+    return;
+  }
 
   // For sacrament, add a "Meeting Record" tab
   if(categoryKey==='sacrament'){
@@ -5724,7 +5739,7 @@ function renderAgendaWizard(el,role,editingAgenda){
   // ── Per-agenda script overrides ─────────────────────────────────────────────
   el.appendChild(collapsibleSection('Script Settings for This Week', body=>{
     const note=document.createElement('div');note.style.cssText='font-size:12px;color:#707070;margin-bottom:14px;';
-    note.textContent='These start from your ward\u2019s defaults (set on the Meeting Record settings page) but only apply to this one agenda.';
+    note.textContent='These start from your ward\u2019s defaults (set via the ⚙️ on the Agendas tab) but only apply to this one agenda.';
     body.appendChild(note);
 
     // Tri-state: inherit ward default / force on / force off
@@ -9303,7 +9318,7 @@ function renderHelp(el, role){
       </ol>
       <p>The "Minutes from Last Meeting" field auto-fills from the most recent prior agenda, so you don't have to re-type it. If you edit it by hand, your version is kept.</p>`},
     {q:'Setting up the conducting rotation', html:`
-      <p>On <strong>Agendas → Sacrament Meeting → Meeting Record</strong>, tap the <strong>⚙️</strong> button in the top right.</p>
+      <p>On <strong>Agendas → Sacrament Meeting → Agendas</strong>, tap the <strong>⚙️</strong> button in the top right.</p>
       <ol>
         <li>List your bishopric in the order they conduct. Check <strong>Conducts</strong> for anyone in the rotation.</li>
         <li>Check <strong>Finds Speakers</strong> for anyone who lines up their own speakers.</li>
