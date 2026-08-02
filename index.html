@@ -5859,18 +5859,56 @@ function renderAgendaDetail(el,role){
   window._agendaVisibilityHandler=()=>{if(!document.hidden&&state.tab==='agendas'&&state.view==='detail'&&state.detailId===a.id)refreshThisAgenda();};
   document.addEventListener('visibilitychange',window._agendaVisibilityHandler);
 
-  actions.style.cssText='display:flex;align-items:center;gap:10px;';
+  actions.style.cssText='display:flex;align-items:center;gap:10px;max-width:760px;';
 
   const printBtn=document.createElement('button');printBtn.className='btn-primary';
   printBtn.style.cssText='padding:10px 22px;font-size:13px;';
   printBtn.innerHTML='🖨 Print';printBtn.addEventListener('click',()=>openAgendaPrintView(a,role));
 
-  // Spacer pushes Edit/Delete far away from Refresh/Print so a mis-tap on a
-  // trackpad can't land on them by accident.
+  // Spacer pushes the rest to the right — but the actions bar itself is now
+  // capped at the card's own width, so "the right side" actually lines up
+  // with the card's right edge instead of the full page width.
   const spacer=document.createElement('div');spacer.style.flex='1';
 
-  // "More" menu — holds Edit and Delete behind one extra tap, well clear of
-  // the buttons used constantly during a live meeting.
+  // Script on/off — quick access without opening Edit. Effective state is
+  // this agenda's own override if set, otherwise the ward's default.
+  const isSacramentForToggle=(a.meetingCategory==='sacrament'||!a.meetingCategory);
+  let scriptToggleBtn=null;
+  if(isSacramentForToggle){
+    scriptToggleBtn=document.createElement('button');
+    scriptToggleBtn.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;';
+    function effectiveScriptOn(){
+      if(a.scriptEnabled===true||a.scriptEnabled===false) return a.scriptEnabled;
+      const s=state.sacSettings;
+      return s?s.scriptEnabled!==false:true;
+    }
+    function paintScriptToggle(){
+      const on=effectiveScriptOn();
+      scriptToggleBtn.textContent=on?'📝 Script: On':'📋 Script: Off';
+    }
+    paintScriptToggle();
+    scriptToggleBtn.addEventListener('click',async()=>{
+      a.scriptEnabled=!effectiveScriptOn();
+      paintScriptToggle();
+      scriptToggleBtn.disabled=true;
+      await dbSaveAgenda(a);
+      scriptToggleBtn.disabled=false;
+      render();
+    });
+  }
+
+  const editBtn=document.createElement('button');
+  editBtn.style.cssText='background:#fff;border:1px solid rgba(0,0,0,0.15);color:#1c2537;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;';
+  editBtn.textContent='✏ Edit';
+  editBtn.addEventListener('click',()=>{
+    window._agendaDraft=JSON.parse(JSON.stringify(a));
+    // Keep detailId set so the wizard can find the editing agenda
+    state.view='new';
+    render();
+  });
+
+  // "More" menu — Delete only now, kept one extra tap away from the
+  // buttons used constantly during a live meeting.
   const moreWrap=document.createElement('div');moreWrap.style.cssText='position:relative;';
   const moreBtn=document.createElement('button');
   moreBtn.title='More actions';
@@ -5878,19 +5916,6 @@ function renderAgendaDetail(el,role){
   moreBtn.textContent='⋮';
   const moreMenu=document.createElement('div');
   moreMenu.style.cssText='display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.15);min-width:160px;overflow:hidden;z-index:20;';
-  const editItem=document.createElement('button');
-  editItem.style.cssText='display:block;width:100%;text-align:left;padding:13px 16px;background:none;border:none;font-size:13px;font-weight:600;color:#1c2537;cursor:pointer;';
-  editItem.textContent='✏ Edit';
-  editItem.addEventListener('mouseenter',()=>editItem.style.background='#f5f6f8');
-  editItem.addEventListener('mouseleave',()=>editItem.style.background='none');
-  editItem.addEventListener('click',()=>{
-    moreMenu.style.display='none';
-    window._agendaDraft=JSON.parse(JSON.stringify(a));
-    // Keep detailId set so the wizard can find the editing agenda
-    state.view='new';
-    render();
-  });
-  const menuDivider=document.createElement('div');menuDivider.style.cssText='border-top:1px solid rgba(0,0,0,0.08);';
   const deleteItem=document.createElement('button');
   deleteItem.style.cssText='display:block;width:100%;text-align:left;padding:13px 16px;background:none;border:none;font-size:13px;font-weight:600;color:#c62828;cursor:pointer;';
   deleteItem.textContent='🗑 Delete';
@@ -5905,7 +5930,7 @@ function renderAgendaDetail(el,role){
       dbDeleteAgenda(deletedId);
     }
   });
-  moreMenu.appendChild(editItem);moreMenu.appendChild(menuDivider);moreMenu.appendChild(deleteItem);
+  moreMenu.appendChild(deleteItem);
 
   function closeMoreMenu(e){
     if(!moreWrap.contains(e.target)){moreMenu.style.display='none';document.removeEventListener('click',closeMoreMenu);}
@@ -5918,7 +5943,9 @@ function renderAgendaDetail(el,role){
   });
   moreWrap.appendChild(moreBtn);moreWrap.appendChild(moreMenu);
 
-  actions.appendChild(refreshBtn);actions.appendChild(printBtn);actions.appendChild(spacer);actions.appendChild(moreWrap);
+  actions.appendChild(refreshBtn);actions.appendChild(printBtn);actions.appendChild(spacer);
+  if(scriptToggleBtn) actions.appendChild(scriptToggleBtn);
+  actions.appendChild(editBtn);actions.appendChild(moreWrap);
   el.appendChild(actions);
 
   const isSacramentMeeting=(a.meetingCategory==='sacrament'||!a.meetingCategory);
