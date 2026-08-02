@@ -5414,8 +5414,8 @@ function renderAgendaWizard(el,role,editingAgenda){
     body.appendChild(field('Accompanist',inp(d.accompanist,'accompanist','Full name')));
   }, true));
 
-  // ── SECTION: Announcements ──────────────────────────────────────────────────
-  el.appendChild(collapsibleSection('Announcements', body=>{
+  // ── SECTION: Announcements (position depends on the configured order) ──────
+  const announcementsSection=collapsibleSection('Announcements', body=>{
     if(!Array.isArray(d.announcementList))d.announcementList=[];
     body.appendChild(dynamicList(d.announcementList,
       (item,i,rebuild)=>{
@@ -5426,10 +5426,10 @@ function renderAgendaWizard(el,role,editingAgenda){
         rm.addEventListener('click',()=>{d.announcementList.splice(i,1);rebuild();});
         row.appendChild(inp2);row.appendChild(rm);return row;
       },'+ Add announcement',()=>''));
-  }, false));
+  }, false);
 
-  // ── SECTION: Ward Business ──────────────────────────────────────────────────
-  el.appendChild(collapsibleSection('Ward Business', body=>{
+  // ── SECTION: Ward Business (position depends on the configured order) ──────
+  const wardBusinessSection=collapsibleSection('Ward Business', body=>{
     // New Records
     if(!Array.isArray(d.newRecordsList))d.newRecordsList=[];
     const nrLbl=document.createElement('div');nrLbl.className='agenda-field';nrLbl.innerHTML='<label>New Record(s)</label>';
@@ -5514,7 +5514,7 @@ function renderAgendaWizard(el,role,editingAgenda){
       row.appendChild(inp2);row.appendChild(rm);return row;
     },'+ Add confirmation',()=>''));
     body.appendChild(cfLbl);
-  }, false));
+  }, false);
 
   // ── SECTION: Hymns ──────────────────────────────────────────────────────────
   el.appendChild(collapsibleSection('Hymns', body=>{
@@ -5532,8 +5532,8 @@ function renderAgendaWizard(el,role,editingAgenda){
     body.appendChild(field('Closing Prayer<span class="req">*</span>',inp(d.closingPrayer,'closingPrayer','Full name')));
   }, true));
 
-  // ── SECTION: Speakers ───────────────────────────────────────────────────────
-  el.appendChild(collapsibleSection(d.meetingType==='Fast & Testimony'?'Fast & Testimony':'Speakers', body=>{
+  // ── SECTION: Speakers (position depends on the configured order) ───────────
+  const speakersSection=collapsibleSection(d.meetingType==='Fast & Testimony'?'Fast & Testimony':'Speakers', body=>{
     if(d.meetingType==='Fast & Testimony'){
       body.appendChild(field('Meeting Notes (optional)',inp(d.speaker1Topic,'speaker1Topic','Any special notes for the meeting')));
     } else {
@@ -5549,7 +5549,18 @@ function renderAgendaWizard(el,role,editingAgenda){
       const s2=speakerRow('Speaker 2 (optional)','speaker2','speaker2Topic');s2.style.marginTop='8px';body.appendChild(s2);
       const fs=speakerRow('Final Speaker (optional)','finalSpeaker','finalSpeakerTopic');fs.style.marginTop='8px';body.appendChild(fs);
     }
-  }, false));
+  }, false);
+
+  // Announcements, Ward Business, and Speakers each map to exactly one
+  // script section, so they're placed here in whatever relative order the
+  // ward (or this specific agenda) has configured. Hymns and Prayers stay
+  // fixed — those cards each cover several different chronological moments
+  // in the script (opening, sacrament, closing), so there's no single
+  // "correct" spot to move them to.
+  const wizardOrderKeys={announcements:announcementsSection,wardBusiness:wardBusinessSection,program:speakersSection};
+  const configuredOrder=(d.sectionOrder&&d.sectionOrder.length?d.sectionOrder:
+    (state.sacSettings&&state.sacSettings.sectionOrder&&state.sacSettings.sectionOrder.length?state.sacSettings.sectionOrder:DEFAULT_SECTION_ORDER));
+  configuredOrder.filter(k=>wizardOrderKeys[k]).forEach(k=>el.appendChild(wizardOrderKeys[k]));
 
   // ── Per-agenda script overrides ─────────────────────────────────────────────
   el.appendChild(collapsibleSection('Script Settings for This Week', body=>{
@@ -5597,10 +5608,10 @@ function renderAgendaWizard(el,role,editingAgenda){
         const nameEl=document.createElement('span');nameEl.style.cssText='font-weight:600;font-size:13px;color:#1c2537;flex:1;';nameEl.textContent=`${i+1}. ${SECTION_LABELS[key]||key}`;
         const upBtn=document.createElement('button');upBtn.textContent='↑';upBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
         upBtn.disabled=i===0;
-        upBtn.addEventListener('click',()=>{if(i>0){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i-1,0,t);buildOrderUI2();}});
+        upBtn.addEventListener('click',()=>{if(i>0){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i-1,0,t);render();}});
         const downBtn=document.createElement('button');downBtn.textContent='↓';downBtn.style.cssText='background:none;border:1px solid #ddd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;';
         downBtn.disabled=i===d.sectionOrder.length-1;
-        downBtn.addEventListener('click',()=>{if(i<d.sectionOrder.length-1){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i+1,0,t);buildOrderUI2();}});
+        downBtn.addEventListener('click',()=>{if(i<d.sectionOrder.length-1){const t=d.sectionOrder.splice(i,1)[0];d.sectionOrder.splice(i+1,0,t);render();}});
         row.appendChild(grip);row.appendChild(nameEl);row.appendChild(upBtn);row.appendChild(downBtn);
 
         row.addEventListener('dragstart',e=>{
@@ -5615,7 +5626,7 @@ function renderAgendaWizard(el,role,editingAgenda){
           if(dragSrcIndex2===null||dragSrcIndex2===i)return;
           const item=d.sectionOrder.splice(dragSrcIndex2,1)[0];
           d.sectionOrder.splice(i,0,item);
-          buildOrderUI2();
+          render();
         });
 
         orderWrap2.appendChild(row);
@@ -5623,7 +5634,7 @@ function renderAgendaWizard(el,role,editingAgenda){
     }
     customizeCb.addEventListener('change',()=>{
       if(!customizeCb.checked) d.sectionOrder=null;
-      buildOrderUI2();
+      render();
     });
     buildOrderUI2();
   }, false));
@@ -6430,7 +6441,29 @@ function buildSacramentScriptDoc(a, role, interactive){
     agendaItem('Sacrament Hymn',`#${a.sacramentHymnNum||'—'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}`);
   agendaItem('Administration','Sacrament administered by the Aaronic Priesthood');
 
-  // Sacrament prayers — exact wording, for reference at the sacrament table
+  // Sacrament prayers — exact wording, for reference at the sacrament table.
+  // Collapsible on-screen (so they don't have to sit expanded during a live
+  // meeting), but always fully shown on the printed page.
+  let prayersTarget=doc;
+  if(interactive){
+    const prayersWrap=document.createElement('div');prayersWrap.style.margin='10px 0 4px';
+    const prayersHd=document.createElement('div');
+    prayersHd.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:6px 4px;';
+    const prayersArrow=document.createElement('span');prayersArrow.style.cssText='font-size:11px;color:#707070;transition:transform 0.2s;';prayersArrow.textContent='▼';
+    const prayersLbl=document.createElement('span');prayersLbl.style.cssText='font-size:12px;font-weight:700;color:#707070;text-transform:uppercase;letter-spacing:0.05em;';prayersLbl.textContent='Sacrament Prayers (reference)';
+    prayersHd.appendChild(prayersArrow);prayersHd.appendChild(prayersLbl);
+    const prayersBody=document.createElement('div');
+    let prayersOpen=true;
+    function setPrayersOpen(o){
+      prayersOpen=o;
+      prayersBody.style.display=o?'block':'none';
+      prayersArrow.style.transform=o?'':'rotate(-90deg)';
+    }
+    prayersHd.addEventListener('click',()=>setPrayersOpen(!prayersOpen));
+    prayersWrap.appendChild(prayersHd);prayersWrap.appendChild(prayersBody);
+    doc.appendChild(prayersWrap);
+    prayersTarget=prayersBody;
+  }
   function prayerBlock(label,text,scripture){
     const box=document.createElement('div');
     box.style.cssText='margin:10px 0 14px;padding:12px 16px;background:#f8f9fb;border:1px solid rgba(0,0,0,0.08);border-radius:8px;';
@@ -6438,7 +6471,7 @@ function buildSacramentScriptDoc(a, role, interactive){
     lbl.textContent=`${label} (${scripture})`;
     const txt=document.createElement('div');txt.style.cssText='font-size:12.5px;color:#444;line-height:1.65;font-style:italic;';
     txt.textContent=text;
-    box.appendChild(lbl);box.appendChild(txt);doc.appendChild(box);
+    box.appendChild(lbl);box.appendChild(txt);prayersTarget.appendChild(box);
   }
   prayerBlock('Prayer on the Bread','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this bread to the souls of all those who partake of it, that they may eat in remembrance of the body of thy Son, and witness unto thee, O God, the Eternal Father, that they are willing to take upon them the name of thy Son, and always remember him and keep his commandments which he has given them; that they may always have his Spirit to be with them. Amen.','D&C 20:77');
   prayerBlock('Prayer on the Water','O God, the Eternal Father, we ask thee in the name of thy Son, Jesus Christ, to bless and sanctify this water to the souls of all those who drink of it, that they may do it in remembrance of the blood of thy Son, which was shed for them; that they may witness unto thee, O God, the Eternal Father, that they do always remember him, that they may have his Spirit to be with them. Amen.','D&C 20:79');
