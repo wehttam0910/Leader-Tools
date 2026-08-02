@@ -3847,6 +3847,16 @@ function openAgendaPrintView(a, role){
 // ── Sacrament Meeting Record ──────────────────────────────────────────────────
 
 const SAC_MEETING_TYPES=['Regular','Fast & Testimony','Ward Conference','Stake Conference','General Conference','Special'];
+// Whenever a meeting becomes a Ward Conference — regardless of who set it or
+// where — Conducting/Presiding should reflect the roles who actually do
+// those jobs at a ward conference, not whoever's turn it was in the normal
+// weekly rotation.
+function applyWardConferenceDefault(obj){
+  if(obj.meetingType==='Ward Conference'){
+    obj.conducting='Bishop';
+    obj.presiding='President';
+  }
+}
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 // Get all Sundays in a given year
@@ -4344,7 +4354,8 @@ function renderAgendaCategory(el,role,categoryKey){
         // hymns/prayers/speakers/ward-business structure automatically. This
         // page is stake-only, and the specific ward (and its bishop) isn't
         // chosen yet at creation time — generic role labels as the default.
-        window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference',conducting:'Bishop',presiding:'President'};
+        window._agendaDraft={meetingCategory:'sacrament',meetingType:'Ward Conference'};
+        applyWardConferenceDefault(window._agendaDraft);
       } else {
         window._agendaDraft={meetingCategory:categoryKey};
         if(categoryKey==='sacrament') window._agendaDraft.presiding=bishopricName('bishop',state.profiles||[],'Bishop');
@@ -4492,7 +4503,13 @@ function renderAgendaCategory(el,role,categoryKey){
       sel.addEventListener('click',e=>e.stopPropagation());
       sel.addEventListener('change',()=>{
         a.meetingType=sel.value; // apply immediately so the rebuilt UI reflects it right away
-        queueFieldSave({meetingType:sel.value});
+        const fieldUpdates={meetingType:sel.value};
+        if(sel.value==='Ward Conference'){
+          applyWardConferenceDefault(a); // mutates a.conducting/a.presiding in place
+          fieldUpdates.conducting=a.conducting;
+          fieldUpdates.presiding=a.presiding;
+        }
+        queueFieldSave(fieldUpdates);
         updateContentCells();
         fillTypeBadge();
       });
@@ -5233,7 +5250,7 @@ function renderAgendaWizard(el,role,editingAgenda){
   function selInp(options,val,key){
     const s=document.createElement('select');
     options.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;if(o===val)op.selected=true;s.appendChild(op);});
-    s.addEventListener('change',()=>{d[key]=s.value;if(key==='meetingType'){window._agendaDraft=d;render();}});return s;
+    s.addEventListener('change',()=>{d[key]=s.value;if(key==='meetingType'){applyWardConferenceDefault(d);window._agendaDraft=d;render();}});return s;
   }
   function field(lbl,el2,hint){
     const w=document.createElement('div');w.className='agenda-field';
