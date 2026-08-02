@@ -1830,6 +1830,7 @@ function agendaToDb(a) {
     meeting_type: a.meetingType || 'Regular',
     meeting_category: a.meetingCategory || 'sacrament',
     section_order: a.sectionOrder?JSON.stringify(a.sectionOrder):null,
+    script_templates: a.scriptTemplates&&Object.keys(a.scriptTemplates).length?JSON.stringify(a.scriptTemplates):null,
     script_enabled: a.scriptEnabled===undefined||a.scriptEnabled===null?null:!!a.scriptEnabled,
     spiritual_thought: a.spiritualThought || '',
     conducting: (a.conductingTitle&&a.conductingTitle!=='Counselor/Other'?a.conductingTitle+'\t':a.conductingTitle==='Counselor/Other'?'Counselor/Other\t':'')+(a.conducting||''),
@@ -1872,6 +1873,7 @@ function agendaFromDb(r) {
     meetingType: r.meeting_type || 'Regular',
     meetingCategory: r.meeting_category || 'sacrament',
     sectionOrder: (()=>{try{return r.section_order?(Array.isArray(r.section_order)?r.section_order:JSON.parse(r.section_order)):null;}catch(e){return null;}})(),
+    scriptTemplates: (()=>{try{return r.script_templates?(typeof r.script_templates==='object'?r.script_templates:JSON.parse(r.script_templates)):{};}catch(e){return{};}})(),
     scriptEnabled: r.script_enabled===null||r.script_enabled===undefined?null:!!r.script_enabled,
     spiritualThought: r.spiritual_thought || '',
     conducting: r.conducting?r.conducting.split('\t').slice(-1)[0]:'',
@@ -1976,6 +1978,118 @@ function sacMeetingToDb(m){
 // everything between the fixed opening (Welcome/Intro) and fixed closing
 // (Closing Hymn/Prayer). Matches the original hardcoded sequence.
 const DEFAULT_SECTION_ORDER=['announcements','openingHymnPrayer','stakeBusiness','wardBusiness','sacrament','program'];
+
+// ── Editable script wording ──────────────────────────────────────────────────
+// Each entry: default template text using {tokens}, plus which tokens exist
+// and which of those are "silent" (render blank, not a [bracket] placeholder,
+// when empty — used for computed conditional clauses rather than fields the
+// person is expected to fill in).
+const SCRIPT_TEMPLATE_DEFAULTS={
+  welcome:{
+    section:'Welcome', label:'Welcome',
+    text:'Good afternoon brothers and sisters. We welcome you to the {meetingKind} for the {ward} of the Church of Jesus Christ of Latter-day Saints.',
+    tokens:['meetingKind','ward'], silent:[],
+  },
+  introMain:{
+    section:'Welcome', label:'Introduction',
+    text:'My name is {conducting}. {presidingIntro}',
+    tokens:['conducting','presidingIntro'], silent:['presidingIntro'],
+  },
+  introHighCouncil:{
+    section:'Welcome', label:'High Councilor Welcome (only shown if one is visiting)',
+    text:'We welcome {highCouncilor} from the Stake High Council on the stand with us today.',
+    tokens:['highCouncilor'], silent:[],
+  },
+  introMusic:{
+    section:'Welcome', label:'Chorister / Accompanist Thanks (only shown if either is set)',
+    text:"We'd like to extend a special thank you to our Chorister {chorister} and our Accompanist {accompanist} who will provide the music for today's meeting.",
+    tokens:['chorister','accompanist'], silent:[],
+  },
+  newRecordsIntro:{
+    section:'Ward Business', label:'New Records Intro',
+    text:"We'd like to welcome the following {memberPlural} whose records have been received into our ward:",
+    tokens:['memberPlural'], silent:[],
+  },
+  releaseIntro:{
+    section:'Ward Business', label:'Release Intro',
+    text:'The following {memberHaveHas} been released from {theirHisHer} calling:',
+    tokens:['memberHaveHas','theirHisHer'], silent:[],
+  },
+  releaseVote:{
+    section:'Ward Business', label:'Release — Vote of Thanks',
+    text:'We propose that {theyHeShe} be given a vote of thanks for {theirHisHer} service. Those who wish to express their appreciation may manifest by the uplifted hand.',
+    tokens:['theyHeShe','theirHisHer'], silent:[],
+  },
+  sustainingIntro:{
+    section:'Ward Business', label:'Sustaining Intro',
+    text:'The following {memberHaveHas} been called. If {theyAreHeIs} here, will {theyHeShe} please stand until after the vote is taken. We have called:',
+    tokens:['memberHaveHas','theyAreHeIs','theyHeShe'], silent:[],
+  },
+  sustainingVote:{
+    section:'Ward Business', label:'Sustaining — Vote',
+    text:'We propose that {theyHeShe} be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.',
+    tokens:['theyHeShe'], silent:[],
+  },
+  sacramentIntro:{
+    section:'Sacrament', label:'Sacrament Intro',
+    text:'We will now prepare for the partaking of the Sacrament by singing hymn #{sacramentHymnNum}{sacramentHymnTitleClause}.  Following the hymn, the Sacrament will be administered by the Aaronic Priesthood.',
+    tokens:['sacramentHymnNum','sacramentHymnTitleClause'], silent:['sacramentHymnTitleClause'],
+  },
+};
+
+// Resolves the effective template text for a given agenda: per-agenda
+// override, then ward default, then the built-in system default.
+function getEffectiveScriptTemplate(templateId,agenda,wardSettings){
+  return (agenda&&agenda.scriptTemplates&&agenda.scriptTemplates[templateId])
+    || (wardSettings&&wardSettings.scriptTemplates&&wardSettings.scriptTemplates[templateId])
+    || (SCRIPT_TEMPLATE_DEFAULTS[templateId]?SCRIPT_TEMPLATE_DEFAULTS[templateId].text:'');
+}
+// Substitutes {tokens} into whichever text is passed in (the effective
+// template, or a draft the user is actively editing). Empty values become a
+// [bracket-placeholder] cue unless the token is marked "silent" (renders
+// blank instead — used for computed clauses that are legitimately optional).
+function fillScriptTemplate(templateId,text,data){
+  const def=SCRIPT_TEMPLATE_DEFAULTS[templateId];
+  if(!def)return text||'';
+  let out=text;
+  def.tokens.forEach(tok=>{
+    const val=data[tok];
+    const isSilent=def.silent.includes(tok);
+    const replacement=(val!==undefined&&val!==null&&val!=='')?String(val):(isSilent?'':`[${def.label||tok}]`);
+    out=out.split('{'+tok+'}').join(replacement);
+  });
+  return out;
+}
+function renderEffectiveScriptTemplate(templateId,agenda,wardSettings,data){
+  return fillScriptTemplate(templateId,getEffectiveScriptTemplate(templateId,agenda,wardSettings),data);
+}
+// Computes the merge-data object for every implemented template, given any
+// agenda-like object (works for both a saved agenda and an in-progress
+// wizard draft, since both use the same field names).
+function computeScriptMergeData(ag){
+  function titledNameShared(name,title){if(!name)return'';const t=title||'';if(t==='Counselor/Other')return`Brother ${name}`;if(t==='Elder'||t==='President'||t==='Bishop')return`${t} ${name}`;return name;}
+  const isFast=ag.meetingType==='Fast & Testimony';
+  const conductingFull=titledNameShared(ag.conducting,ag.conductingTitle);
+  const presidingFull=ag.presiding?titledNameShared(ag.presiding,ag.presidingTitle):'';
+  const presidingIntroClause=presidingFull?`${presidingFull}, who presides at today's meeting, has asked that I conduct.`:'';
+  function safeArr(v){if(Array.isArray(v))return v;if(!v)return[];try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}}
+  const newRecs=safeArr(ag.newRecordsList).filter(Boolean);
+  const releases=safeArr(ag.releases).filter(r=>r&&r.member);
+  const sustainings=safeArr(ag.sustainings).filter(s=>s&&s.member);
+  const relPl=releases.length>1, susPl=sustainings.length>1;
+  return {
+    welcome:{meetingKind:isFast?'Fast and Testimony Meeting':'Sacrament Meeting',ward:ag.ward},
+    introMain:{conducting:conductingFull,presidingIntro:presidingIntroClause},
+    introHighCouncil:{highCouncilor:ag.highCounselor},
+    introMusic:{chorister:ag.chorister,accompanist:ag.accompanist},
+    newRecordsIntro:{memberPlural:newRecs.length>1?'members':'member'},
+    releaseIntro:{memberHaveHas:relPl?'members have':'member has',theirHisHer:relPl?'their':'his/her'},
+    releaseVote:{theyHeShe:relPl?'they':'he/she',theirHisHer:relPl?'their':'his/her'},
+    sustainingIntro:{memberHaveHas:susPl?'members have':'member has',theyAreHeIs:susPl?'they are':'he/she is',theyHeShe:susPl?'they':'he/she'},
+    sustainingVote:{theyHeShe:susPl?'they':'he/she'},
+    sacramentIntro:{sacramentHymnNum:ag.sacramentHymnNum,sacramentHymnTitleClause:ag.sacramentHymnTitle?`, "${ag.sacramentHymnTitle}"`:''},
+  };
+}
 const SECTION_LABELS={announcements:'Announcements',openingHymnPrayer:'Opening Hymn & Prayer',stakeBusiness:'Stake Business',wardBusiness:'Ward Business',sacrament:'Sacrament',program:'Program / Speakers'};
 
 function sacSettingsFromDb(r){
@@ -1988,6 +2102,7 @@ function sacSettingsFromDb(r){
     speakerFinderStart: r.speaker_finder_start||'',
     sectionOrder: Array.isArray(r.section_order)?r.section_order:(r.section_order?JSON.parse(r.section_order):DEFAULT_SECTION_ORDER),
     scriptEnabled: r.script_enabled!==false,
+    scriptTemplates: (()=>{try{return r.script_templates?(typeof r.script_templates==='object'?r.script_templates:JSON.parse(r.script_templates)):{};}catch(e){return{};}})(),
   };
 }
 function sacSettingsToDb(s){
@@ -2000,6 +2115,7 @@ function sacSettingsToDb(s){
     speaker_finder_start: s.speakerFinderStart||'',
     section_order: JSON.stringify(s.sectionOrder||DEFAULT_SECTION_ORDER),
     script_enabled: s.scriptEnabled!==false,
+    script_templates: JSON.stringify(s.scriptTemplates||{}),
   };
 }
 async function dbSaveSacMeeting(m){
@@ -4061,6 +4177,7 @@ function renderSacConfigure(el, role, ward){
     speakerFinderStart: existing?(existing.speakerFinderStart||''):'',
     sectionOrder: existing&&existing.sectionOrder&&existing.sectionOrder.length?[...existing.sectionOrder]:[...DEFAULT_SECTION_ORDER],
     scriptEnabled: existing?existing.scriptEnabled!==false:true,
+    scriptTemplates: existing&&existing.scriptTemplates?JSON.parse(JSON.stringify(existing.scriptTemplates)):{},
   };
 
   // Role display names
@@ -4167,6 +4284,44 @@ function renderSacConfigure(el, role, ward){
   }
   buildOrderUI();
 
+  // ── Edit Script Wording (ward default) ──────────────────────────────────
+  const wordingDivider=document.createElement('hr');wordingDivider.style.cssText='border:none;border-top:1px solid #eee;margin:22px 0 18px;';
+  card.appendChild(wordingDivider);
+  const wordingHdr=document.createElement('div');wordingHdr.style.cssText='font-weight:700;font-size:14px;color:#1c2537;margin-bottom:4px;';wordingHdr.textContent='Edit Script Wording';
+  const wordingSub=document.createElement('div');wordingSub.style.cssText='font-size:12px;color:#5a5a5a;margin-bottom:6px;';
+  wordingSub.innerHTML='This becomes the new default for every future agenda. Use <code>{tokens}</code> like <code>{conducting}</code> to merge in details — a full list of tokens is shown under each box. Any agenda can still say something different just for that week.';
+  card.appendChild(wordingHdr);card.appendChild(wordingSub);
+
+  if(!draft.scriptTemplates) draft.scriptTemplates={};
+  const bySection={};
+  Object.entries(SCRIPT_TEMPLATE_DEFAULTS).forEach(([id,def])=>{
+    (bySection[def.section]=bySection[def.section]||[]).push([id,def]);
+  });
+  Object.entries(bySection).forEach(([sectionName,entries])=>{
+    const secLbl=document.createElement('div');secLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#707070;margin:14px 0 8px;';secLbl.textContent=sectionName;
+    card.appendChild(secLbl);
+    entries.forEach(([id,def])=>{
+      const row=document.createElement('div');row.style.cssText='margin-bottom:12px;';
+      const lblRow=document.createElement('div');lblRow.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+      const lbl=document.createElement('span');lbl.style.cssText='font-size:12.5px;font-weight:600;color:#1c2537;';lbl.textContent=def.label;
+      const resetBtn=document.createElement('button');resetBtn.textContent='↺ Reset to default';
+      resetBtn.style.cssText='background:none;border:none;color:#185fa5;font-size:11px;font-weight:600;cursor:pointer;padding:2px 4px;';
+      lblRow.appendChild(lbl);lblRow.appendChild(resetBtn);
+      const ta=document.createElement('textarea');ta.rows=2;
+      ta.style.cssText='width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;';
+      ta.value=draft.scriptTemplates[id]||def.text;
+      ta.addEventListener('input',()=>{
+        if(ta.value===def.text)delete draft.scriptTemplates[id];
+        else draft.scriptTemplates[id]=ta.value;
+      });
+      resetBtn.addEventListener('click',()=>{delete draft.scriptTemplates[id];ta.value=def.text;});
+      const hint=document.createElement('div');hint.style.cssText='font-size:10.5px;color:#999;margin-top:3px;';
+      hint.textContent='Tokens: '+def.tokens.map(t=>'{'+t+'}').join(', ');
+      row.appendChild(lblRow);row.appendChild(ta);row.appendChild(hint);
+      card.appendChild(row);
+    });
+  });
+
   // Speaker-finding rotation start (only when ≥2 finders and a non-finding conductor exists)
   const finderLbl=document.createElement('div');finderLbl.style.cssText='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#707070;margin:16px 0 8px;';finderLbl.textContent='Speaker-Finding Rotation';
   const finderWrap=document.createElement('div');
@@ -4217,6 +4372,7 @@ function renderSacConfigure(el, role, ward){
         speakerFinderStart:draft.speakerFinderStart||'',
         sectionOrder:draft.sectionOrder,
         scriptEnabled:draft.scriptEnabled,
+        scriptTemplates:draft.scriptTemplates||{},
       };
       await dbSaveSacSettings(toSave);
       state.sacView='schedule';
@@ -5633,10 +5789,47 @@ function renderAgendaWizard(el,role,editingAgenda){
       });
     }
     customizeCb.addEventListener('change',()=>{
-      if(!customizeCb.checked) d.sectionOrder=null;
+      if(customizeCb.checked){
+        if(!d.sectionOrder||!d.sectionOrder.length) d.sectionOrder=currentOrder();
+      } else {
+        d.sectionOrder=null;
+      }
       render();
     });
     buildOrderUI2();
+
+    // ── Edit Script Wording (this agenda) ─────────────────────────────────
+    const wordingHdr2=document.createElement('div');wordingHdr2.style.cssText='font-weight:700;font-size:13px;color:#1c2537;margin:20px 0 4px;';wordingHdr2.textContent='Edit Script Wording';
+    const wordingSub2=document.createElement('div');wordingSub2.style.cssText='font-size:11.5px;color:#707070;margin-bottom:10px;';
+    wordingSub2.textContent='Shows what it will actually say. Leave a box as-is to keep using the ward default — change it to say something different just for this week.';
+    body.appendChild(wordingHdr2);body.appendChild(wordingSub2);
+
+    if(!d.scriptTemplates) d.scriptTemplates={};
+    const mergeData2=computeScriptMergeData(d);
+    const bySection2={};
+    Object.entries(SCRIPT_TEMPLATE_DEFAULTS).forEach(([id,def])=>{
+      (bySection2[def.section]=bySection2[def.section]||[]).push([id,def]);
+    });
+    Object.entries(bySection2).forEach(([sectionName,entries])=>{
+      const secLbl2=document.createElement('div');secLbl2.style.cssText='font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#999;margin:10px 0 6px;';secLbl2.textContent=sectionName;
+      body.appendChild(secLbl2);
+      entries.forEach(([id,def])=>{
+        const row=document.createElement('div');row.style.cssText='margin-bottom:10px;';
+        const lbl=document.createElement('div');lbl.style.cssText='font-size:12px;font-weight:600;color:#1c2537;margin-bottom:4px;';lbl.textContent=def.label;
+        const ta=document.createElement('textarea');ta.rows=2;
+        ta.style.cssText='width:100%;padding:7px 9px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:12.5px;box-sizing:border-box;font-family:inherit;resize:vertical;';
+        const wardOrSystemDefault=fillScriptTemplate(id,getEffectiveScriptTemplate(id,null,state.sacSettings),mergeData2[id]||{});
+        ta.value=d.scriptTemplates[id]!==undefined?d.scriptTemplates[id]:wardOrSystemDefault;
+        ta.addEventListener('input',()=>{
+          if(ta.value===wardOrSystemDefault) delete d.scriptTemplates[id];
+          else d.scriptTemplates[id]=ta.value;
+        });
+        const hint=document.createElement('div');hint.style.cssText='font-size:10px;color:#aaa;margin-top:2px;';
+        hint.textContent='Tokens: '+def.tokens.map(t=>'{'+t+'}').join(', ');
+        row.appendChild(lbl);row.appendChild(ta);row.appendChild(hint);
+        body.appendChild(row);
+      });
+    });
   }, false));
 
   // ── Required note + Save ────────────────────────────────────────────────────
@@ -6277,20 +6470,20 @@ function buildSacramentScriptDoc(a, role, interactive){
     d2.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#636363;margin:18px 0 10px;';
     d2.textContent=lbl;doc.appendChild(d2);
   }
+  // Shortcut: resolve the effective wording (this agenda's override, else the
+  // ward's default, else the built-in default) and fill in its {tokens}.
+  const mergeData=computeScriptMergeData(a);
+  function T(templateId){return renderEffectiveScriptTemplate(templateId,a,settings,mergeData[templateId]||{});}
 
   const isFast=a.meetingType==='Fast & Testimony';
 
   // Welcome
-  scriptPara(`Good afternoon brothers and sisters. We welcome you to the ${isFast?'Fast and Testimony Meeting':'Sacrament Meeting'} for the ${a.ward} of the Church of Jesus Christ of Latter-day Saints.`);
+  scriptPara(T('welcome'));
 
   // Introduction
-  function titledName2(name,title){if(!name)return'[Name]';const t=title||'';if(t==='Counselor/Other')return`Brother ${name}`;if(t==='Elder'||t==='President'||t==='Bishop')return`${t} ${name}`;return name;}
-  const conductingFull2=titledName2(a.conducting,a.conductingTitle);
-  const presidingFull2=a.presiding?titledName2(a.presiding,a.presidingTitle):'';
-  let intro=`My name is ${conductingFull2}. ${presidingFull2?`${presidingFull2}, who presides at today's meeting, has asked that I conduct.`:''}`;
-  if(a.highCounselor)intro+=`\n\nWe welcome ${a.highCounselor} from the Stake High Council on the stand with us today.`;
-  if(a.chorister||a.accompanist)intro+=`\n\nWe'd like to extend a special thank you to our Chorister ${a.chorister||'[Chorister]'} and our Accompanist ${a.accompanist||'[Accompanist]'} who will provide the music for today's meeting.`;
-  scriptPara(intro.trim());
+  scriptPara(T('introMain'));
+  if(a.highCounselor) scriptPara(T('introHighCouncil'));
+  if(a.chorister||a.accompanist) scriptPara(T('introMusic'));
 
   const sections={};
 
@@ -6330,12 +6523,12 @@ function buildSacramentScriptDoc(a, role, interactive){
     sectionDiv('Ward Business');
     scriptPara('Before we Continue with the Sacrament portion of our program, we have some Ward Business to take care of.');
     if(newRecs.length){
-      scriptPara(`We'd like to welcome the following member${newRecs.length>1?'s':''} whose records have been received into our ward:`);
+      scriptPara(T('newRecordsIntro'));
       agendaItem('New Record(s)',newRecs.join('<br>'));
     }
     if(releases.length){
       const pl=releases.length>1;
-      scriptPara(`The following member${pl?'s have':' has'} been released from ${pl?'their':'his/her'} calling:`);
+      scriptPara(T('releaseIntro'));
 
       // Release agenda items with optional "mark complete" checkbox for linked callings
       const relDiv=document.createElement('div');relDiv.style.cssText='margin-bottom:8px;';
@@ -6374,11 +6567,11 @@ function buildSacramentScriptDoc(a, role, interactive){
       });
       doc.appendChild(relDiv);
 
-      scriptPara(`We propose that ${pl?'they':'he/she'} be given a vote of thanks for ${pl?'their':'his/her'} service. Those who wish to express their appreciation may manifest by the uplifted hand.`);
+      scriptPara(T('releaseVote'));
     }
     if(sustainings.length){
       const pl=sustainings.length>1;
-      scriptPara(`The following member${pl?'s have':' has'} been called. If ${pl?'they are':'he/she is'} here, will ${pl?'they':'he/she'} please stand until after the vote is taken. We have called:`);
+      scriptPara(T('sustainingIntro'));
 
       // Sustaining agenda items with optional "mark complete" checkbox for linked callings
       const susDiv=document.createElement('div');susDiv.style.cssText='margin-bottom:8px;';
@@ -6417,7 +6610,7 @@ function buildSacramentScriptDoc(a, role, interactive){
       });
       doc.appendChild(susDiv);
 
-      scriptPara(`We propose that ${pl?'they':'he/she'} be sustained. Those in favor may manifest it by the uplifted hand. [Pause briefly for the sustaining vote.] Those opposed, if any, may manifest it. [Pause briefly to allow for a dissenting vote, if any.] Thank you.`);
+      scriptPara(T('sustainingVote'));
     }
     if(ords.length){
       ords.forEach(o=>scriptPara(`We will now proceed with the ordination of ${o.member} to the office of ${o.office} in the ${['Deacon','Teacher','Priest'].includes(o.office)?'Aaronic':'Melchizedek'} Priesthood.`));
@@ -6436,7 +6629,7 @@ function buildSacramentScriptDoc(a, role, interactive){
 
   sections.sacrament=function(){
   sectionDiv('Sacrament');
-  scriptPara(`We will now prepare for the partaking of the Sacrament by singing hymn #${a.sacramentHymnNum||'[hymn number]'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}.  Following the hymn, the Sacrament will be administered by the Aaronic Priesthood.`);
+  scriptPara(T('sacramentIntro'));
   if(a.sacramentHymnNum||a.sacramentHymnTitle)
     agendaItem('Sacrament Hymn',`#${a.sacramentHymnNum||'—'}${a.sacramentHymnTitle?`, "${a.sacramentHymnTitle}"`:''}`);
   agendaItem('Administration','Sacrament administered by the Aaronic Priesthood');
