@@ -5276,7 +5276,10 @@ function renderSimpleAgendaForm(el,role,categoryKey){
       window._agendaDraft=null;state.detailId=result.data.id;state.view='detail';render();
     }catch(e){alert('Error: '+e.message);saveBtn.disabled=false;saveBtn.textContent=isEditing?'Save Changes':'Save Agenda';}
   });
-  card.appendChild(saveBtn);el.appendChild(card);
+  const stickyFooter2=document.createElement('div');
+  stickyFooter2.style.cssText='position:sticky;bottom:0;background:#fff;padding:14px 0 4px;margin-top:8px;box-shadow:0 -6px 12px -6px rgba(0,0,0,0.12);';
+  stickyFooter2.appendChild(saveBtn);
+  card.appendChild(stickyFooter2);el.appendChild(card);
 }
 
 function renderAgendaWizard(el,role,editingAgenda){
@@ -5838,8 +5841,7 @@ function renderAgendaWizard(el,role,editingAgenda){
 
   const submitBtn=document.createElement('button');submitBtn.className='btn-primary';
   submitBtn.style.cssText='width:100%;padding:14px;font-size:15px;border-radius:10px;';
-  submitBtn.textContent=isEditing?'Save Changes':'Save Agenda & Generate Script';
-  submitBtn.addEventListener('click',()=>{
+  submitBtn.textContent=isEditing?'Save Changes':'Save Agenda & Generate Script';  submitBtn.addEventListener('click',()=>{
     if(!d.date){alert('Please enter a meeting date.');return;}
     if(role.scope==='stake'&&!d.ward){alert('Please select which ward this is for.');return;}
     if(!d.conducting){alert('Please enter who is conducting.');return;}
@@ -5872,7 +5874,10 @@ function renderAgendaWizard(el,role,editingAgenda){
       });
     }
   });
-  el.appendChild(submitBtn);
+  const stickyFooter=document.createElement('div');
+  stickyFooter.style.cssText='position:sticky;bottom:0;background:#f0f2f5;padding:14px 0 4px;margin-top:8px;box-shadow:0 -6px 12px -6px rgba(0,0,0,0.12);z-index:10;';
+  stickyFooter.appendChild(submitBtn);
+  el.appendChild(stickyFooter);
 }
 
 
